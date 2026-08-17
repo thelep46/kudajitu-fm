@@ -1,77 +1,993 @@
 <!DOCTYPE html>
 <html lang="id">
-  <head>
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Office Jukebox Request</title>
+    <title>Office Jukebox & Request Lagu</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-  </head>
-  <body class="bg-slate-900 flex items-center justify-center min-h-screen p-4">
-    <div class="bg-slate-800 text-white p-6 rounded-2xl shadow-xl w-full max-w-md border border-slate-700">
-      <h2 class="text-2xl font-bold mb-2 text-center text-indigo-400">🎵 Office Request Lagu</h2>
-      <p class="text-xs text-slate-400 text-center mb-6">Minta lagu favoritmu untuk diputar di kantor!</p>
-      
-      <form id="songForm" class="space-y-4">
-        <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Nama Kamu</label>
-          <input type="text" id="nama" required class="w-full p-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Judul Lagu</label>
-          <input type="text" id="judul" required class="w-full p-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Penyanyi / Band</label>
-          <input type="text" id="penyanyi" required class="w-full p-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Pesan / Catatan (Opsional)</label>
-          <textarea id="catatan" rows="2" class="w-full p-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500"></textarea>
-        </div>
-        <button type="submit" id="submitBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg transition duration-200">Kirim Request</button>
-      </form>
-      
-      <div id="status" class="mt-4 p-3 rounded-lg text-center font-medium hidden"></div>
-    </div>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- QRCode JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <script>
-      const scriptURL = 'https://script.google.com/macros/s/AKfycbyUB8drjL1dSJedYjKIKjVc5gzIE3Pe-QS0FF8o1_zU4NkAweGLFquhHLfy1Nt_eITA-Q/exec'; // Ganti dengan URL Web App Anda
-
-      document.getElementById("songForm").addEventListener("submit", function(e) {
-        e.preventDefault();
-        const btn = document.getElementById("submitBtn");
-        const statusDiv = document.getElementById("status");
-        
-        btn.innerText = "Mengirim...";
-        btn.disabled = true;
-
-        const requestData = {
-          nama: document.getElementById("nama").value,
-          judul: document.getElementById("judul").value,
-          penyanyi: document.getElementById("penyanyi").value,
-          catatan: document.getElementById("catatan").value
-        };
-
-        fetch(scriptURL, {
-          method: 'POST',
-          mode: 'no-cors', // Diperlukan untuk bypass CORS Google Apps Script
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestData)
-        })
-        .then(() => {
-          statusDiv.innerText = "Lagu berhasil dikirim ke antrean!";
-          statusDiv.className = "mt-4 p-3 rounded-lg text-center font-medium bg-emerald-500/20 text-emerald-400";
-          btn.innerText = "Kirim Request";
-          btn.disabled = false;
-          document.getElementById("songForm").reset();
-        })
-        .catch(error => {
-          statusDiv.innerText = "Gagal mengirim, silakan coba lagi.";
-          statusDiv.className = "mt-4 p-3 rounded-lg text-center font-medium bg-red-500/20 text-red-400";
-          btn.innerText = "Kirim Request";
-          btn.disabled = false;
-        });
-      });
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f5ff',
+                            100: '#e0ebff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#1e1b4b',
+                        },
+                        neon: {
+                            purple: '#a855f7',
+                            pink: '#ec4899',
+                            cyan: '#06b6d4',
+                            green: '#10b981'
+                        }
+                    }
+                }
+            }
+        }
     </script>
-  </body>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0b0f19;
+            color: #f3f4f6;
+        }
+
+        /* Glassmorphism Effect */
+        .glass-card {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-card-hover:hover {
+            background: rgba(31, 41, 55, 0.8);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+
+        /* Animated Music Wave Bar */
+        .equalizer-bar {
+            animation: bounce 1.2s ease-in-out infinite alternate;
+        }
+        .equalizer-bar:nth-child(2) { animation-delay: 0.2s; }
+        .equalizer-bar:nth-child(3) { animation-delay: 0.4s; }
+        .equalizer-bar:nth-child(4) { animation-delay: 0.1s; }
+
+        @keyframes bounce {
+            0% { height: 4px; }
+            100% { height: 20px; }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between antialiased selection:bg-brand-500 selection:text-white">
+
+    <!-- HEADER / NAVIGATION -->
+    <header class="sticky top-0 z-40 glass-card border-b border-gray-800/80 px-4 lg:px-8 py-3">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <!-- Logo & Brand -->
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 via-neon-purple to-neon-pink p-0.5 shadow-lg shadow-brand-500/20">
+                    <div class="w-full h-full bg-gray-950 rounded-[10px] flex items-center justify-center text-neon-pink">
+                        <i class="fa-solid fa-compact-disc fa-spin text-xl text-brand-500"></i>
+                    </div>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-lg md:text-xl tracking-tight bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent flex items-center gap-2">
+                        Office Jukebox
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-400 border border-brand-500/20">v2.0</span>
+                    </h1>
+                    <p class="text-xs text-gray-400 hidden sm:block">Request lagu favoritmu & dengarkan bersama di kantor</p>
+                </div>
+            </div>
+
+            <!-- View Switcher Tabs & Controls -->
+            <div class="flex items-center space-x-2 md:space-x-3">
+                <!-- Share QR Button -->
+                <button onclick="openQRModal()" class="px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs md:text-sm font-medium transition flex items-center gap-2 border border-gray-700/50" title="Bagikan QR Code">
+                    <i class="fa-solid fa-qrcode text-brand-400"></i>
+                    <span class="hidden md:inline">Bagikan Link</span>
+                </button>
+
+                <!-- Mode Selector -->
+                <div class="bg-gray-900/90 p-1 rounded-xl border border-gray-800 flex items-center">
+                    <button id="btn-user-mode" onclick="switchMode('user')" class="px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-brand-600 text-white shadow-md">
+                        <i class="fa-solid fa-music"></i>
+                        <span>User Request</span>
+                    </button>
+                    <button id="btn-admin-mode" onclick="switchMode('admin')" class="px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold text-gray-400 hover:text-white transition-all duration-200 flex items-center gap-2">
+                        <i class="fa-solid fa-user-shield"></i>
+                        <span>Panel Admin</span>
+                        <span id="badge-pending" class="bg-neon-pink text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold ml-0.5 hidden">0</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="max-w-7xl mx-auto px-4 lg:px-8 py-6 flex-1 w-full space-y-6">
+
+        <!-- NOW PLAYING BANNER -->
+        <div id="now-playing-container" class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-gray-900 via-indigo-950 to-purple-950 p-5 md:p-6 border border-indigo-500/30 shadow-2xl">
+            <!-- Decorative Glow Background -->
+            <div class="absolute -right-10 -bottom-10 w-60 h-60 bg-brand-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -left-10 -top-10 w-60 h-60 bg-neon-purple/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-4 md:gap-6 w-full md:w-auto">
+                    <!-- Disk Visualizer -->
+                    <div class="relative flex-shrink-0">
+                        <div id="now-playing-disc" class="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gray-900 border-2 border-brand-500/50 flex items-center justify-center shadow-lg shadow-brand-500/20">
+                            <i class="fa-solid fa-music text-2xl md:text-3xl text-brand-400 animate-pulse"></i>
+                        </div>
+                        <div class="absolute -bottom-1 -right-1 bg-neon-green text-gray-950 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow">
+                            <span class="w-1.5 h-1.5 rounded-full bg-gray-950 animate-ping"></span>
+                            NOW PLAYING
+                        </div>
+                    </div>
+
+                    <!-- Song Info -->
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                            <div class="flex items-end gap-1 h-4">
+                                <span class="w-1 bg-neon-cyan rounded-full equalizer-bar"></span>
+                                <span class="w-1 bg-neon-purple rounded-full equalizer-bar"></span>
+                                <span class="w-1 bg-neon-pink rounded-full equalizer-bar"></span>
+                                <span class="w-1 bg-brand-500 rounded-full equalizer-bar"></span>
+                            </div>
+                            <span class="text-xs uppercase tracking-wider font-bold text-neon-cyan">Sedang Diputar</span>
+                        </div>
+                        <h2 id="np-title" class="text-lg md:text-2xl font-extrabold text-white truncate">Belum ada lagu diputar</h2>
+                        <p id="np-artist" class="text-sm text-gray-300 truncate">Pilih lagu dari panel admin atau tunggu giliran</p>
+                        <p id="np-requester" class="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                            <i class="fa-solid fa-user-circle text-brand-400"></i>
+                            <span>Direquest oleh: <strong id="np-requester-name" class="text-gray-200">-</strong></span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Live Quick Stats -->
+                <div class="flex items-center gap-3 w-full md:w-auto justify-end border-t md:border-t-0 border-gray-800/80 pt-3 md:pt-0">
+                    <div class="bg-gray-900/80 px-4 py-2 rounded-xl border border-gray-800 text-center flex-1 md:flex-initial">
+                        <span class="block text-xs text-gray-400">Di Antrean</span>
+                        <span id="stat-pending-count" class="text-lg font-bold text-neon-pink">0</span>
+                    </div>
+                    <div class="bg-gray-900/80 px-4 py-2 rounded-xl border border-gray-800 text-center flex-1 md:flex-initial">
+                        <span class="block text-xs text-gray-400">Selesai</span>
+                        <span id="stat-played-count" class="text-lg font-bold text-neon-green">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 1: USER REQUEST SECTION -->
+        <div id="view-user" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Request Form (Left Column on Desktop) -->
+            <div class="lg:col-span-5">
+                <div class="glass-card rounded-2xl p-6 sticky top-24 border border-gray-800">
+                    <div class="flex items-center justify-between mb-5">
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-paper-plane text-brand-400"></i>
+                            Request Lagu Baru
+                        </h3>
+                        <span class="text-xs bg-brand-500/10 text-brand-400 px-2.5 py-1 rounded-full border border-brand-500/20 font-medium">
+                            <i class="fa-solid fa-bolt mr-1"></i>Langsung Sync
+                        </span>
+                    </div>
+
+                    <form id="form-request" onsubmit="handleRequestSubmit(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
+                                Nama Kamu <span class="text-neon-pink">*</span>
+                            </label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
+                                    <i class="fa-solid fa-user text-sm"></i>
+                                </span>
+                                <input type="text" id="input-requester" required placeholder="Contoh: Budi (Divisi IT)" 
+                                    class="w-full bg-gray-900/90 border border-gray-700/80 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
+                                Judul Lagu <span class="text-neon-pink">*</span>
+                            </label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
+                                    <i class="fa-solid fa-music text-sm"></i>
+                                </span>
+                                <input type="text" id="input-title" required placeholder="Contoh: Hati-Hati di Jalan" 
+                                    class="w-full bg-gray-900/90 border border-gray-700/80 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
+                                Penyanyi / Band <span class="text-neon-pink">*</span>
+                            </label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
+                                    <i class="fa-solid fa-microphone-lines text-sm"></i>
+                                </span>
+                                <input type="text" id="input-artist" required placeholder="Contoh: Tulus" 
+                                    class="w-full bg-gray-900/90 border border-gray-700/80 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
+                                Pesan / Catatan (Opsional)
+                            </label>
+                            <div class="relative">
+                                <span class="absolute top-3 left-0 pl-3.5 flex items-start pointer-events-none text-gray-500">
+                                    <i class="fa-solid fa-comment-dots text-sm"></i>
+                                </span>
+                                <textarea id="input-note" rows="2" placeholder="Pesan semangat untuk tim atau alasan memilih lagu..." 
+                                    class="w-full bg-gray-900/90 border border-gray-700/80 rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition"></textarea>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="w-full bg-gradient-to-r from-brand-600 via-indigo-600 to-neon-purple hover:from-brand-500 hover:to-neon-pink text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 transition duration-200 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            <span>Kirim Request Sekarang</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Requested Songs List View (Right Column on Desktop) -->
+            <div class="lg:col-span-7 space-y-4">
+                <!-- Search & Filters -->
+                <div class="glass-card rounded-2xl p-4 border border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div class="relative w-full sm:w-64">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                            <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                        </span>
+                        <input type="text" id="user-search-input" onkeyup="filterUserList()" placeholder="Cari lagu / penyanyi..." 
+                            class="w-full bg-gray-900 border border-gray-700/80 rounded-xl py-1.5 pl-9 pr-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-brand-500">
+                    </div>
+
+                    <!-- Category Pills -->
+                    <div class="flex items-center gap-1 bg-gray-900/90 p-1 rounded-xl border border-gray-800 w-full sm:w-auto justify-center">
+                        <button onclick="setUserFilter('all')" id="ufilter-all" class="px-3 py-1 rounded-lg text-xs font-semibold bg-brand-600 text-white">Semua</button>
+                        <button onclick="setUserFilter('pending')" id="ufilter-pending" class="px-3 py-1 rounded-lg text-xs font-semibold text-gray-400 hover:text-white">Menunggu</button>
+                        <button onclick="setUserFilter('played')" id="ufilter-played" class="px-3 py-1 rounded-lg text-xs font-semibold text-gray-400 hover:text-white">Selesai</button>
+                    </div>
+                </div>
+
+                <!-- Song Cards Feed -->
+                <div id="user-song-feed" class="space-y-3">
+                    <!-- Populated dynamically by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 2: ADMIN MANAGEMENT PANEL SECTION -->
+        <div id="view-admin" class="hidden space-y-6">
+            <!-- Admin Top Tools Bar -->
+            <div class="glass-card rounded-2xl p-5 border border-gray-800 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-brand-400"></i>
+                        Dashboard Pengelola Request (Admin)
+                    </h2>
+                    <p class="text-xs text-gray-400 mt-0.5">Centang checkbox saat lagu diputar, urutkan, atau hapus request dari antrean.</p>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                    <!-- Direct Action Buttons -->
+                    <button onclick="markAllPlayed()" class="px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-semibold transition border border-gray-700 flex items-center gap-2">
+                        <i class="fa-solid fa-check-double text-neon-green"></i>
+                        Tandai Semua Selesai
+                    </button>
+                    <button onclick="confirmClearAll()" class="px-3 py-2 rounded-xl bg-red-950/60 hover:bg-red-900/80 text-red-300 text-xs font-semibold transition border border-red-800/50 flex items-center gap-2">
+                        <i class="fa-solid fa-trash-can"></i>
+                        Bersihkan Semua
+                    </button>
+                </div>
+            </div>
+
+            <!-- Admin Filters & Search -->
+            <div class="glass-card rounded-2xl p-4 border border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div class="relative w-full sm:w-80">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                        <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                    </span>
+                    <input type="text" id="admin-search-input" onkeyup="renderAdminTable()" placeholder="Filter berdasarkan nama, lagu, atau penyanyi..." 
+                        class="w-full bg-gray-900 border border-gray-700/80 rounded-xl py-2 pl-9 pr-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-brand-500">
+                </div>
+
+                <div class="flex items-center gap-1 bg-gray-900 p-1 rounded-xl border border-gray-800">
+                    <button onclick="setAdminFilter('all')" id="afilter-all" class="px-3 py-1 rounded-lg text-xs font-semibold bg-brand-600 text-white">Semua (<span id="cnt-all">0</span>)</button>
+                    <button onclick="setAdminFilter('pending')" id="afilter-pending" class="px-3 py-1 rounded-lg text-xs font-semibold text-gray-400 hover:text-white">Menunggu (<span id="cnt-pending">0</span>)</button>
+                    <button onclick="setAdminFilter('played')" id="afilter-played" class="px-3 py-1 rounded-lg text-xs font-semibold text-gray-400 hover:text-white">Selesai (<span id="cnt-played">0</span>)</button>
+                </div>
+            </div>
+
+            <!-- Admin Request Table -->
+            <div class="glass-card rounded-2xl border border-gray-800 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-900/90 text-gray-400 text-[11px] uppercase tracking-wider border-b border-gray-800">
+                                <th class="p-4 text-center w-12">Diputar?</th>
+                                <th class="p-4">Lagu & Penyanyi</th>
+                                <th class="p-4">Peminta</th>
+                                <th class="p-4">Waktu Request</th>
+                                <th class="p-4 text-center">Vote</th>
+                                <th class="p-4 text-center">Status</th>
+                                <th class="p-4 text-right">Aksi & Cari</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-table-body" class="divide-y divide-gray-800/60 text-sm">
+                            <!-- Populated dynamically by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="admin-empty-state" class="p-12 text-center hidden">
+                    <div class="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-500">
+                        <i class="fa-solid fa-inbox text-2xl"></i>
+                    </div>
+                    <h4 class="text-gray-300 font-semibold">Tidak ada permintaan lagu</h4>
+                    <p class="text-xs text-gray-500 mt-1">Lagu yang direquest oleh teman-teman Anda akan muncul di sini secara real-time.</p>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-gray-800/80 glass-card mt-12 py-4 px-4 text-center text-xs text-gray-500">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+            <p>© 2026 Office Jukebox Manager. Dikembangkan untuk keceriaan tim kantor Anda.</p>
+            <div class="flex items-center space-x-3 text-gray-400">
+                <span class="flex items-center gap-1"><i class="fa-solid fa-wifi text-neon-green text-[10px]"></i> Local Storage Auto-Sync</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- QR CODE & SHARE MODAL -->
+    <div id="modal-qr" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="glass-card rounded-2xl max-w-sm w-full p-6 border border-gray-700 text-center relative space-y-4">
+            <button onclick="closeQRModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="w-12 h-12 rounded-xl bg-brand-500/20 text-brand-400 flex items-center justify-center mx-auto">
+                <i class="fa-solid fa-qrcode text-2xl"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold text-white">Bagikan Akses Request</h3>
+                <p class="text-xs text-gray-400 mt-1">Teman-teman kantor dapat me-scan QR code ini atau menggunakan URL untuk memilih lagu.</p>
+            </div>
+            
+            <div class="bg-white p-4 rounded-xl inline-block mx-auto shadow-inner">
+                <div id="qrcode-container"></div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <input type="text" id="share-url-input" readonly class="bg-gray-900 border border-gray-700 text-xs text-gray-300 rounded-lg p-2.5 w-full focus:outline-none truncate">
+                <button onclick="copyShareURL()" class="bg-brand-600 hover:bg-brand-500 text-white px-3 py-2.5 rounded-lg text-xs font-semibold flex-shrink-0 transition">
+                    <i class="fa-solid fa-copy"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // DATA STRUCTURE & STATE MANAGEMENT
+        const STORAGE_KEY = 'office_jukebox_requests_v2';
+        let requests = [];
+        let currentMode = 'user'; // 'user' or 'admin'
+        let userFilter = 'all';  // 'all', 'pending', 'played'
+        let adminFilter = 'all'; // 'all', 'pending', 'played'
+
+        // SAMPLE DEFAULT DATA FOR INITIAL DEMO
+        const defaultRequests = [
+            {
+                id: 'req_1',
+                requester: 'Rian (Marketing)',
+                title: 'Hati-Hati di Jalan',
+                artist: 'Tulus',
+                note: 'Semangat untuk tim yang lagi ngejar deadline kuartal!',
+                timestamp: new Date(Date.now() - 25 * 60000).toISOString(),
+                status: 'playing', // 'pending', 'playing', 'played'
+                votes: 5
+            },
+            {
+                id: 'req_2',
+                requester: 'Siti (HRD)',
+                title: 'Selamat Pagi',
+                artist: 'Ran',
+                note: 'Biar suasana pagi makin cerah!',
+                timestamp: new Date(Date.now() - 15 * 60000).toISOString(),
+                status: 'pending',
+                votes: 3
+            },
+            {
+                id: 'req_3',
+                requester: 'Budi (Developer)',
+                title: 'Bohemian Rhapsody',
+                artist: 'Queen',
+                note: 'Lagu wajib saat ngoding rumit.',
+                timestamp: new Date(Date.now() - 40 * 60000).toISOString(),
+                status: 'played',
+                votes: 8
+            }
+        ];
+
+        // INITIALIZATION
+        document.addEventListener('DOMContentLoaded', () => {
+            loadRequests();
+            setupAutoSync();
+            renderAll();
+            setupQRModal();
+        });
+
+        // LOCAL STORAGE & REALTIME SYNC (STORAGE EVENT)
+        function loadRequests() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            if (data) {
+                try {
+                    requests = JSON.parse(data);
+                } catch (e) {
+                    requests = defaultRequests;
+                }
+            } else {
+                requests = defaultRequests;
+                saveRequests(false);
+            }
+        }
+
+        function saveRequests(triggerToast = true) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(requests));
+            // Dispatch custom storage event for same-tab reactive updates
+            window.dispatchEvent(new Event('jukebox-data-updated'));
+        }
+
+        function setupAutoSync() {
+            // Listen to cross-tab updates via native storage event
+            window.addEventListener('storage', (e) => {
+                if (e.key === STORAGE_KEY) {
+                    loadRequests();
+                    renderAll();
+                    showToast('Ada pembaruan request dari perangkat lain!', 'info');
+                }
+            });
+
+            // Listen to same-tab updates
+            window.addEventListener('jukebox-data-updated', () => {
+                renderAll();
+            });
+        }
+
+        // RENDER FUNCTIONS
+        function renderAll() {
+            renderNowPlaying();
+            renderUserFeed();
+            renderAdminTable();
+            updateStats();
+        }
+
+        function updateStats() {
+            const pendingCount = requests.filter(r => r.status === 'pending').length;
+            const playedCount = requests.filter(r => r.status === 'played').length;
+
+            document.getElementById('stat-pending-count').innerText = pendingCount;
+            document.getElementById('stat-played-count').innerText = playedCount;
+
+            // Admin tab badge
+            const badge = document.getElementById('badge-pending');
+            if (pendingCount > 0) {
+                badge.innerText = pendingCount;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+
+            // Admin counters
+            document.getElementById('cnt-all').innerText = requests.length;
+            document.getElementById('cnt-pending').innerText = pendingCount;
+            document.getElementById('cnt-played').innerText = playedCount;
+        }
+
+        function renderNowPlaying() {
+            const playingSong = requests.find(r => r.status === 'playing');
+            const disc = document.getElementById('now-playing-disc');
+
+            if (playingSong) {
+                document.getElementById('np-title').innerText = playingSong.title;
+                document.getElementById('np-artist').innerText = playingSong.artist;
+                document.getElementById('np-requester-name').innerText = playingSong.requester;
+                disc.classList.add('animate-spin');
+            } else {
+                document.getElementById('np-title').innerText = 'Tidak Ada Lagu Diputar';
+                document.getElementById('np-artist').innerText = 'Silakan pilih lagu dari antrean di bawah';
+                document.getElementById('np-requester-name').innerText = '-';
+                disc.classList.remove('animate-spin');
+            }
+        }
+
+        // USER FEED RENDER
+        function renderUserFeed() {
+            const container = document.getElementById('user-song-feed');
+            const searchQuery = document.getElementById('user-search-input').value.toLowerCase();
+
+            let filtered = requests.filter(r => {
+                const matchSearch = r.title.toLowerCase().includes(searchQuery) ||
+                                    r.artist.toLowerCase().includes(searchQuery) ||
+                                    r.requester.toLowerCase().includes(searchQuery);
+                
+                if (!matchSearch) return false;
+                if (userFilter === 'pending') return r.status === 'pending' || r.status === 'playing';
+                if (userFilter === 'played') return r.status === 'played';
+                return true;
+            });
+
+            // Sort: playing first, then votes, then newest
+            filtered.sort((a, b) => {
+                if (a.status === 'playing') return -1;
+                if (b.status === 'playing') return 1;
+                if (b.votes !== a.votes) return b.votes - a.votes;
+                return new Date(b.timestamp) - new Date(a.timestamp);
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="glass-card rounded-2xl p-8 text-center text-gray-400">
+                        <i class="fa-solid fa-music-slash text-3xl mb-2 text-gray-600"></i>
+                        <p class="text-sm font-semibold">Belum ada lagu dalam kategori ini.</p>
+                        <p class="text-xs text-gray-500">Jadilah yang pertama me-request lagu!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filtered.map(item => {
+                let statusBadge = '';
+                let borderClass = 'border-gray-800';
+
+                if (item.status === 'playing') {
+                    statusBadge = `<span class="bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/30 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-neon-cyan animate-ping"></span> DIPUTAR NOW
+                                   </span>`;
+                    borderClass = 'border-neon-cyan/50 bg-indigo-950/20';
+                } else if (item.status === 'played') {
+                    statusBadge = `<span class="bg-neon-green/10 text-neon-green border border-neon-green/20 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                                    <i class="fa-solid fa-check mr-1"></i>Selesai
+                                   </span>`;
+                } else {
+                    statusBadge = `<span class="bg-gray-800 text-gray-300 border border-gray-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                                    <i class="fa-solid fa-clock mr-1 text-amber-400"></i>Menunggu
+                                   </span>`;
+                }
+
+                return `
+                    <div class="glass-card glass-card-hover rounded-2xl p-4 border ${borderClass} transition duration-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div class="flex items-start gap-3.5 flex-1 min-w-0">
+                            <div class="w-10 h-10 rounded-xl bg-gray-800 border border-gray-700 flex items-center justify-center text-brand-400 font-bold text-base flex-shrink-0 mt-0.5">
+                                <i class="${item.status === 'playing' ? 'fa-solid fa-compact-disc fa-spin text-neon-cyan' : 'fa-solid fa-music'}"></i>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center gap-2 flex-wrap mb-1">
+                                    <h4 class="font-bold text-white text-base truncate">${escapeHtml(item.title)}</h4>
+                                    ${statusBadge}
+                                </div>
+                                <p class="text-xs text-gray-300 truncate font-medium">
+                                    <i class="fa-solid fa-microphone-lines text-gray-500 mr-1"></i>${escapeHtml(item.artist)}
+                                </p>
+                                ${item.note ? `<p class="text-xs text-brand-300/80 italic mt-1 line-clamp-1 bg-brand-950/40 px-2 py-0.5 rounded border border-brand-500/10">"${escapeHtml(item.note)}"</p>` : ''}
+                                <div class="flex items-center gap-3 mt-2 text-[11px] text-gray-400">
+                                    <span><i class="fa-solid fa-user text-gray-500 mr-1"></i>${escapeHtml(item.requester)}</span>
+                                    <span>•</span>
+                                    <span>${timeAgo(item.timestamp)}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Upvote Button -->
+                        <div class="flex items-center gap-2 self-end sm:self-center">
+                            <button onclick="upvoteRequest('${item.id}')" class="px-3 py-1.5 rounded-xl bg-gray-800/90 hover:bg-brand-600/30 hover:border-brand-500/50 text-gray-300 hover:text-brand-300 border border-gray-700/80 text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-thumbs-up text-brand-400"></i>
+                                <span>${item.votes || 0}</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ADMIN TABLE RENDER
+        function renderAdminTable() {
+            const tbody = document.getElementById('admin-table-body');
+            const emptyState = document.getElementById('admin-empty-state');
+            const searchQuery = document.getElementById('admin-search-input').value.toLowerCase();
+
+            let filtered = requests.filter(r => {
+                const matchSearch = r.title.toLowerCase().includes(searchQuery) ||
+                                    r.artist.toLowerCase().includes(searchQuery) ||
+                                    r.requester.toLowerCase().includes(searchQuery);
+                
+                if (!matchSearch) return false;
+                if (adminFilter === 'pending') return r.status === 'pending' || r.status === 'playing';
+                if (adminFilter === 'played') return r.status === 'played';
+                return true;
+            });
+
+            // Order by pending/playing first
+            filtered.sort((a, b) => {
+                if (a.status === 'playing') return -1;
+                if (b.status === 'playing') return 1;
+                if (a.status === 'pending' && b.status === 'played') return -1;
+                if (a.status === 'played' && b.status === 'pending') return 1;
+                return new Date(b.timestamp) - new Date(a.timestamp);
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            tbody.innerHTML = filtered.map(item => {
+                const isPlayed = item.status === 'played';
+                const isPlaying = item.status === 'playing';
+
+                // YouTube Search URL for Admin ease of play
+                const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(item.artist + ' ' + item.title)}`;
+
+                return `
+                    <tr class="hover:bg-gray-800/40 transition duration-150 ${isPlayed ? 'opacity-60 bg-gray-950/40' : ''}">
+                        <!-- CHECKBOX UTAMA UNTUK ADMIN -->
+                        <td class="p-4 text-center">
+                            <input type="checkbox" ${isPlayed ? 'checked' : ''} 
+                                onchange="togglePlayedCheckbox('${item.id}', this.checked)"
+                                title="Tandai sudah diputar"
+                                class="w-5 h-5 rounded border-gray-700 bg-gray-900 text-neon-green focus:ring-neon-green focus:ring-offset-gray-900 cursor-pointer">
+                        </td>
+
+                        <!-- Title & Artist -->
+                        <td class="p-4">
+                            <div class="font-bold text-white ${isPlayed ? 'line-through text-gray-400' : ''}">${escapeHtml(item.title)}</div>
+                            <div class="text-xs text-gray-400"><i class="fa-solid fa-microphone-lines mr-1 text-gray-500"></i>${escapeHtml(item.artist)}</div>
+                            ${item.note ? `<div class="text-[11px] text-brand-300 italic mt-0.5">"${escapeHtml(item.note)}"</div>` : ''}
+                        </td>
+
+                        <!-- Requester -->
+                        <td class="p-4 text-xs text-gray-300 font-medium">
+                            <i class="fa-solid fa-user-circle text-gray-500 mr-1"></i>${escapeHtml(item.requester)}
+                        </td>
+
+                        <!-- Timestamp -->
+                        <td class="p-4 text-xs text-gray-400">
+                            ${timeAgo(item.timestamp)}
+                        </td>
+
+                        <!-- Votes -->
+                        <td class="p-4 text-center text-xs font-bold text-brand-400">
+                            👍 ${item.votes || 0}
+                        </td>
+
+                        <!-- Status Badge -->
+                        <td class="p-4 text-center">
+                            ${isPlaying ? 
+                                `<span class="bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/30 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-neon-cyan animate-ping"></span> Diputar
+                                 </span>` :
+                              isPlayed ? 
+                                `<span class="bg-neon-green/10 text-neon-green border border-neon-green/20 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                    <i class="fa-solid fa-check mr-1"></i>Selesai
+                                 </span>` :
+                                `<span class="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                    Menunggu
+                                 </span>`
+                            }
+                        </td>
+
+                        <!-- Admin Actions -->
+                        <td class="p-4 text-right space-x-1">
+                            <!-- Play Now Button -->
+                            ${!isPlaying && !isPlayed ? `
+                                <button onclick="setNowPlaying('${item.id}')" title="Putar Sekarang" 
+                                    class="px-2.5 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 text-xs font-semibold transition">
+                                    <i class="fa-solid fa-play"></i>
+                                </button>
+                            ` : ''}
+
+                            <!-- Search on YouTube -->
+                            <a href="${ytSearchUrl}" target="_blank" title="Cari di YouTube" 
+                                class="inline-block px-2.5 py-1.5 rounded-lg bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white border border-red-500/30 text-xs font-semibold transition">
+                                <i class="fa-brands fa-youtube"></i>
+                            </a>
+
+                            <!-- Delete -->
+                            <button onclick="deleteRequest('${item.id}')" title="Hapus Request" 
+                                class="px-2.5 py-1.5 rounded-lg bg-gray-800 hover:bg-red-900/60 text-gray-400 hover:text-red-300 border border-gray-700 text-xs transition">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // HANDLERS & ACTIONS
+        function handleRequestSubmit(e) {
+            e.preventDefault();
+            const requester = document.getElementById('input-requester').value.trim();
+            const title = document.getElementById('input-title').value.trim();
+            const artist = document.getElementById('input-artist').value.trim();
+            const note = document.getElementById('input-note').value.trim();
+
+            if (!requester || !title || !artist) return;
+
+            const newReq = {
+                id: 'req_' + Date.now(),
+                requester,
+                title,
+                artist,
+                note,
+                timestamp: new Date().toISOString(),
+                status: 'pending',
+                votes: 1
+            };
+
+            requests.unshift(newReq);
+            saveRequests();
+
+            // Reset Form (keep requester name for convenience)
+            document.getElementById('input-title').value = '';
+            document.getElementById('input-artist').value = '';
+            document.getElementById('input-note').value = '';
+
+            showToast(`Request lagu "${title}" berhasil dikirim!`, 'success');
+        }
+
+        // TOGGLE CHECKBOX SUDAH DIPUTAR (ADMIN FEATURE)
+        function togglePlayedCheckbox(id, isChecked) {
+            const item = requests.find(r => r.id === id);
+            if (item) {
+                item.status = isChecked ? 'played' : 'pending';
+                saveRequests();
+                showToast(`Status "${item.title}" diubah menjadi: ${isChecked ? 'Sudah Diputar' : 'Menunggu'}`, 'info');
+            }
+        }
+
+        // SET NOW PLAYING
+        function setNowPlaying(id) {
+            requests.forEach(r => {
+                if (r.id === id) {
+                    r.status = 'playing';
+                } else if (r.status === 'playing') {
+                    r.status = 'played'; // Previous playing song marks played
+                }
+            });
+            saveRequests();
+            showToast('Lagu sedang diputar diperbarui!', 'success');
+        }
+
+        // UPVOTE
+        function upvoteRequest(id) {
+            const item = requests.find(r => r.id === id);
+            if (item) {
+                item.votes = (item.votes || 0) + 1;
+                saveRequests();
+                showToast(`Vote ditambahkan untuk "${item.title}"!`, 'success');
+            }
+        }
+
+        // DELETE
+        function deleteRequest(id) {
+            if (confirm('Yakin ingin menghapus request lagu ini?')) {
+                requests = requests.filter(r => r.id !== id);
+                saveRequests();
+                showToast('Request berhasil dihapus.', 'info');
+            }
+        }
+
+        // MARK ALL PLAYED
+        function markAllPlayed() {
+            if (requests.length === 0) return;
+            if (confirm('Tandai SEMUA lagu sebagai Sudah Diputar?')) {
+                requests.forEach(r => r.status = 'played');
+                saveRequests();
+                showToast('Semua lagu ditandai Selesai Diputar.', 'success');
+            }
+        }
+
+        // CLEAR ALL
+        function confirmClearAll() {
+            if (requests.length === 0) return;
+            if (confirm('PERINGATAN: Apakah Anda yakin ingin menghapus seluruh daftar request?')) {
+                requests = [];
+                saveRequests();
+                showToast('Daftar request dibersihkan.', 'info');
+            }
+        }
+
+        // MODE SWITCHING
+        function switchMode(mode) {
+            currentMode = mode;
+            const btnUser = document.getElementById('btn-user-mode');
+            const btnAdmin = document.getElementById('btn-admin-mode');
+            const viewUser = document.getElementById('view-user');
+            const viewAdmin = document.getElementById('view-admin');
+
+            if (mode === 'user') {
+                btnUser.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-brand-600 text-white shadow-md';
+                btnAdmin.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold text-gray-400 hover:text-white transition-all duration-200 flex items-center gap-2';
+                viewUser.classList.remove('hidden');
+                viewAdmin.classList.add('hidden');
+            } else {
+                btnAdmin.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-brand-600 text-white shadow-md';
+                btnUser.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold text-gray-400 hover:text-white transition-all duration-200 flex items-center gap-2';
+                viewAdmin.classList.remove('hidden');
+                viewUser.classList.add('hidden');
+            }
+        }
+
+        // FILTERS
+        function setUserFilter(filter) {
+            userFilter = filter;
+            ['all', 'pending', 'played'].forEach(f => {
+                const btn = document.getElementById(`ufilter-${f}`);
+                if (f === filter) {
+                    btn.className = 'px-3 py-1 rounded-lg text-xs font-semibold bg-brand-600 text-white';
+                } else {
+                    btn.className = 'px-3 py-1 rounded-lg text-xs font-semibold text-gray-400 hover:text-white';
+                }
+            });
+            renderUserFeed();
+        }
+
+        function setAdminFilter(filter) {
+            adminFilter = filter;
+            ['all', 'pending', 'played'].forEach(f => {
+                const btn = document.getElementById(`afilter-${f}`);
+                if (f === filter) {
+                    btn.className = 'px-3 py-1 rounded-lg text-xs font-semibold bg-brand-600 text-white';
+                } else {
+                    btn.className = 'px-3 py-1 rounded-lg text-xs font-semibold text-gray-400 hover:text-white';
+                }
+            });
+            renderAdminTable();
+        }
+
+        function filterUserList() {
+            renderUserFeed();
+        }
+
+        // UTILS & HELPERS
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function timeAgo(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const seconds = Math.floor((now - date) / 1000);
+
+            if (seconds < 60) return 'Baru saja';
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes}m yang lalu`;
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return `${hours}j yang lalu`;
+            return `${Math.floor(hours / 24)}h yang lalu`;
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bgClass = 'bg-gray-800 border-gray-700 text-white';
+            let icon = 'fa-circle-info text-brand-400';
+
+            if (type === 'success') {
+                bgClass = 'bg-gray-900 border-neon-green/40 text-white';
+                icon = 'fa-circle-check text-neon-green';
+            }
+
+            toast.className = `glass-card border ${bgClass} px-4 py-3 rounded-xl shadow-xl text-xs font-medium flex items-center gap-2.5 transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-sm"></i><span>${escapeHtml(message)}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // QR CODE MODAL LOGIC
+        function setupQRModal() {
+            const currentUrl = window.location.href;
+            document.getElementById('share-url-input').value = currentUrl;
+            
+            const qrContainer = document.getElementById('qrcode-container');
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, {
+                text: currentUrl,
+                width: 160,
+                height: 160,
+                colorDark : "#0f172a",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        }
+
+        function openQRModal() {
+            document.getElementById('modal-qr').classList.remove('hidden');
+        }
+
+        function closeQRModal() {
+            document.getElementById('modal-qr').classList.add('hidden');
+        }
+
+        function copyShareURL() {
+            const input = document.getElementById('share-url-input');
+            input.select();
+            document.execCommand('copy');
+            showToast('Link berhasil disalin ke clipboard!', 'success');
+        }
+    </script>
+</body>
 </html>
+```eof
+
+### Fitur Utama Aplikasi Office Jukebox ini:
+1. **Dua Mode Tampilan**:
+   - **Mode User Request**: Digunakan oleh teman-teman Anda untuk mengisi nama, judul lagu, penyanyi, serta catatan. Mereka juga dapat melihat daftar antrean lagu beserta statusnya (*Menunggu*, *Sedang Diputar*, dan *Selesai*).
+   - **Panel Admin**: Digunakan oleh Anda untuk mengelola request. Dilengkapi dengan **Checkbox Centang "Diputar?"** yang bila dicentang akan otomatis mengubah status lagu menjadi *Selesai* dan meng-update tampilan request lagu secara langsung.
+2. **Tombol Pintas YouTube**:
+   - Di setiap baris tabel admin, terdapat ikon YouTube yang jika diklik akan langsung membuka pencarian lagu & penyanyi tersebut di YouTube untuk memudahkan Anda memutarnya.
+3. **Auto-Sync Real-time**:
+   - Menggunakan sinkronisasi `localStorage` & `storage event`. Jika Anda membuka link ini di 2 layar/HP berbeda (misalnya HP teman untuk request dan Laptop Anda sebagai Admin/Speaker), perubahan di Admin akan langsung ter-update di layar teman tanpa perlu me-refresh halaman!
+4. **Indikator "Now Playing" & Fitur Upvote**:
+   - Teman-teman Anda dapat memberikan vote pada lagu yang disukai agar masuk prioritas atas.
+5. **Bagikan QR Code & Link**:
+   - Terdapat tombol *Bagikan Link* yang menampilkan QR Code agar teman-teman Anda tinggal me-scan dari HP masing-masing.
+
+Semoga aplikasi Office Jukebox ini bermanfaat dan membuat suasana musik di kantor makin seru! Jangan ragu jika ada penyesuaian yang ingin ditambahkan.
