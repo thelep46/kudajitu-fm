@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Office Jukebox Request</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-slate-900 flex items-center justify-center min-h-screen p-4">
+    <div class="bg-slate-800 text-white p-6 rounded-2xl shadow-xl w-full max-w-md border border-slate-700">
+      <h2 class="text-2xl font-bold mb-2 text-center text-indigo-400">🎵 Office Request Lagu</h2>
+      <p class="text-xs text-slate-400 text-center mb-6">Minta lagu favoritmu untuk diputar di kantor!</p>
+      
+      <form id="songForm" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Nama Kamu</label>
+          <input type="text" id="nama" required class="w-full p-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Judul Lagu</label>
+          <input type="text" id="judul" required class="w-full p-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Penyanyi / Band</label>
+          <input type="text" id="penyanyi" required class="w-full p-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Pesan / Catatan (Opsional)</label>
+          <textarea id="catatan" rows="2" class="w-full p-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500"></textarea>
+        </div>
+        <button type="submit" id="submitBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg transition duration-200">Kirim Request</button>
+      </form>
+      
+      <div id="status" class="mt-4 p-3 rounded-lg text-center font-medium hidden"></div>
+    </div>
+
+    <script>
+      const scriptURL = 'https://script.google.com/macros/s/AKfycbyUB8drjL1dSJedYjKIKjVc5gzIE3Pe-QS0FF8o1_zU4NkAweGLFquhHLfy1Nt_eITA-Q/exec'; // Ganti dengan URL Web App Anda
+
+      document.getElementById("songForm").addEventListener("submit", function(e) {
+        e.preventDefault();
+        const btn = document.getElementById("submitBtn");
+        const statusDiv = document.getElementById("status");
+        
+        btn.innerText = "Mengirim...";
+        btn.disabled = true;
+
+        const requestData = {
+          nama: document.getElementById("nama").value,
+          judul: document.getElementById("judul").value,
+          penyanyi: document.getElementById("penyanyi").value,
+          catatan: document.getElementById("catatan").value
+        };
+
+        fetch(scriptURL, {
+          method: 'POST',
+          mode: 'no-cors', // Diperlukan untuk bypass CORS Google Apps Script
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestData)
+        })
+        .then(() => {
+          statusDiv.innerText = "Lagu berhasil dikirim ke antrean!";
+          statusDiv.className = "mt-4 p-3 rounded-lg text-center font-medium bg-emerald-500/20 text-emerald-400";
+          btn.innerText = "Kirim Request";
+          btn.disabled = false;
+          document.getElementById("songForm").reset();
+        })
+        .catch(error => {
+          statusDiv.innerText = "Gagal mengirim, silakan coba lagi.";
+          statusDiv.className = "mt-4 p-3 rounded-lg text-center font-medium bg-red-500/20 text-red-400";
+          btn.innerText = "Kirim Request";
+          btn.disabled = false;
+        });
+      });
+    </script>
+  </body>
+</html>
