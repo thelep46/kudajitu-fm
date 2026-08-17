@@ -925,24 +925,33 @@
         }
 
         function switchMode(mode) {
-            currentMode = mode;
-            const btnUser = document.getElementById('btn-user-mode');
-            const btnAdmin = document.getElementById('btn-admin-mode');
-            const viewUser = document.getElementById('view-user');
-            const viewAdmin = document.getElementById('view-admin');
-
-            if (mode === 'user') {
-                btnUser.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-brand-600 text-white shadow-md shadow-brand-600/30';
-                btnAdmin.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold text-gray-400 hover:text-white transition-all duration-200 flex items-center gap-2';
-                viewUser.classList.remove('hidden');
-                viewAdmin.classList.add('hidden');
-            } else {
-                btnAdmin.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-brand-600 text-white shadow-md shadow-brand-600/30';
-                btnUser.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold text-gray-400 hover:text-white transition-all duration-200 flex items-center gap-2';
-                viewAdmin.classList.remove('hidden');
-                viewUser.classList.add('hidden');
-            }
+    if (mode === 'admin' && currentMode !== 'admin') {
+        // Masukkan Password Admin di bawah ini (Contoh: 1234)
+        const password = prompt("Masukkan Password Admin:");
+        if (password !== "290979") { // Ubah "1234" dengan password rahasia Anda
+            alert("Password Admin Salah!");
+            return;
         }
+    }
+
+    currentMode = mode;
+    const btnUser = document.getElementById('btn-user-mode');
+    const btnAdmin = document.getElementById('btn-admin-mode');
+    const viewUser = document.getElementById('view-user');
+    const viewAdmin = document.getElementById('view-admin');
+
+    if (mode === 'user') {
+        btnUser.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-brand-600 text-white shadow-md';
+        btnAdmin.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold text-gray-400 hover:text-white transition-all duration-200 flex items-center gap-2';
+        viewUser.classList.remove('hidden');
+        viewAdmin.classList.add('hidden');
+    } else {
+        btnAdmin.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-brand-600 text-white shadow-md';
+        btnUser.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold text-gray-400 hover:text-white transition-all duration-200 flex items-center gap-2';
+        viewAdmin.classList.remove('hidden');
+        viewUser.classList.add('hidden');
+    }
+}
 
         function setUserFilter(filter) {
             userFilter = filter;
