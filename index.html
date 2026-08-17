@@ -1197,62 +1197,62 @@
         window.addEventListener('DOMContentLoaded', () => {
             loadRequestList();
         });
-        // 1. Fungsi Ubah Status (Selesai Diputar / Menunggu)
-function updateStatus(id) {
-    const req = requests.find(r => r.id === id);
-    if (!req) return;
+ // 1. OVERRIDE Fungsi Ubah Status (Selesai Diputar / Menunggu)
+        function togglePlayedCheckbox(id, isChecked) {
+            const req = requests.find(r => r.id === id);
+            if (!req) return;
 
-    // Toggle status lokal
-    const newStatus = req.status === 'played' ? 'pending' : 'played';
-    req.status = newStatus;
-    renderAll(); // Re-render UI instan
+            // Toggle status lokal
+            const newStatus = isChecked ? 'played' : 'pending';
+            req.status = newStatus;
+            renderAll(); // Re-render UI instan
 
-    showToast(`Memperbarui status lagu...`, 'info');
+            showToast('Memperbarui status lagu...', 'info');
 
-    // Kirim perubahan ke Google Sheets
-    fetch(GAS_WEB_APP_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            action: 'updateStatus',
-            id: id,
-            status: newStatus
-        })
-    })
-    .then(() => {
-        showToast('Status berhasil disimpan di Google Sheets!', 'success');
-        setTimeout(loadRequestList, 2000); // Sinkronisasi ulang
-    })
-    .catch(err => console.error('Gagal update status:', err));
-}
+            // Kirim perubahan ke Google Sheets
+            fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'updateStatus',
+                    id: id,
+                    status: newStatus
+                })
+            })
+            .then(() => {
+                showToast('Status berhasil disimpan di Google Sheets!', 'success');
+                setTimeout(loadRequestList, 2000); // Sinkronisasi ulang
+            })
+            .catch(err => console.error('Gagal update status:', err));
+        }
 
-// 2. Fungsi Hapus Lagu
-function deleteRequest(id) {
-    if (!confirm('Apakah Anda yakin ingin menghapus lagu ini?')) return;
+        // 2. OVERRIDE Fungsi Hapus Lagu
+        function deleteRequest(id) {
+            if (!confirm('Apakah Anda yakin ingin menghapus lagu ini?')) return;
 
-    // Hapus dari UI lokal
-    requests = requests.filter(r => r.id !== id);
-    renderAll();
+            // Hapus dari UI lokal
+            requests = requests.filter(r => r.id !== id);
+            renderAll();
 
-    showToast('Menghapus lagu dari database...', 'info');
+            showToast('Menghapus lagu dari database...', 'info');
 
-    // Kirim perintah hapus ke Google Sheets
-    fetch(GAS_WEB_APP_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            action: 'delete',
-            id: id
-        })
-    })
-    .then(() => {
-        showToast('Lagu berhasil dihapus!', 'success');
-        setTimeout(loadRequestList, 2000);
-    })
-    .catch(err => console.error('Gagal menghapus lagu:', err));
-}
+            // Kirim perintah hapus ke Google Sheets
+            fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'delete',
+                    id: id
+                })
+            })
+            .then(() => {
+                showToast('Lagu berhasil dihapus!', 'success');
+                setTimeout(loadRequestList, 2000);
+            })
+            .catch(err => console.error('Gagal menghapus lagu:', err));
+        }
     </script>
 </body>
 </html>
