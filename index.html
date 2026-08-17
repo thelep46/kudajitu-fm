@@ -1057,6 +1057,31 @@
             document.execCommand('copy');
             showToast('Link berhasil disalin ke clipboard!', 'success');
         }
+        <script>
+  // 1. Simpan URL Apps Script Anda di sini
+  const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx.../exec'; // <-- Ganti dengan URL /exec Anda
+
+  // 2. Jalankan saat halaman web pertama kali dibuka
+  window.addEventListener('DOMContentLoaded', () => {
+    loadRequestList();
+  });
+
+  // 3. Fungsi untuk mengambil data dari Google Sheets
+  function loadRequestList() {
+    fetch(https://script.google.com/macros/s/AKfycbyUB8drjL1dSJedYjKIKjVc5gzIE3Pe-QS0FF8o1_zU4NkAweGLFquhHLfy1Nt_eITA-Q/exec)
+      .then(response => response.json())
+      .then(data => {
+        console.log('Data dari Google Sheets:', data);
+        
+        // Ganti 'renderSongs' dengan nama fungsi render yang ada di index.html Anda
+        renderSongs(data); 
+      })
+      .catch(error => console.error('Gagal mengambil data:', error));
+  }    
+    setInterval(() => {
+      loadRequestList();
+    }, 5000);
+        
     </script>
 </body>
 </html>
