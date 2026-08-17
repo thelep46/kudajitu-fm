@@ -1058,30 +1058,142 @@
             showToast('Link berhasil disalin ke clipboard!', 'success');
         }
 
-        // ==========================================
+       // ==========================================
         // INTEGRASI GOOGLE APPS SCRIPT (DATABASE)
         // ==========================================
         const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyUB8drjL1dSJedYjKIKjVc5gzIE3Pe-QS0FF8o1_zU4NkAweGLFquhHLfy1Nt_eITA-Q/exec';
 
-        // 1. Ambil Data dari Google Sheets saat Web Dibuka
+        // 1. Ambil Data dari Google Sheets saat Web Dibuka & Auto Sync
         function loadRequestList() {
             fetch(GAS_WEB_APP_URL)
                 .then(response => response.json())
                 .then(data => {
                     if (Array.isArray(data)) {
-                        requests = data; // Perbarui data lokal dengan data dari Sheet
-                        renderAll();     // Tampilkan ke layar
+                        requests = data;
+                        renderAll();
                     }
                 })
                 .catch(error => console.error('Gagal mengambil data dari Google Sheets:', error));
         }
 
-        // 2. Auto Sync setiap 5 detik
-        setInterval(() => {
-            loadRequestList();
-        }, 5000);
+        // 2. Fungsi Pengiriman Data ke Google Apps Script (POST)
+        function sendToGoogleSheets(payload, successMessage) {
+            showToast('Mengirim ke server...', 'info');
+            
+            fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors', // Mencegah kendala CORS pada Google Apps Script
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(() => {
+                showToast(successMessage, 'success');
+                // Beri jeda 1 detik agar Spreadsheet selesai memproses sebelum re-fetch
+                setTimeout(loadRequestList, 1000);
+            })
+            .catch(err => {
+                console.error(err);
+                showToast('Gagal terhubung ke database!', 'info');
+            });
+        }
 
-        // 3. Panggil saat halaman pertama kali siap
+        // 3. OVERRIDE HANDLER 1 LAGU
+        function handleSingleSubmit(e) {
+            e.preventDefault();
+            saveRequesterName();
+            
+            const requester = document.getElementById('input-requester').value.trim();
+            const title = document.getElementById('input-title').value.trim();
+            const artist = document.getElementById('input-artist').value.trim();
+            const note = document.getElementById('input-note').value.trim();
+
+            if (!requester || !title || !artist) return;
+
+            const payload = {
+                action: 'add',
+                id: 'req_' + Date.now(),
+                requester: requester,
+                title: title,
+                artist: artist,
+                note: note,
+                timestamp: new Date().toISOString(),
+                status: 'pending',
+                votes: 1
+            };
+
+            // Tampilkan secara instan di UI lokal
+            requests.unshift(payload);
+            renderAll();
+
+            // Kirim ke Google Sheets
+            sendToGoogleSheets(payload, `Request lagu "${title}" berhasil dikirim!`);
+
+            document.getElementById('input-title').value = '';
+            document.getElementById('input-artist').value = '';
+            document.getElementById('input-note').value = '';
+        }
+
+        // 4. OVERRIDE HANDLER BANYAK LAGU
+        function handleBatchSubmit(e) {
+            e.preventDefault();
+            saveRequesterName();
+
+            const requester = document.getElementById('input-requester').value.trim();
+            const rawText = document.getElementById('input-batch-text').value.trim();
+
+            if (!requester || !rawText) return;
+
+            const lines = rawText.split('\n');
+            const batchData = [];
+
+            lines.forEach((line, index) => {
+                const trimmed = line.trim();
+                if (!trimmed) return;
+
+                let title = trimmed;
+                let artist = 'Unknown Artist';
+
+                if (trimmed.includes('-')) {
+                    const parts = trimmed.split('-');
+                    title = parts[0].trim();
+                    artist = parts.slice(1).join('-').trim() || 'Unknown Artist';
+                }
+
+                if (title) {
+                    batchData.push({
+                        id: 'req_' + (Date.now() + index),
+                        requester: requester,
+                        title: title,
+                        artist: artist,
+                        note: 'Batch Request',
+                        timestamp: new Date(Date.now() - index * 100).toISOString(),
+                        status: 'pending',
+                        votes: 1
+                    });
+                }
+            });
+
+            if (batchData.length > 0) {
+                const payload = {
+                    action: 'addBatch',
+                    items: batchData
+                };
+
+                // Tampilkan instan di UI
+                requests = [...batchData, ...requests];
+                renderAll();
+
+                sendToGoogleSheets(payload, `Berhasil mengirim ${batchData.length} lagu!`);
+                document.getElementById('input-batch-text').value = '';
+            }
+        }
+
+        // Auto Sync setiap 5 detik
+        setInterval(loadRequestList, 5000);
+
+        // Panggil saat halaman pertama kali siap
         window.addEventListener('DOMContentLoaded', () => {
             loadRequestList();
         });
