@@ -1065,16 +1065,41 @@
 
         // 1. Ambil Data dari Google Sheets saat Web Dibuka & Auto Sync
         function loadRequestList() {
-            fetch(GAS_WEB_APP_URL)
-                .then(response => response.json())
-                .then(data => {
-                    if (Array.isArray(data)) {
-                        requests = data;
-                        renderAll();
-                    }
-                })
-                .catch(error => console.error('Gagal mengambil data dari Google Sheets:', error));
-        }
+    fetch(GAS_WEB_APP_URL)
+        .then(response => response.json())
+        .then(result => {
+
+            if (result.success && Array.isArray(result.data)) {
+
+                requests = result.data;
+
+                renderAll();
+
+                console.log(
+                    'Data berhasil dimuat:',
+                    requests.length,
+                    'request'
+                );
+
+            } else {
+
+                console.error(
+                    'Gagal mengambil data:',
+                    result.message
+                );
+
+            }
+
+        })
+        .catch(error => {
+
+            console.error(
+                'Gagal mengambil data dari Google Sheets:',
+                error
+            );
+
+        });
+}
 
         // 2. Fungsi Pengiriman Data ke Google Apps Script (POST)
         function sendToGoogleSheets(payload, successMessage) {
