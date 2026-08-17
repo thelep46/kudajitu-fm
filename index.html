@@ -1057,6 +1057,34 @@
             document.execCommand('copy');
             showToast('Link berhasil disalin ke clipboard!', 'success');
         }
+
+        // ==========================================
+        // INTEGRASI GOOGLE APPS SCRIPT (DATABASE)
+        // ==========================================
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyUB8drjL1dSJedYjKIKjVc5gzIE3Pe-QS0FF8o1_zU4NkAweGLFquhHLfy1Nt_eITA-Q/exec';
+
+        // 1. Ambil Data dari Google Sheets saat Web Dibuka
+        function loadRequestList() {
+            fetch(GAS_WEB_APP_URL)
+                .then(response => response.json())
+                .then(data => {
+                    if (Array.isArray(data)) {
+                        requests = data; // Perbarui data lokal dengan data dari Sheet
+                        renderAll();     // Tampilkan ke layar
+                    }
+                })
+                .catch(error => console.error('Gagal mengambil data dari Google Sheets:', error));
+        }
+
+        // 2. Auto Sync setiap 5 detik
+        setInterval(() => {
+            loadRequestList();
+        }, 5000);
+
+        // 3. Panggil saat halaman pertama kali siap
+        window.addEventListener('DOMContentLoaded', () => {
+            loadRequestList();
+        });
     </script>
 </body>
 </html>
