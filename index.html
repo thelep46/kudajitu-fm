@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kudajitu FM & Request Lagu</title>
+    <title>KUDAJITU FM & Request Lagu</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -107,7 +107,7 @@
                 </div>
                 <div>
                     <h1 class="font-extrabold text-lg md:text-xl tracking-tight bg-gradient-to-r from-white via-teal-100 to-brand-300 bg-clip-text text-transparent flex items-center gap-2">
-                        Kudajitu FM
+                        KUDAJITU FM
                         <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-brand-500/15 text-brand-300 border border-brand-500/30">v2.5</span>
                     </h1>
                     <p class="text-xs text-gray-400 hidden sm:block">Request lagu favoritmu & dengarkan bersama di kantor</p>
@@ -401,7 +401,7 @@
     <!-- FOOTER -->
     <footer class="border-t border-teal-900/50 glass-card mt-12 py-4 px-4 text-center text-xs text-gray-500">
         <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-            <p>© 2026 Kudajitu FM Manager. Dikembangkan untuk keceriaan tim kantor Anda.</p>
+            <p>© 2026 KUDAJITU FM Manager. Dikembangkan untuk keceriaan tim kantor Anda.</p>
             <div class="flex items-center space-x-3 text-gray-400">
                 <span class="flex items-center gap-1"><i class="fa-solid fa-wifi text-brand-400 text-[10px]"></i> Local Storage Auto-Sync</span>
             </div>
@@ -850,7 +850,7 @@
                         requester,
                         title,
                         artist,
-                        note: 'Langkah kecil setiap hari membawa hasil besar',
+                        note: 'Batch Request',
                         timestamp: new Date(Date.now() - index * 100).toISOString(),
                         status: 'pending',
                         votes: 1
@@ -925,33 +925,24 @@
         }
 
         function switchMode(mode) {
-    if (mode === 'admin' && currentMode !== 'admin') {
-        // Masukkan Password Admin di bawah ini (Contoh: 1234)
-        const password = prompt("Masukkan Password Admin:");
-        if (password !== "290979") { // Ubah "1234" dengan password rahasia Anda
-            alert("Password Admin Salah!");
-            return;
+            currentMode = mode;
+            const btnUser = document.getElementById('btn-user-mode');
+            const btnAdmin = document.getElementById('btn-admin-mode');
+            const viewUser = document.getElementById('view-user');
+            const viewAdmin = document.getElementById('view-admin');
+
+            if (mode === 'user') {
+                btnUser.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-brand-600 text-white shadow-md shadow-brand-600/30';
+                btnAdmin.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold text-gray-400 hover:text-white transition-all duration-200 flex items-center gap-2';
+                viewUser.classList.remove('hidden');
+                viewAdmin.classList.add('hidden');
+            } else {
+                btnAdmin.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-brand-600 text-white shadow-md shadow-brand-600/30';
+                btnUser.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold text-gray-400 hover:text-white transition-all duration-200 flex items-center gap-2';
+                viewAdmin.classList.remove('hidden');
+                viewUser.classList.add('hidden');
+            }
         }
-    }
-
-    currentMode = mode;
-    const btnUser = document.getElementById('btn-user-mode');
-    const btnAdmin = document.getElementById('btn-admin-mode');
-    const viewUser = document.getElementById('view-user');
-    const viewAdmin = document.getElementById('view-admin');
-
-    if (mode === 'user') {
-        btnUser.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-brand-600 text-white shadow-md';
-        btnAdmin.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold text-gray-400 hover:text-white transition-all duration-200 flex items-center gap-2';
-        viewUser.classList.remove('hidden');
-        viewAdmin.classList.add('hidden');
-    } else {
-        btnAdmin.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-brand-600 text-white shadow-md';
-        btnUser.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold text-gray-400 hover:text-white transition-all duration-200 flex items-center gap-2';
-        viewAdmin.classList.remove('hidden');
-        viewUser.classList.add('hidden');
-    }
-}
 
         function setUserFilter(filter) {
             userFilter = filter;
@@ -1057,31 +1048,6 @@
             document.execCommand('copy');
             showToast('Link berhasil disalin ke clipboard!', 'success');
         }
-        <script>
-  // 1. Simpan URL Apps Script Anda di sini
-  const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx.../exec'; // <-- Ganti dengan URL /exec Anda
-
-  // 2. Jalankan saat halaman web pertama kali dibuka
-  window.addEventListener('DOMContentLoaded', () => {
-    loadRequestList();
-  });
-
-  // 3. Fungsi untuk mengambil data dari Google Sheets
-  function loadRequestList() {
-    fetch(https://script.google.com/macros/s/AKfycbyUB8drjL1dSJedYjKIKjVc5gzIE3Pe-QS0FF8o1_zU4NkAweGLFquhHLfy1Nt_eITA-Q/exec)
-      .then(response => response.json())
-      .then(data => {
-        console.log('Data dari Google Sheets:', data);
-        
-        // Ganti 'renderSongs' dengan nama fungsi render yang ada di index.html Anda
-        renderSongs(data); 
-      })
-      .catch(error => console.error('Gagal mengambil data:', error));
-  }    
-    setInterval(() => {
-      loadRequestList();
-    }, 5000);
-        
     </script>
 </body>
 </html>
