@@ -49,7 +49,6 @@
             color: #f3f4f6;
         }
 
-        /* Glassmorphism Effect */
         .glass-card {
             background: rgba(17, 24, 39, 0.7);
             backdrop-filter: blur(12px);
@@ -62,7 +61,6 @@
             border-color: rgba(99, 102, 241, 0.3);
         }
 
-        /* Animated Music Wave Bar */
         .equalizer-bar {
             animation: bounce 1.2s ease-in-out infinite alternate;
         }
@@ -75,7 +73,6 @@
             100% { height: 20px; }
         }
 
-        /* Custom Scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
         }
@@ -106,7 +103,7 @@
                 <div>
                     <h1 class="font-extrabold text-lg md:text-xl tracking-tight bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent flex items-center gap-2">
                         Office Jukebox
-                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-400 border border-brand-500/20">v2.0</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-400 border border-brand-500/20">v2.5</span>
                     </h1>
                     <p class="text-xs text-gray-400 hidden sm:block">Request lagu favoritmu & dengarkan bersama di kantor</p>
                 </div>
@@ -141,13 +138,11 @@
 
         <!-- NOW PLAYING BANNER -->
         <div id="now-playing-container" class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-gray-900 via-indigo-950 to-purple-950 p-5 md:p-6 border border-indigo-500/30 shadow-2xl">
-            <!-- Decorative Glow Background -->
             <div class="absolute -right-10 -bottom-10 w-60 h-60 bg-brand-500/10 rounded-full blur-3xl pointer-events-none"></div>
             <div class="absolute -left-10 -top-10 w-60 h-60 bg-neon-purple/10 rounded-full blur-3xl pointer-events-none"></div>
 
             <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4">
                 <div class="flex items-center gap-4 md:gap-6 w-full md:w-auto">
-                    <!-- Disk Visualizer -->
                     <div class="relative flex-shrink-0">
                         <div id="now-playing-disc" class="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gray-900 border-2 border-brand-500/50 flex items-center justify-center shadow-lg shadow-brand-500/20">
                             <i class="fa-solid fa-music text-2xl md:text-3xl text-brand-400 animate-pulse"></i>
@@ -158,7 +153,6 @@
                         </div>
                     </div>
 
-                    <!-- Song Info -->
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2 mb-1">
                             <div class="flex items-end gap-1 h-4">
@@ -178,7 +172,6 @@
                     </div>
                 </div>
 
-                <!-- Live Quick Stats -->
                 <div class="flex items-center gap-3 w-full md:w-auto justify-end border-t md:border-t-0 border-gray-800/80 pt-3 md:pt-0">
                     <div class="bg-gray-900/80 px-4 py-2 rounded-xl border border-gray-800 text-center flex-1 md:flex-initial">
                         <span class="block text-xs text-gray-400">Di Antrean</span>
@@ -198,32 +191,44 @@
             <!-- Request Form (Left Column on Desktop) -->
             <div class="lg:col-span-5">
                 <div class="glass-card rounded-2xl p-6 sticky top-24 border border-gray-800">
-                    <div class="flex items-center justify-between mb-5">
+                    
+                    <!-- Form Header & Mode Switch (Single vs Batch) -->
+                    <div class="flex items-center justify-between mb-4">
                         <h3 class="text-lg font-bold text-white flex items-center gap-2">
                             <i class="fa-solid fa-paper-plane text-brand-400"></i>
-                            Request Lagu Baru
+                            Request Lagu
                         </h3>
-                        <span class="text-xs bg-brand-500/10 text-brand-400 px-2.5 py-1 rounded-full border border-brand-500/20 font-medium">
-                            <i class="fa-solid fa-bolt mr-1"></i>Langsung Sync
-                        </span>
                     </div>
 
-                    <form id="form-request" onsubmit="handleRequestSubmit(event)" class="space-y-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
-                                Nama Kamu <span class="text-neon-pink">*</span>
-                            </label>
-                            <div class="relative">
-                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
-                                    <i class="fa-solid fa-user text-sm"></i>
-                                </span>
-                                <input type="text" id="input-requester" required placeholder="Contoh: Budi (Divisi IT)" 
-                                    class="w-full bg-gray-900/90 border border-gray-700/80 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition">
-                            </div>
-                        </div>
+                    <!-- Input Mode Tabs -->
+                    <div class="flex bg-gray-900 p-1 rounded-xl border border-gray-800 mb-4">
+                        <button type="button" id="tab-form-single" onclick="switchFormTab('single')" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-brand-600 text-white transition">
+                            <i class="fa-solid fa-music mr-1"></i>1 Lagu
+                        </button>
+                        <button type="button" id="tab-form-batch" onclick="switchFormTab('batch')" class="flex-1 py-1.5 text-xs font-bold rounded-lg text-gray-400 hover:text-white transition">
+                            <i class="fa-solid fa-layer-group mr-1"></i>Banyak Lagu sekaligus
+                        </button>
+                    </div>
 
+                    <!-- Common Requester Name Input -->
+                    <div class="mb-4">
+                        <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">
+                            Nama Kamu <span class="text-neon-pink">*</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
+                                <i class="fa-solid fa-user text-sm"></i>
+                            </span>
+                            <input type="text" id="input-requester" required placeholder="Contoh: Budi (Divisi IT)" onchange="saveRequesterName()"
+                                class="w-full bg-gray-900/90 border border-gray-700/80 rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition">
+                        </div>
+                        <p class="text-[10px] text-gray-500 mt-1"><i class="fa-solid fa-circle-check text-neon-green mr-0.5"></i> Nama akan tersimpan otomatis di HP/Browser ini</p>
+                    </div>
+
+                    <!-- TAB 1: SINGLE SONG FORM -->
+                    <form id="form-single-song" onsubmit="handleSingleSubmit(event)" class="space-y-3">
                         <div>
-                            <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
+                            <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">
                                 Judul Lagu <span class="text-neon-pink">*</span>
                             </label>
                             <div class="relative">
@@ -231,12 +236,12 @@
                                     <i class="fa-solid fa-music text-sm"></i>
                                 </span>
                                 <input type="text" id="input-title" required placeholder="Contoh: Hati-Hati di Jalan" 
-                                    class="w-full bg-gray-900/90 border border-gray-700/80 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition">
+                                    class="w-full bg-gray-900/90 border border-gray-700/80 rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition">
                             </div>
                         </div>
 
                         <div>
-                            <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
+                            <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">
                                 Penyanyi / Band <span class="text-neon-pink">*</span>
                             </label>
                             <div class="relative">
@@ -244,28 +249,47 @@
                                     <i class="fa-solid fa-microphone-lines text-sm"></i>
                                 </span>
                                 <input type="text" id="input-artist" required placeholder="Contoh: Tulus" 
-                                    class="w-full bg-gray-900/90 border border-gray-700/80 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition">
+                                    class="w-full bg-gray-900/90 border border-gray-700/80 rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition">
                             </div>
                         </div>
 
                         <div>
-                            <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
-                                Pesan / Catatan (Opsional)
+                            <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">
+                                Catatan (Opsional)
                             </label>
-                            <div class="relative">
-                                <span class="absolute top-3 left-0 pl-3.5 flex items-start pointer-events-none text-gray-500">
-                                    <i class="fa-solid fa-comment-dots text-sm"></i>
-                                </span>
-                                <textarea id="input-note" rows="2" placeholder="Pesan semangat untuk tim atau alasan memilih lagu..." 
-                                    class="w-full bg-gray-900/90 border border-gray-700/80 rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition"></textarea>
-                            </div>
+                            <textarea id="input-note" rows="2" placeholder="Pesan semangat untuk tim..." 
+                                class="w-full bg-gray-900/90 border border-gray-700/80 rounded-xl py-2 px-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition"></textarea>
                         </div>
 
-                        <button type="submit" class="w-full bg-gradient-to-r from-brand-600 via-indigo-600 to-neon-purple hover:from-brand-500 hover:to-neon-pink text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 transition duration-200 flex items-center justify-center gap-2">
+                        <button type="submit" class="w-full bg-gradient-to-r from-brand-600 to-neon-purple hover:from-brand-500 hover:to-neon-pink text-white font-bold py-2.5 px-4 rounded-xl shadow-lg shadow-brand-500/25 transition duration-200 flex items-center justify-center gap-2 text-sm">
                             <i class="fa-solid fa-paper-plane"></i>
-                            <span>Kirim Request Sekarang</span>
+                            <span>Kirim Request (1 Lagu)</span>
                         </button>
                     </form>
+
+                    <!-- TAB 2: BATCH SONG FORM (BANYAK LAGU SEKALIGUS) -->
+                    <form id="form-batch-song" onsubmit="handleBatchSubmit(event)" class="space-y-3 hidden">
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                                    Daftar Lagu (1 Lagu per Baris) <span class="text-neon-pink">*</span>
+                                </label>
+                            </div>
+                            <textarea id="input-batch-text" rows="6" required placeholder="Format: Judul Lagu - Penyanyi&#10;&#10;Contoh:&#10;Hati Hati di Jalan - Tulus&#10;Separuh Aku - NOAH&#10;Komang - Raim Laode&#10;Sial - Mahalini" 
+                                class="w-full bg-gray-900/90 border border-gray-700/80 rounded-xl py-2.5 px-3 text-xs font-mono text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition leading-relaxed"></textarea>
+                        </div>
+
+                        <div class="p-2.5 rounded-xl bg-brand-950/40 border border-brand-500/20 text-[11px] text-brand-300 space-y-1">
+                            <p class="font-bold"><i class="fa-solid fa-lightbulb text-amber-400 mr-1"></i> Tips Pengisian Cepat:</p>
+                            <p>Tulis atau copas daftar lagu dengan pemisah tanda strip (<strong class="text-white">-</strong>) antara judul dan penyanyi.</p>
+                        </div>
+
+                        <button type="submit" class="w-full bg-gradient-to-r from-neon-purple via-brand-600 to-neon-pink hover:opacity-90 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg shadow-purple-500/25 transition duration-200 flex items-center justify-center gap-2 text-sm">
+                            <i class="fa-solid fa-rocket"></i>
+                            <span>Kirim Semua Lagu Sekaligus</span>
+                        </button>
+                    </form>
+
                 </div>
             </div>
 
@@ -309,7 +333,6 @@
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-                    <!-- Direct Action Buttons -->
                     <button onclick="markAllPlayed()" class="px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-semibold transition border border-gray-700 flex items-center gap-2">
                         <i class="fa-solid fa-check-double text-neon-green"></i>
                         Tandai Semua Selesai
@@ -412,14 +435,14 @@
 
     <!-- JAVASCRIPT LOGIC -->
     <script>
-        // DATA STRUCTURE & STATE MANAGEMENT
         const STORAGE_KEY = 'office_jukebox_requests_v2';
+        const USER_NAME_KEY = 'office_jukebox_user_name';
+        
         let requests = [];
-        let currentMode = 'user'; // 'user' or 'admin'
-        let userFilter = 'all';  // 'all', 'pending', 'played'
-        let adminFilter = 'all'; // 'all', 'pending', 'played'
+        let currentMode = 'user';
+        let userFilter = 'all';
+        let adminFilter = 'all';
 
-        // SAMPLE DEFAULT DATA FOR INITIAL DEMO
         const defaultRequests = [
             {
                 id: 'req_1',
@@ -428,7 +451,7 @@
                 artist: 'Tulus',
                 note: 'Semangat untuk tim yang lagi ngejar deadline kuartal!',
                 timestamp: new Date(Date.now() - 25 * 60000).toISOString(),
-                status: 'playing', // 'pending', 'playing', 'played'
+                status: 'playing',
                 votes: 5
             },
             {
@@ -440,28 +463,52 @@
                 timestamp: new Date(Date.now() - 15 * 60000).toISOString(),
                 status: 'pending',
                 votes: 3
-            },
-            {
-                id: 'req_3',
-                requester: 'Budi (Developer)',
-                title: 'Bohemian Rhapsody',
-                artist: 'Queen',
-                note: 'Lagu wajib saat ngoding rumit.',
-                timestamp: new Date(Date.now() - 40 * 60000).toISOString(),
-                status: 'played',
-                votes: 8
             }
         ];
 
-        // INITIALIZATION
         document.addEventListener('DOMContentLoaded', () => {
             loadRequests();
+            loadSavedRequesterName();
             setupAutoSync();
             renderAll();
             setupQRModal();
         });
 
-        // LOCAL STORAGE & REALTIME SYNC (STORAGE EVENT)
+        // AUTO REMEMBER USER NAME
+        function loadSavedRequesterName() {
+            const savedName = localStorage.getItem(USER_NAME_KEY);
+            if (savedName) {
+                document.getElementById('input-requester').value = savedName;
+            }
+        }
+
+        function saveRequesterName() {
+            const name = document.getElementById('input-requester').value.trim();
+            if (name) {
+                localStorage.setItem(USER_NAME_KEY, name);
+            }
+        }
+
+        // SWITCH BETWEEN 1 LAGU VS BANYAK LAGU TAB
+        function switchFormTab(tab) {
+            const tabSingle = document.getElementById('tab-form-single');
+            const tabBatch = document.getElementById('tab-form-batch');
+            const formSingle = document.getElementById('form-single-song');
+            const formBatch = document.getElementById('form-batch-song');
+
+            if (tab === 'single') {
+                tabSingle.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg bg-brand-600 text-white transition';
+                tabBatch.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg text-gray-400 hover:text-white transition';
+                formSingle.classList.remove('hidden');
+                formBatch.classList.add('hidden');
+            } else {
+                tabBatch.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg bg-brand-600 text-white transition';
+                tabSingle.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg text-gray-400 hover:text-white transition';
+                formBatch.classList.remove('hidden');
+                formSingle.classList.add('hidden');
+            }
+        }
+
         function loadRequests() {
             const data = localStorage.getItem(STORAGE_KEY);
             if (data) {
@@ -476,14 +523,12 @@
             }
         }
 
-        function saveRequests(triggerToast = true) {
+        function saveRequests() {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(requests));
-            // Dispatch custom storage event for same-tab reactive updates
             window.dispatchEvent(new Event('jukebox-data-updated'));
         }
 
         function setupAutoSync() {
-            // Listen to cross-tab updates via native storage event
             window.addEventListener('storage', (e) => {
                 if (e.key === STORAGE_KEY) {
                     loadRequests();
@@ -492,13 +537,11 @@
                 }
             });
 
-            // Listen to same-tab updates
             window.addEventListener('jukebox-data-updated', () => {
                 renderAll();
             });
         }
 
-        // RENDER FUNCTIONS
         function renderAll() {
             renderNowPlaying();
             renderUserFeed();
@@ -513,7 +556,6 @@
             document.getElementById('stat-pending-count').innerText = pendingCount;
             document.getElementById('stat-played-count').innerText = playedCount;
 
-            // Admin tab badge
             const badge = document.getElementById('badge-pending');
             if (pendingCount > 0) {
                 badge.innerText = pendingCount;
@@ -522,7 +564,6 @@
                 badge.classList.add('hidden');
             }
 
-            // Admin counters
             document.getElementById('cnt-all').innerText = requests.length;
             document.getElementById('cnt-pending').innerText = pendingCount;
             document.getElementById('cnt-played').innerText = playedCount;
@@ -545,7 +586,6 @@
             }
         }
 
-        // USER FEED RENDER
         function renderUserFeed() {
             const container = document.getElementById('user-song-feed');
             const searchQuery = document.getElementById('user-search-input').value.toLowerCase();
@@ -561,7 +601,6 @@
                 return true;
             });
 
-            // Sort: playing first, then votes, then newest
             filtered.sort((a, b) => {
                 if (a.status === 'playing') return -1;
                 if (b.status === 'playing') return 1;
@@ -622,7 +661,6 @@
                             </div>
                         </div>
 
-                        <!-- Upvote Button -->
                         <div class="flex items-center gap-2 self-end sm:self-center">
                             <button onclick="upvoteRequest('${item.id}')" class="px-3 py-1.5 rounded-xl bg-gray-800/90 hover:bg-brand-600/30 hover:border-brand-500/50 text-gray-300 hover:text-brand-300 border border-gray-700/80 text-xs font-semibold transition flex items-center gap-1.5">
                                 <i class="fa-solid fa-thumbs-up text-brand-400"></i>
@@ -634,7 +672,6 @@
             }).join('');
         }
 
-        // ADMIN TABLE RENDER
         function renderAdminTable() {
             const tbody = document.getElementById('admin-table-body');
             const emptyState = document.getElementById('admin-empty-state');
@@ -651,7 +688,6 @@
                 return true;
             });
 
-            // Order by pending/playing first
             filtered.sort((a, b) => {
                 if (a.status === 'playing') return -1;
                 if (b.status === 'playing') return 1;
@@ -671,13 +707,10 @@
             tbody.innerHTML = filtered.map(item => {
                 const isPlayed = item.status === 'played';
                 const isPlaying = item.status === 'playing';
-
-                // YouTube Search URL for Admin ease of play
                 const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(item.artist + ' ' + item.title)}`;
 
                 return `
                     <tr class="hover:bg-gray-800/40 transition duration-150 ${isPlayed ? 'opacity-60 bg-gray-950/40' : ''}">
-                        <!-- CHECKBOX UTAMA UNTUK ADMIN -->
                         <td class="p-4 text-center">
                             <input type="checkbox" ${isPlayed ? 'checked' : ''} 
                                 onchange="togglePlayedCheckbox('${item.id}', this.checked)"
@@ -685,29 +718,24 @@
                                 class="w-5 h-5 rounded border-gray-700 bg-gray-900 text-neon-green focus:ring-neon-green focus:ring-offset-gray-900 cursor-pointer">
                         </td>
 
-                        <!-- Title & Artist -->
                         <td class="p-4">
                             <div class="font-bold text-white ${isPlayed ? 'line-through text-gray-400' : ''}">${escapeHtml(item.title)}</div>
                             <div class="text-xs text-gray-400"><i class="fa-solid fa-microphone-lines mr-1 text-gray-500"></i>${escapeHtml(item.artist)}</div>
                             ${item.note ? `<div class="text-[11px] text-brand-300 italic mt-0.5">"${escapeHtml(item.note)}"</div>` : ''}
                         </td>
 
-                        <!-- Requester -->
                         <td class="p-4 text-xs text-gray-300 font-medium">
                             <i class="fa-solid fa-user-circle text-gray-500 mr-1"></i>${escapeHtml(item.requester)}
                         </td>
 
-                        <!-- Timestamp -->
                         <td class="p-4 text-xs text-gray-400">
                             ${timeAgo(item.timestamp)}
                         </td>
 
-                        <!-- Votes -->
                         <td class="p-4 text-center text-xs font-bold text-brand-400">
                             👍 ${item.votes || 0}
                         </td>
 
-                        <!-- Status Badge -->
                         <td class="p-4 text-center">
                             ${isPlaying ? 
                                 `<span class="bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/30 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
@@ -723,9 +751,7 @@
                             }
                         </td>
 
-                        <!-- Admin Actions -->
                         <td class="p-4 text-right space-x-1">
-                            <!-- Play Now Button -->
                             ${!isPlaying && !isPlayed ? `
                                 <button onclick="setNowPlaying('${item.id}')" title="Putar Sekarang" 
                                     class="px-2.5 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 text-xs font-semibold transition">
@@ -733,13 +759,11 @@
                                 </button>
                             ` : ''}
 
-                            <!-- Search on YouTube -->
                             <a href="${ytSearchUrl}" target="_blank" title="Cari di YouTube" 
                                 class="inline-block px-2.5 py-1.5 rounded-lg bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white border border-red-500/30 text-xs font-semibold transition">
                                 <i class="fa-brands fa-youtube"></i>
                             </a>
 
-                            <!-- Delete -->
                             <button onclick="deleteRequest('${item.id}')" title="Hapus Request" 
                                 class="px-2.5 py-1.5 rounded-lg bg-gray-800 hover:bg-red-900/60 text-gray-400 hover:text-red-300 border border-gray-700 text-xs transition">
                                 <i class="fa-solid fa-trash"></i>
@@ -750,9 +774,11 @@
             }).join('');
         }
 
-        // HANDLERS & ACTIONS
-        function handleRequestSubmit(e) {
+        // HANDLER 1 LAGU
+        function handleSingleSubmit(e) {
             e.preventDefault();
+            saveRequesterName();
+            
             const requester = document.getElementById('input-requester').value.trim();
             const title = document.getElementById('input-title').value.trim();
             const artist = document.getElementById('input-artist').value.trim();
@@ -774,15 +800,72 @@
             requests.unshift(newReq);
             saveRequests();
 
-            // Reset Form (keep requester name for convenience)
+            // Reset hanya judul, artist, note (nama tetap tersimpan)
             document.getElementById('input-title').value = '';
             document.getElementById('input-artist').value = '';
             document.getElementById('input-note').value = '';
+            
+            // Auto focus ke judul lagu lagi agar siap isi lagu berikutnya
+            document.getElementById('input-title').focus();
 
             showToast(`Request lagu "${title}" berhasil dikirim!`, 'success');
         }
 
-        // TOGGLE CHECKBOX SUDAH DIPUTAR (ADMIN FEATURE)
+        // HANDLER BANYAK LAGU SEKALIGUS (BATCH)
+        function handleBatchSubmit(e) {
+            e.preventDefault();
+            saveRequesterName();
+
+            const requester = document.getElementById('input-requester').value.trim();
+            const rawText = document.getElementById('input-batch-text').value.trim();
+
+            if (!requester || !rawText) return;
+
+            const lines = rawText.split('\n');
+            let addedCount = 0;
+
+            lines.forEach((line, index) => {
+                const trimmed = line.trim();
+                if (!trimmed) return;
+
+                let title = trimmed;
+                let artist = 'Unknown Artist';
+
+                // Separator detection: '-' or 'by'
+                if (trimmed.includes('-')) {
+                    const parts = trimmed.split('-');
+                    title = parts[0].trim();
+                    artist = parts.slice(1).join('-').trim() || 'Unknown Artist';
+                } else if (trimmed.toLowerCase().includes(' by ')) {
+                    const parts = trimmed.split(/ by /i);
+                    title = parts[0].trim();
+                    artist = parts[1].trim() || 'Unknown Artist';
+                }
+
+                if (title) {
+                    requests.unshift({
+                        id: 'req_' + (Date.now() + index),
+                        requester,
+                        title,
+                        artist,
+                        note: 'Batch Request',
+                        timestamp: new Date(Date.now() - index * 100).toISOString(),
+                        status: 'pending',
+                        votes: 1
+                    });
+                    addedCount++;
+                }
+            });
+
+            if (addedCount > 0) {
+                saveRequests();
+                document.getElementById('input-batch-text').value = '';
+                showToast(`Berhasil menambahkan ${addedCount} lagu sekaligus!`, 'success');
+            } else {
+                showToast('Format teks lagu belum sesuai.', 'info');
+            }
+        }
+
         function togglePlayedCheckbox(id, isChecked) {
             const item = requests.find(r => r.id === id);
             if (item) {
@@ -792,20 +875,18 @@
             }
         }
 
-        // SET NOW PLAYING
         function setNowPlaying(id) {
             requests.forEach(r => {
                 if (r.id === id) {
                     r.status = 'playing';
                 } else if (r.status === 'playing') {
-                    r.status = 'played'; // Previous playing song marks played
+                    r.status = 'played';
                 }
             });
             saveRequests();
             showToast('Lagu sedang diputar diperbarui!', 'success');
         }
 
-        // UPVOTE
         function upvoteRequest(id) {
             const item = requests.find(r => r.id === id);
             if (item) {
@@ -815,7 +896,6 @@
             }
         }
 
-        // DELETE
         function deleteRequest(id) {
             if (confirm('Yakin ingin menghapus request lagu ini?')) {
                 requests = requests.filter(r => r.id !== id);
@@ -824,7 +904,6 @@
             }
         }
 
-        // MARK ALL PLAYED
         function markAllPlayed() {
             if (requests.length === 0) return;
             if (confirm('Tandai SEMUA lagu sebagai Sudah Diputar?')) {
@@ -834,7 +913,6 @@
             }
         }
 
-        // CLEAR ALL
         function confirmClearAll() {
             if (requests.length === 0) return;
             if (confirm('PERINGATAN: Apakah Anda yakin ingin menghapus seluruh daftar request?')) {
@@ -844,37 +922,26 @@
             }
         }
 
-       // Gantilah fungsi switchMode yang lama dengan kode ini jika ingin pakai password:
-function switchMode(mode) {
-    if (mode === 'admin' && currentMode !== 'admin') {
-        // Masukkan Password Admin di bawah ini (Contoh: 1234)
-        const password = prompt("Masukkan Password Admin:");
-        if (password !== "290979") { // Ubah "1234" dengan password rahasia Anda
-            alert("Password Admin Salah!");
-            return;
+        function switchMode(mode) {
+            currentMode = mode;
+            const btnUser = document.getElementById('btn-user-mode');
+            const btnAdmin = document.getElementById('btn-admin-mode');
+            const viewUser = document.getElementById('view-user');
+            const viewAdmin = document.getElementById('view-admin');
+
+            if (mode === 'user') {
+                btnUser.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-brand-600 text-white shadow-md';
+                btnAdmin.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold text-gray-400 hover:text-white transition-all duration-200 flex items-center gap-2';
+                viewUser.classList.remove('hidden');
+                viewAdmin.classList.add('hidden');
+            } else {
+                btnAdmin.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-brand-600 text-white shadow-md';
+                btnUser.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold text-gray-400 hover:text-white transition-all duration-200 flex items-center gap-2';
+                viewAdmin.classList.remove('hidden');
+                viewUser.classList.add('hidden');
+            }
         }
-    }
 
-    currentMode = mode;
-    const btnUser = document.getElementById('btn-user-mode');
-    const btnAdmin = document.getElementById('btn-admin-mode');
-    const viewUser = document.getElementById('view-user');
-    const viewAdmin = document.getElementById('view-admin');
-
-    if (mode === 'user') {
-        btnUser.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-brand-600 text-white shadow-md';
-        btnAdmin.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold text-gray-400 hover:text-white transition-all duration-200 flex items-center gap-2';
-        viewUser.classList.remove('hidden');
-        viewAdmin.classList.add('hidden');
-    } else {
-        btnAdmin.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-brand-600 text-white shadow-md';
-        btnUser.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold text-gray-400 hover:text-white transition-all duration-200 flex items-center gap-2';
-        viewAdmin.classList.remove('hidden');
-        viewUser.classList.add('hidden');
-    }
-}
-
-        // FILTERS
         function setUserFilter(filter) {
             userFilter = filter;
             ['all', 'pending', 'played'].forEach(f => {
@@ -905,7 +972,6 @@ function switchMode(mode) {
             renderUserFeed();
         }
 
-        // UTILS & HELPERS
         function escapeHtml(str) {
             return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
@@ -950,7 +1016,6 @@ function switchMode(mode) {
             }, 3000);
         }
 
-        // QR CODE MODAL LOGIC
         function setupQRModal() {
             const currentUrl = window.location.href;
             document.getElementById('share-url-input').value = currentUrl;
@@ -984,4 +1049,3 @@ function switchMode(mode) {
     </script>
 </body>
 </html>
-
