@@ -45,20 +45,20 @@
     <style>
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: #0b0f19;
+            background-color: #0b1719;
             color: #f3f4f6;
         }
 
         .glass-card {
-            background: rgba(17, 24, 39, 0.7);
+            background: rgba(17, 39, 39, 0.7);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .glass-card-hover:hover {
-            background: rgba(31, 41, 55, 0.8);
-            border-color: rgba(99, 102, 241, 0.3);
+            background: rgba(31, 54, 55, 0.8);
+            border-color: rgba(99, 229, 241, 0.3);
         }
 
         .equalizer-bar {
@@ -77,14 +77,14 @@
             width: 8px;
         }
         ::-webkit-scrollbar-track {
-            background: #0f172a;
+            background: #0f2a27;
         }
         ::-webkit-scrollbar-thumb {
-            background: #334155;
+            background: #335455;
             border-radius: 4px;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: #475569;
+            background: #476968;
         }
     </style>
 </head>
@@ -102,7 +102,7 @@
                 </div>
                 <div>
                     <h1 class="font-extrabold text-lg md:text-xl tracking-tight bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent flex items-center gap-2">
-                        Office Jukebox
+                        MUSIC KUDAJITU
                         <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-400 border border-brand-500/20">v2.5</span>
                     </h1>
                     <p class="text-xs text-gray-400 hidden sm:block">Request lagu favoritmu & dengarkan bersama di kantor</p>
@@ -923,24 +923,33 @@
         }
 
         function switchMode(mode) {
-            currentMode = mode;
-            const btnUser = document.getElementById('btn-user-mode');
-            const btnAdmin = document.getElementById('btn-admin-mode');
-            const viewUser = document.getElementById('view-user');
-            const viewAdmin = document.getElementById('view-admin');
-
-            if (mode === 'user') {
-                btnUser.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-brand-600 text-white shadow-md';
-                btnAdmin.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold text-gray-400 hover:text-white transition-all duration-200 flex items-center gap-2';
-                viewUser.classList.remove('hidden');
-                viewAdmin.classList.add('hidden');
-            } else {
-                btnAdmin.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-brand-600 text-white shadow-md';
-                btnUser.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold text-gray-400 hover:text-white transition-all duration-200 flex items-center gap-2';
-                viewAdmin.classList.remove('hidden');
-                viewUser.classList.add('hidden');
-            }
+    if (mode === 'admin' && currentMode !== 'admin') {
+        // Masukkan Password Admin di bawah ini (Contoh: 1234)
+        const password = prompt("Masukkan Password Admin:");
+        if (password !== "1234") { // Ubah "1234" dengan password rahasia Anda
+            alert("Password Admin Salah!");
+            return;
         }
+    }
+
+    currentMode = mode;
+    const btnUser = document.getElementById('btn-user-mode');
+    const btnAdmin = document.getElementById('btn-admin-mode');
+    const viewUser = document.getElementById('view-user');
+    const viewAdmin = document.getElementById('view-admin');
+
+    if (mode === 'user') {
+        btnUser.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-brand-600 text-white shadow-md';
+        btnAdmin.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold text-gray-400 hover:text-white transition-all duration-200 flex items-center gap-2';
+        viewUser.classList.remove('hidden');
+        viewAdmin.classList.add('hidden');
+    } else {
+        btnAdmin.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-brand-600 text-white shadow-md';
+        btnUser.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold text-gray-400 hover:text-white transition-all duration-200 flex items-center gap-2';
+        viewAdmin.classList.remove('hidden');
+        viewUser.classList.add('hidden');
+    }
+}
 
         function setUserFilter(filter) {
             userFilter = filter;
