@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KUDAJITU FM & Request Lagu</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: {
+    fontFamily: { sans: ['Plus Jakarta Sans','sans-serif'] },
+    colors: {
+      brand: {50:'#f0fdfa',100:'#ccfbf1',200:'#99f6e4',300:'#5eead4',400:'#2dd4bf',500:'#14b8a6',600:'#0d9488',700:'#0f766e',800:'#115e59',900:'#134e4a',950:'#042f2e'},
+      neon: {tosca:'#2dd4bf',cyan:'#06b6d4',emerald:'#10b981',pink:'#f43f5e'}
+    }
+  }}
+};
+</script>
+<style>
+body{font-family:'Plus Jakarta Sans',sans-serif;background:#061114;color:#f3f4f6}
+.glass-card{background:rgba(13,27,30,.78);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(45,212,191,.12)}
+.glass-card-hover:hover{background:rgba(20,38,42,.88);border-color:rgba(20,184,166,.35)}
+.equalizer-bar{animation:bounce 1.2s ease-in-out infinite alternate}
+.equalizer-bar:nth-child(2){animation-delay:.2s}.equalizer-bar:nth-child(3){animation-delay:.4s}.equalizer-bar:nth-child(4){animation-delay:.1s}
+@keyframes bounce{0%{height:4px}100%{height:20px}}
+::-webkit-scrollbar{width:8px}::-webkit-scrollbar-track{background:#061114}::-webkit-scrollbar-thumb{background:#115e59;border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:#0d9488}
+input[type=checkbox]{accent-color:#14b8a6}
+</style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-brand-500 selection:text-white">
+
+<header class="sticky top-0 z-40 glass-card border-b border-teal-900/50 px-4 lg:px-8 py-3">
+  <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
+    <div class="flex items-center space-x-3 min-w-0">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 via-brand-400 to-neon-cyan p-0.5 shadow-lg shadow-brand-500/20 shrink-0">
+        <div class="w-full h-full bg-gray-950 rounded-[10px] flex items-center justify-center">
+          <i class="fa-solid fa-compact-disc fa-spin text-xl text-brand-400"></i>
+        </div>
+      </div>
+      <div class="min-w-0">
+        <h1 class="font-extrabold text-lg md:text-xl tracking-tight bg-gradient-to-r from-white via-teal-100 to-brand-300 bg-clip-text text-transparent flex items-center gap-2">
+          KUDAJITU FM <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-brand-500/15 text-brand-300 border border-brand-500/30">v2.6</span>
+        </h1>
+        <p class="text-xs text-gray-400 hidden sm:block truncate">Request lagu favoritmu & dengarkan bersama di kantor</p>
+      </div>
+    </div>
+    <div class="flex items-center space-x-2 md:space-x-3">
+      <button onclick="openQRModal()" class="px-3 py-2 rounded-xl bg-gray-900/80 hover:bg-gray-800 text-gray-300 text-xs md:text-sm font-medium transition flex items-center gap-2 border border-teal-800/40">
+        <i class="fa-solid fa-qrcode text-brand-400"></i><span class="hidden md:inline">Bagikan Link</span>
+      </button>
+      <div class="bg-gray-950/90 p-1 rounded-xl border border-teal-900/50 flex items-center">
+        <button id="btn-user-mode" onclick="switchMode('user')" class="px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold bg-brand-600 text-white shadow-md flex items-center gap-2">
+          <i class="fa-solid fa-music"></i><span>User Request</span>
+        </button>
+        <button id="btn-admin-mode" onclick="switchMode('admin')" class="px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold text-gray-400 hover:text-white flex items-center gap-2">
+          <i class="fa-solid fa-user-shield"></i><span>Panel Admin</span>
+          <span id="badge-pending" class="bg-neon-pink text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold hidden">0</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 lg:px-8 py-6 flex-1 w-full space-y-6">
+
+  <section class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-gray-950 via-brand-950 to-teal-900/60 p-5 md:p-6 border border-brand-500/30 shadow-2xl">
+    <div class="absolute -right-10 -bottom-10 w-60 h-60 bg-brand-500/15 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -left-10 -top-10 w-60 h-60 bg-neon-cyan/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-4 md:gap-6 w-full md:w-auto">
+        <div class="relative shrink-0">
+          <div class="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gray-950 border-2 border-brand-400/60 flex items-center justify-center shadow-lg shadow-brand-500/30">
+            <i class="fa-solid fa-music text-2xl md:text-3xl text-brand-400 animate-pulse"></i>
+          </div>
+          <div class="absolute -bottom-1 -right-1 bg-brand-400 text-gray-950 text-[10px] font-extrabold px-2 py-0.5 rounded-full">NOW PLAYING</div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <div class="flex items-end gap-1 h-4">
+              <span class="w-1 bg-brand-300 rounded-full equalizer-bar"></span><span class="w-1 bg-brand-500 rounded-full equalizer-bar"></span>
+              <span class="w-1 bg-neon-cyan rounded-full equalizer-bar"></span><span class="w-1 bg-emerald-400 rounded-full equalizer-bar"></span>
+            </div>
+            <span class="text-xs uppercase tracking-wider font-bold text-brand-300">Sedang Diputar</span>
+          </div>
+          <h2 id="np-title" class="text-lg md:text-2xl font-extrabold text-white truncate">Belum ada lagu diputar</h2>
+          <p id="np-artist" class="text-sm text-teal-100/80 truncate">Pilih lagu dari panel admin atau tunggu giliran</p>
+          <p class="text-xs text-teal-200/60 mt-1"><i class="fa-solid fa-user-circle text-brand-400"></i> Direquest oleh: <strong id="np-requester-name" class="text-gray-100">-</strong></p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 w-full md:w-auto justify-end border-t md:border-t-0 border-teal-900/60 pt-3 md:pt-0">
+        <div class="bg-gray-950/70 px-4 py-2 rounded-xl border border-teal-800/40 text-center flex-1 md:flex-initial">
+          <span class="block text-xs text-gray-400">Di Antrean</span><span id="stat-pending-count" class="text-lg font-bold text-amber-400">0</span>
+        </div>
+        <div class="bg-gray-950/70 px-4 py-2 rounded-xl border border-teal-800/40 text-center flex-1 md:flex-initial">
+          <span class="block text-xs text-gray-400">Selesai</span><span id="stat-played-count" class="text-lg font-bold text-brand-400">0</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-user" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <div class="lg:col-span-5">
+      <div class="glass-card rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-4"><h3 class="text-lg font-bold text-white"><i class="fa-solid fa-paper-plane text-brand-400 mr-2"></i>Request Lagu</h3></div>
+        <div class="flex bg-gray-950 p-1 rounded-xl border border-teal-900/50 mb-4">
+          <button type="button" id="tab-form-single" onclick="switchFormTab('single')" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-brand-600 text-white">1 Lagu</button>
+          <button type="button" id="tab-form-batch" onclick="switchFormTab('batch')" class="flex-1 py-1.5 text-xs font-bold rounded-lg text-gray-400">Banyak Lagu</button>
+        </div>
+        <div class="mb-4">
+          <label class="block text-xs font-semibold text-teal-200/80 uppercase tracking-wider mb-1">Nama Kamu <span class="text-neon-pink">*</span></label>
+          <input type="text" id="input-requester" required placeholder="Contoh: Budi (Divisi IT)" onchange="saveRequesterName()" class="w-full bg-gray-950/90 border border-teal-800/60 rounded-xl py-2 px-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-400">
+          <p class="text-[10px] text-gray-400 mt-1"><i class="fa-solid fa-circle-check text-brand-400 mr-1"></i>Nama tersimpan otomatis di browser ini</p>
+        </div>
+
+        <form id="form-single-song" onsubmit="handleSingleSubmit(event)" class="space-y-3">
+          <div><label class="block text-xs font-semibold text-teal-200/80 uppercase mb-1">Judul Lagu <span class="text-neon-pink">*</span></label>
+            <input type="text" id="input-title" required placeholder="Contoh: Hati-Hati di Jalan" class="w-full bg-gray-950/90 border border-teal-800/60 rounded-xl py-2 px-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-400"></div>
+          <div><label class="block text-xs font-semibold text-teal-200/80 uppercase mb-1">Penyanyi / Band <span class="text-neon-pink">*</span></label>
+            <input type="text" id="input-artist" required placeholder="Contoh: Tulus" class="w-full bg-gray-950/90 border border-teal-800/60 rounded-xl py-2 px-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-400"></div>
+          <div><label class="block text-xs font-semibold text-teal-200/80 uppercase mb-1">Catatan (Opsional)</label>
+            <textarea id="input-note" rows="2" placeholder="Pesan semangat untuk tim..." class="w-full bg-gray-950/90 border border-teal-800/60 rounded-xl py-2 px-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-400"></textarea></div>
+          <button type="submit" class="w-full bg-gradient-to-r from-brand-600 via-brand-500 to-teal-400 hover:opacity-90 text-gray-950 font-extrabold py-2.5 px-4 rounded-xl shadow-lg"><i class="fa-solid fa-paper-plane mr-2"></i>Kirim Request</button>
+        </form>
+
+        <form id="form-batch-song" onsubmit="handleBatchSubmit(event)" class="space-y-3 hidden">
+          <div><label class="block text-xs font-semibold text-teal-200/80 uppercase mb-1">Daftar Lagu</label>
+            <textarea id="input-batch-text" rows="8" placeholder="Format: Judul - Penyanyi&#10;Contoh: Hati-Hati di Jalan - Tulus&#10;Satu Bulan - Bernadya" class="w-full bg-gray-950/90 border border-teal-800/60 rounded-xl py-2 px-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-400"></textarea>
+            <p class="text-[10px] text-gray-400 mt-1">Satu lagu per baris. Jika memakai tanda "-", bagian setelahnya dianggap penyanyi.</p>
+          </div>
+          <button type="submit" class="w-full bg-gradient-to-r from-brand-600 via-brand-500 to-teal-400 hover:opacity-90 text-gray-950 font-extrabold py-2.5 px-4 rounded-xl"><i class="fa-solid fa-layer-group mr-2"></i>Kirim Semua Request</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="lg:col-span-7">
+      <div class="glass-card rounded-2xl p-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <h3 class="text-lg font-bold"><i class="fa-solid fa-list-music text-brand-400 mr-2"></i>Request Lagu</h3>
+          <div class="flex bg-gray-950 p-1 rounded-xl border border-teal-900/50">
+            <button id="ufilter-all" onclick="setUserFilter('all')" class="px-3 py-1 rounded-lg text-xs font-semibold bg-brand-600 text-white">Semua</button>
+            <button id="ufilter-pending" onclick="setUserFilter('pending')" class="px-3 py-1 rounded-lg text-xs font-semibold text-gray-400">Antrean</button>
+            <button id="ufilter-played" onclick="setUserFilter('played')" class="px-3 py-1 rounded-lg text-xs font-semibold text-gray-400">Selesai</button>
+          </div>
+        </div>
+        <div id="user-feed" class="space-y-3"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-admin" class="hidden">
+    <div class="glass-card rounded-2xl p-6">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <div><h3 class="text-xl font-extrabold"><i class="fa-solid fa-user-shield text-brand-400 mr-2"></i>Panel Admin</h3>
+        <p class="text-xs text-gray-400 mt-1">Perubahan checkbox dan penghapusan disimpan ke Google Sheets.</p></div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="markAllPlayed()" class="px-3 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold"><i class="fa-solid fa-check-double mr-1"></i>Tandai Semua Selesai</button>
+          <button onclick="confirmClearAll()" class="px-3 py-2 rounded-xl bg-red-900/60 hover:bg-red-800 text-red-100 text-xs font-bold border border-red-800/50"><i class="fa-solid fa-trash-can mr-1"></i>Hapus Semua</button>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div class="flex bg-gray-950 p-1 rounded-xl border border-teal-900/50">
+          <button id="afilter-all" onclick="setAdminFilter('all')" class="px-3 py-1 rounded-lg text-xs font-semibold bg-brand-600 text-white">Semua</button>
+          <button id="afilter-pending" onclick="setAdminFilter('pending')" class="px-3 py-1 rounded-lg text-xs font-semibold text-gray-400">Antrean</button>
+          <button id="afilter-played" onclick="setAdminFilter('played')" class="px-3 py-1 rounded-lg text-xs font-semibold text-gray-400">Selesai</button>
+        </div>
+        <button onclick="loadRequestList(true)" class="px-3 py-2 rounded-xl bg-gray-900 hover:bg-gray-800 border border-teal-800/50 text-xs text-gray-300"><i class="fa-solid fa-rotate mr-1"></i>Refresh</button>
+      </div>
+      <div id="admin-table" class="space-y-3"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="border-t border-teal-900/50 py-5 text-center text-xs text-gray-500">KUDAJITU FM • Request Lagu Internal</footer>
+
+<div id="toast-container" class="fixed right-4 bottom-4 z-[100] space-y-2 max-w-sm"></div>
+
+<div id="modal-qr" class="hidden fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onclick="if(event.target===this)closeQRModal()">
+  <div class="glass-card rounded-2xl p-6 w-full max-w-sm text-center">
+    <div class="flex items-center justify-between mb-4"><h3 class="font-bold text-lg">Bagikan Link</h3><button onclick="closeQRModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button></div>
+    <div id="qrcode-container" class="bg-white p-4 rounded-xl inline-block mb-4"></div>
+    <input id="share-url-input" readonly class="w-full bg-gray-950 border border-teal-800 rounded-xl px-3 py-2 text-xs text-gray-300 mb-2">
+    <button onclick="copyShareURL()" class="w-full bg-brand-600 hover:bg-brand-500 rounded-xl py-2.5 text-sm font-bold"><i class="fa-solid fa-copy mr-2"></i>Salin Link</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* =========================================================
+   KONFIGURASI
+   ========================================================= */
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyUB8drjL1dSJedYjKIKjVc5gzIE3Pe-QS0FF8o1_zU4NkAweGLFquhHLfy1Nt_eITA-Q/exec';
+
+/*
+ * Catatan keamanan:
+ * Password admin di frontend TIDAK benar-benar rahasia.
+ * Untuk penggunaan internal sederhana masih dapat dipakai,
+ * tetapi siapa pun yang melihat source dapat menemukannya.
+ */
+const ADMIN_PASSWORD = '290979';
+
+let requests = [];
+let currentMode = 'user';
+let userFilter = 'all';
+let adminFilter = 'all';
+let currentFormTab = 'single';
+let syncTimer = null;
+let isSyncing = false;
+
+/* =========================================================
+   UTILITAS
+   ========================================================= */
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+    .replace(/'/g,'&#039;');
+}
+
+function normalizeRequest(item) {
+  return {
+    id: String(item?.id ?? ''),
+    requester: String(item?.requester ?? ''),
+    title: String(item?.title ?? ''),
+    artist: String(item?.artist ?? ''),
+    note: String(item?.note ?? ''),
+    timestamp: item?.timestamp ?? '',
+    status: String(item?.status ?? 'pending').toLowerCase() === 'played' ? 'played' : 'pending',
+    votes: Number(item?.votes ?? 1) || 1
+  };
+}
+
+function timeAgo(dateString) {
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return '';
+  const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+  if (seconds < 60) return 'Baru saja';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m yang lalu`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}j yang lalu`;
+  return `${Math.floor(hours / 24)}h yang lalu`;
+}
+
+function showToast(message, type='info') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  const icon = type === 'success' ? 'fa-circle-check text-brand-400' :
+               type === 'error' ? 'fa-circle-exclamation text-red-400' :
+               'fa-circle-info text-brand-400';
+  toast.className = 'glass-card border border-teal-800 px-4 py-3 rounded-xl shadow-xl text-xs font-medium flex items-center gap-2.5 transition-all duration-300 opacity-0 translate-y-2';
+  toast.innerHTML = `<i class="fa-solid ${icon}"></i><span>${escapeHtml(message)}</span>`;
+  container.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.remove('opacity-0','translate-y-2'));
+  setTimeout(() => {
+    toast.classList.add('opacity-0','translate-y-2');
+    setTimeout(() => toast.remove(), 300);
+  }, 3200);
+}
+
+function saveRequesterName() {
+  const value = document.getElementById('input-requester')?.value.trim();
+  if (value) localStorage.setItem('kudajitu_requester_name', value);
+}
+
+function loadRequesterName() {
+  const saved = localStorage.getItem('kudajitu_requester_name') || '';
+  const input = document.getElementById('input-requester');
+  if (input) input.value = saved;
+}
+
+/* =========================================================
+   MODE / FORM
+   ========================================================= */
+function switchMode(mode) {
+  if (mode === 'admin' && currentMode !== 'admin') {
+    const password = prompt('Masukkan Password Admin:');
+    if (password !== ADMIN_PASSWORD) {
+      alert('Password Admin Salah!');
+      return;
+    }
+  }
+
+  currentMode = mode;
+  const userBtn = document.getElementById('btn-user-mode');
+  const adminBtn = document.getElementById('btn-admin-mode');
+  const userView = document.getElementById('view-user');
+  const adminView = document.getElementById('view-admin');
+
+  if (mode === 'admin') {
+    adminBtn.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold bg-brand-600 text-white shadow-md flex items-center gap-2';
+    userBtn.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold text-gray-400 hover:text-white flex items-center gap-2';
+    userView.classList.add('hidden');
+    adminView.classList.remove('hidden');
+    renderAdminTable();
+  } else {
+    userBtn.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold bg-brand-600 text-white shadow-md flex items-center gap-2';
+    adminBtn.className = 'px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold text-gray-400 hover:text-white flex items-center gap-2';
+    adminView.classList.add('hidden');
+    userView.classList.remove('hidden');
+  }
+}
+
+function switchFormTab(tab) {
+  currentFormTab = tab;
+  const single = document.getElementById('form-single-song');
+  const batch = document.getElementById('form-batch-song');
+  const singleBtn = document.getElementById('tab-form-single');
+  const batchBtn = document.getElementById('tab-form-batch');
+
+  if (tab === 'single') {
+    single.classList.remove('hidden'); batch.classList.add('hidden');
+    singleBtn.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg bg-brand-600 text-white';
+    batchBtn.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg text-gray-400';
+  } else {
+    single.classList.add('hidden'); batch.classList.remove('hidden');
+    batchBtn.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg bg-brand-600 text-white';
+    singleBtn.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg text-gray-400';
+  }
+}
+
+function setUserFilter(filter) {
+  userFilter = filter;
+  updateFilterButtons('ufilter', filter);
+  renderUserFeed();
+}
+
+function setAdminFilter(filter) {
+  adminFilter = filter;
+  updateFilterButtons('afilter', filter);
+  renderAdminTable();
+}
+
+function updateFilterButtons(prefix, active) {
+  ['all','pending','played'].forEach(f => {
+    const btn = document.getElementById(`${prefix}-${f}`);
+    if (!btn) return;
+    btn.className = f === active
+      ? 'px-3 py-1 rounded-lg text-xs font-semibold bg-brand-600 text-white'
+      : 'px-3 py-1 rounded-lg text-xs font-semibold text-gray-400 hover:text-white';
+  });
+}
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+function getFilteredRequests(filter) {
+  if (filter === 'pending') return requests.filter(r => r.status === 'pending');
+  if (filter === 'played') return requests.filter(r => r.status === 'played');
+  return requests;
+}
+
+function renderAll() {
+  renderUserFeed();
+  renderAdminTable();
+  updateStats();
+}
+
+function updateStats() {
+  const pending = requests.filter(r => r.status === 'pending').length;
+  const played = requests.filter(r => r.status === 'played').length;
+  document.getElementById('stat-pending-count').textContent = pending;
+  document.getElementById('stat-played-count').textContent = played;
+
+  const badge = document.getElementById('badge-pending');
+  badge.textContent = pending;
+  badge.classList.toggle('hidden', pending === 0);
+
+  const now = requests.find(r => r.status === 'played');
+  if (now) {
+    document.getElementById('np-title').textContent = now.title;
+    document.getElementById('np-artist').textContent = now.artist;
+    document.getElementById('np-requester-name').textContent = now.requester || '-';
+  } else {
+    document.getElementById('np-title').textContent = 'Belum ada lagu diputar';
+    document.getElementById('np-artist').textContent = 'Pilih lagu dari panel admin atau tunggu giliran';
+    document.getElementById('np-requester-name').textContent = '-';
+  }
+}
+
+function requestCard(r, admin=false) {
+  const played = r.status === 'played';
+  const statusBadge = played
+    ? '<span class="px-2 py-1 rounded-lg bg-brand-500/15 text-brand-300 border border-brand-500/20 text-[10px] font-bold">SUDAH DIPUTAR</span>'
+    : '<span class="px-2 py-1 rounded-lg bg-amber-500/10 text-amber-300 border border-amber-500/20 text-[10px] font-bold">ANTREAN</span>';
+
+  if (admin) {
+    return `
+      <div class="glass-card glass-card-hover rounded-xl p-4 border ${played ? 'border-brand-500/20' : 'border-teal-900/50'}">
+        <div class="flex items-start gap-3">
+          <label class="flex items-center justify-center w-10 h-10 rounded-xl bg-gray-950 border border-teal-800/50 cursor-pointer shrink-0" title="Tandai sudah diputar">
+            <input type="checkbox" class="w-5 h-5 cursor-pointer" ${played ? 'checked' : ''}
+              onchange="togglePlayedCheckbox('${escapeHtml(r.id)}', this.checked)">
+          </label>
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-2 mb-1">
+              <h4 class="font-bold text-white truncate">${escapeHtml(r.title)}</h4>${statusBadge}
+            </div>
+            <p class="text-sm text-teal-100/80">${escapeHtml(r.artist)}</p>
+            <div class="text-xs text-gray-400 mt-2 flex flex-wrap gap-x-3 gap-y-1">
+              <span><i class="fa-solid fa-user text-brand-400 mr-1"></i>${escapeHtml(r.requester)}</span>
+              <span><i class="fa-regular fa-clock text-brand-400 mr-1"></i>${escapeHtml(timeAgo(r.timestamp))}</span>
+              ${r.note ? `<span><i class="fa-regular fa-note-sticky text-brand-400 mr-1"></i>${escapeHtml(r.note)}</span>` : ''}
+            </div>
+          </div>
+          <button onclick="deleteRequest('${escapeHtml(r.id)}')" class="w-9 h-9 rounded-xl bg-red-950/60 hover:bg-red-900 text-red-300 border border-red-900/50 shrink-0" title="Hapus">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </div>
+      </div>`;
+  }
+
+  return `
+    <div class="rounded-xl p-4 bg-gray-950/45 border border-teal-900/40">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="flex flex-wrap gap-2 items-center">
+            <h4 class="font-bold text-white truncate">${escapeHtml(r.title)}</h4>${statusBadge}
+          </div>
+          <p class="text-sm text-teal-100/80 mt-1">${escapeHtml(r.artist)}</p>
+          <p class="text-xs text-gray-400 mt-2"><i class="fa-solid fa-user text-brand-400 mr-1"></i>${escapeHtml(r.requester)} ${r.timestamp ? '• ' + escapeHtml(timeAgo(r.timestamp)) : ''}</p>
+          ${r.note ? `<p class="text-xs text-gray-500 mt-1">${escapeHtml(r.note)}</p>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderUserFeed() {
+  const container = document.getElementById('user-feed');
+  const data = getFilteredRequests(userFilter);
+  if (!data.length) {
+    container.innerHTML = `<div class="text-center py-10 text-gray-500"><i class="fa-solid fa-music text-3xl mb-3 opacity-40"></i><p class="text-sm">Belum ada request lagu.</p></div>`;
+    return;
+  }
+  container.innerHTML = data.map(r => requestCard(r, false)).join('');
+}
+
+function renderAdminTable() {
+  const container = document.getElementById('admin-table');
+  if (!container) return;
+  const data = getFilteredRequests(adminFilter);
+  if (!data.length) {
+    container.innerHTML = `<div class="text-center py-10 text-gray-500"><i class="fa-solid fa-inbox text-3xl mb-3 opacity-40"></i><p class="text-sm">Tidak ada data pada filter ini.</p></div>`;
+    return;
+  }
+  container.innerHTML = data.map(r => requestCard(r, true)).join('');
+}
+
+/* =========================================================
+   GOOGLE APPS SCRIPT - READ
+   ========================================================= */
+async function loadRequestList(showMessage=false) {
+  if (isSyncing) return;
+  isSyncing = true;
+
+  try {
+    const response = await fetch(GAS_WEB_APP_URL, { method:'GET', cache:'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const result = await response.json();
+
+    /*
+     * Versi GAS baru mengembalikan:
+     * { success:true, data:[...] }
+     *
+     * Dukungan juga diberikan untuk GAS lama yang langsung
+     * mengembalikan array.
+     */
+    const data = Array.isArray(result) ? result : (result && Array.isArray(result.data) ? result.data : null);
+
+    if (!data) {
+      throw new Error(result?.message || 'Format response Google Apps Script tidak valid');
+    }
+
+    requests = data.map(normalizeRequest);
+    renderAll();
+
+    if (showMessage) showToast(`Data diperbarui: ${requests.length} request`, 'success');
+  } catch (error) {
+    console.error('loadRequestList:', error);
+    if (showMessage) showToast('Gagal mengambil data dari Google Sheets.', 'error');
+  } finally {
+    isSyncing = false;
+  }
+}
+
+/* =========================================================
+   GOOGLE APPS SCRIPT - WRITE
+   ========================================================= */
+function postToGAS(payload) {
+  /*
+   * no-cors memang membuat response POST tidak dapat dibaca
+   * browser. Karena itu keberhasilan operasi diverifikasi
+   * dengan GET ulang setelah beberapa saat.
+   */
+  return fetch(GAS_WEB_APP_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+}
+
+async function syncAfterWrite(delay=1500) {
+  await new Promise(resolve => setTimeout(resolve, delay));
+  await loadRequestList(false);
+}
+
+/* =========================================================
+   ADD SINGLE
+   ========================================================= */
+async function handleSingleSubmit(e) {
+  e.preventDefault();
+
+  saveRequesterName();
+
+  const requester = document.getElementById('input-requester').value.trim();
+  const title = document.getElementById('input-title').value.trim();
+  const artist = document.getElementById('input-artist').value.trim();
+  const note = document.getElementById('input-note').value.trim();
+
+  if (!requester || !title || !artist) {
+    showToast('Nama, judul lagu, dan penyanyi wajib diisi.', 'error');
+    return;
+  }
+
+  const item = {
+    id: 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2,8),
+    requester, title, artist, note,
+    timestamp: new Date().toISOString(),
+    status: 'pending',
+    votes: 1
+  };
+
+  // Optimistic UI
+  requests.unshift(normalizeRequest(item));
+  renderAll();
+
+  showToast('Mengirim request ke Google Sheets...', 'info');
+
+  try {
+    await postToGAS({ action:'add', ...item });
+    document.getElementById('input-title').value = '';
+    document.getElementById('input-artist').value = '';
+    document.getElementById('input-note').value = '';
+    showToast('Request berhasil dikirim.', 'success');
+    await syncAfterWrite(1200);
+  } catch (error) {
+    console.error(error);
+    showToast('Gagal mengirim request.', 'error');
+    await loadRequestList(false);
+  }
+}
+
+/* =========================================================
+   ADD BATCH
+   ========================================================= */
+async function handleBatchSubmit(e) {
+  e.preventDefault();
+
+  saveRequesterName();
+
+  const requester = document.getElementById('input-requester').value.trim();
+  const rawText = document.getElementById('input-batch-text').value.trim();
+
+  if (!requester || !rawText) {
+    showToast('Nama dan daftar lagu wajib diisi.', 'error');
+    return;
+  }
+
+  const now = Date.now();
+  const items = rawText.split('\n')
+    .map(x => x.trim())
+    .filter(Boolean)
+    .map((line, index) => {
+      let title = line;
+      let artist = 'Unknown Artist';
+
+      if (line.includes('-')) {
+        const parts = line.split('-');
+        title = parts.shift().trim();
+        artist = parts.join('-').trim() || 'Unknown Artist';
+      }
+
+      return {
+        id: 'req_' + (now + index) + '_' + Math.random().toString(36).slice(2,6),
+        requester,
+        title,
+        artist,
+        note:'Batch Request',
+        timestamp:new Date(now - index * 100).toISOString(),
+        status:'pending',
+        votes:1
+      };
+    });
+
+  if (!items.length) {
+    showToast('Tidak ada lagu yang valid.', 'error');
+    return;
+  }
+
+  requests = [...items.map(normalizeRequest), ...requests];
+  renderAll();
+  showToast(`Mengirim ${items.length} lagu...`, 'info');
+
+  try {
+    await postToGAS({ action:'addBatch', items });
+    document.getElementById('input-batch-text').value = '';
+    showToast(`${items.length} request berhasil dikirim.`, 'success');
+    await syncAfterWrite(1500);
+  } catch (error) {
+    console.error(error);
+    showToast('Gagal mengirim batch request.', 'error');
+    await loadRequestList(false);
+  }
+}
+
+/* =========================================================
+   CHECKBOX STATUS
+   ========================================================= */
+async function togglePlayedCheckbox(id, isChecked) {
+  id = String(id);
+
+  const req = requests.find(r => String(r.id) === id);
+  if (!req) {
+    showToast('Data request tidak ditemukan di browser.', 'error');
+    return;
+  }
+
+  const oldStatus = req.status;
+  const newStatus = isChecked ? 'played' : 'pending';
+
+  // Update UI langsung
+  req.status = newStatus;
+  renderAll();
+
+  showToast('Menyimpan status ke Google Sheets...', 'info');
+
+  try {
+    await postToGAS({
+      action:'updateStatus',
+      id:id,
+      status:newStatus
+    });
+
+    /*
+     * Karena POST menggunakan no-cors, browser tidak dapat
+     * membaca response GAS. Jadi kita selalu membaca ulang
+     * Google Sheets setelah operasi selesai.
+     */
+    await syncAfterWrite(1500);
+
+    const verified = requests.find(r => String(r.id) === id);
+
+    if (verified && verified.status === newStatus) {
+      showToast(newStatus === 'played' ? 'Ditandai sudah diputar.' : 'Status dikembalikan ke antrean.', 'success');
+    } else {
+      // Jika tidak tersimpan, kembalikan status lama
+      req.status = oldStatus;
+      renderAll();
+      showToast('Status tidak tersimpan. Periksa Google Apps Script.', 'error');
+    }
+
+  } catch (error) {
+    console.error('togglePlayedCheckbox:', error);
+    req.status = oldStatus;
+    renderAll();
+    showToast('Gagal menyimpan status.', 'error');
+  }
+}
+
+/* =========================================================
+   DELETE
+   ========================================================= */
+async function deleteRequest(id) {
+  id = String(id);
+
+  const req = requests.find(r => String(r.id) === id);
+  if (!req) {
+    showToast('Data request tidak ditemukan.', 'error');
+    return;
+  }
+
+  if (!confirm(`Yakin ingin menghapus request "${req.title}"?`)) return;
+
+  // Simpan index/status untuk rollback
+  const oldRequests = [...requests];
+
+  requests = requests.filter(r => String(r.id) !== id);
+  renderAll();
+
+  showToast('Menghapus request dari Google Sheets...', 'info');
+
+  try {
+    await postToGAS({
+      action:'delete',
+      id:id
+    });
+
+    await syncAfterWrite(1500);
+
+    const stillExists = requests.some(r => String(r.id) === id);
+
+    if (!stillExists) {
+      showToast('Request berhasil dihapus.', 'success');
+    } else {
+      requests = oldRequests;
+      renderAll();
+      showToast('Request gagal dihapus dari Google Sheets.', 'error');
+    }
+
+  } catch (error) {
+    console.error('deleteRequest:', error);
+    requests = oldRequests;
+    renderAll();
+    showToast('Gagal menghapus request.', 'error');
+  }
+}
+
+/* =========================================================
+   MARK ALL PLAYED
+   ========================================================= */
+async function markAllPlayed() {
+  const pending = requests.filter(r => r.status === 'pending');
+
+  if (!pending.length) {
+    showToast('Tidak ada lagu yang masih antre.', 'info');
+    return;
+  }
+
+  if (!confirm(`Tandai ${pending.length} lagu sebagai Sudah Diputar?`)) return;
+
+  const oldRequests = requests.map(r => ({...r}));
+  requests.forEach(r => { if (r.status === 'pending') r.status = 'played'; });
+  renderAll();
+
+  showToast('Menyimpan semua status...', 'info');
+
+  try {
+    // GAS yang disediakan tidak memiliki action bulk update.
+    // Karena itu kirim satu per satu.
+    for (const req of pending) {
+      await postToGAS({
+        action:'updateStatus',
+        id:String(req.id),
+        status:'played'
+      });
+      await new Promise(resolve => setTimeout(resolve, 120));
+    }
+
+    await syncAfterWrite(1800);
+
+    const failed = pending.some(p => {
+      const current = requests.find(r => String(r.id) === String(p.id));
+      return !current || current.status !== 'played';
+    });
+
+    if (failed) {
+      requests = oldRequests;
+      renderAll();
+      showToast('Sebagian status gagal disimpan.', 'error');
+    } else {
+      showToast('Semua lagu berhasil ditandai selesai.', 'success');
+    }
+
+  } catch (error) {
+    console.error(error);
+    requests = oldRequests;
+    renderAll();
+    showToast('Gagal menyimpan semua status.', 'error');
+  }
+}
+
+/* =========================================================
+   CLEAR ALL
+   ========================================================= */
+async function confirmClearAll() {
+  if (!requests.length) {
+    showToast('Daftar request sudah kosong.', 'info');
+    return;
+  }
+
+  if (!confirm(`PERINGATAN!\n\nAnda akan menghapus SEMUA ${requests.length} request.\n\nLanjutkan?`)) return;
+
+  const oldRequests = [...requests];
+  const ids = requests.map(r => String(r.id));
+
+  requests = [];
+  renderAll();
+
+  showToast('Menghapus seluruh request...', 'info');
+
+  try {
+    for (const id of ids) {
+      await postToGAS({ action:'delete', id });
+      await new Promise(resolve => setTimeout(resolve, 120));
+    }
+
+    await syncAfterWrite(2000);
+
+    if (requests.length === 0) {
+      showToast('Semua request berhasil dihapus.', 'success');
+    } else {
+      // Hanya restore jika masih ada data
+      showToast('Sebagian data masih tersisa. Periksa Google Sheets.', 'error');
+    }
+
+  } catch (error) {
+    console.error(error);
+    requests = oldRequests;
+    renderAll();
+    showToast('Gagal menghapus seluruh request.', 'error');
+  }
+}
+
+/* =========================================================
+   QR MODAL
+   ========================================================= */
+function setupQRModal() {
+  const currentUrl = window.location.href;
+  document.getElementById('share-url-input').value = currentUrl;
+
+  const container = document.getElementById('qrcode-container');
+  container.innerHTML = '';
+
+  if (window.QRCode) {
+    new QRCode(container, {
+      text: currentUrl,
+      width:160,
+      height:160,
+      colorDark:'#042f2e',
+      colorLight:'#ffffff',
+      correctLevel:QRCode.CorrectLevel.H
+    });
+  }
+}
+
+function openQRModal() {
+  setupQRModal();
+  document.getElementById('modal-qr').classList.remove('hidden');
+}
+
+function closeQRModal() {
+  document.getElementById('modal-qr').classList.add('hidden');
+}
+
+async function copyShareURL() {
+  const input = document.getElementById('share-url-input');
+  try {
+    await navigator.clipboard.writeText(input.value);
+  } catch {
+    input.select();
+    document.execCommand('copy');
+  }
+  showToast('Link berhasil disalin.', 'success');
+}
+
+/* =========================================================
+   INIT & AUTO SYNC
+   ========================================================= */
+window.addEventListener('DOMContentLoaded', async () => {
+  loadRequesterName();
+  switchFormTab('single');
+  await loadRequestList(false);
+
+  // Sinkronisasi berkala. Tidak memakai optimistic data lama
+  // sebagai sumber kebenaran; Google Sheets adalah sumber utama.
+  syncTimer = setInterval(() => {
+    loadRequestList(false);
+  }, 5000);
+});
+</script>
+</body>
+</html>
