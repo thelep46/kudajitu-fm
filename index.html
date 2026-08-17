@@ -23,18 +23,23 @@
                     },
                     colors: {
                         brand: {
-                            50: '#f0f5ff',
-                            100: '#e0ebff',
-                            500: '#6366f1',
-                            600: '#4f46e5',
-                            700: '#4338ca',
-                            900: '#1e1b4b',
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            200: '#99f6e4',
+                            300: '#5eead4',
+                            400: '#2dd4bf', // Hijau Toska Terang
+                            500: '#14b8a6', // Primary Toska
+                            600: '#0d9488',
+                            700: '#0f766e',
+                            800: '#115e59',
+                            900: '#134e4a',
+                            950: '#042f2e',
                         },
                         neon: {
-                            purple: '#a855f7',
-                            pink: '#ec4899',
+                            tosca: '#2dd4bf',
                             cyan: '#06b6d4',
-                            green: '#10b981'
+                            emerald: '#10b981',
+                            pink: '#f43f5e'
                         }
                     }
                 }
@@ -45,20 +50,20 @@
     <style>
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: #0b1719;
+            background-color: #061114;
             color: #f3f4f6;
         }
 
         .glass-card {
-            background: rgba(17, 39, 39, 0.7);
+            background: rgba(13, 27, 30, 0.75);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(45, 212, 191, 0.12);
         }
 
         .glass-card-hover:hover {
-            background: rgba(31, 54, 55, 0.8);
-            border-color: rgba(99, 229, 241, 0.3);
+            background: rgba(20, 38, 42, 0.85);
+            border-color: rgba(20, 184, 166, 0.35);
         }
 
         .equalizer-bar {
@@ -77,33 +82,33 @@
             width: 8px;
         }
         ::-webkit-scrollbar-track {
-            background: #0f2a27;
+            background: #061114;
         }
         ::-webkit-scrollbar-thumb {
-            background: #335455;
+            background: #115e59;
             border-radius: 4px;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: #476968;
+            background: #0d9488;
         }
     </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between antialiased selection:bg-brand-500 selection:text-white">
 
     <!-- HEADER / NAVIGATION -->
-    <header class="sticky top-0 z-40 glass-card border-b border-gray-800/80 px-4 lg:px-8 py-3">
+    <header class="sticky top-0 z-40 glass-card border-b border-teal-900/50 px-4 lg:px-8 py-3">
         <div class="max-w-7xl mx-auto flex items-center justify-between">
             <!-- Logo & Brand -->
             <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 via-neon-purple to-neon-pink p-0.5 shadow-lg shadow-brand-500/20">
-                    <div class="w-full h-full bg-gray-950 rounded-[10px] flex items-center justify-center text-neon-pink">
-                        <i class="fa-solid fa-compact-disc fa-spin text-xl text-brand-500"></i>
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 via-brand-400 to-neon-cyan p-0.5 shadow-lg shadow-brand-500/20">
+                    <div class="w-full h-full bg-gray-950 rounded-[10px] flex items-center justify-center text-brand-400">
+                        <i class="fa-solid fa-compact-disc fa-spin text-xl text-brand-400"></i>
                     </div>
                 </div>
                 <div>
-                    <h1 class="font-extrabold text-lg md:text-xl tracking-tight bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent flex items-center gap-2">
-                        KUDAJITU FM
-                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-400 border border-brand-500/20">v2.5</span>
+                    <h1 class="font-extrabold text-lg md:text-xl tracking-tight bg-gradient-to-r from-white via-teal-100 to-brand-300 bg-clip-text text-transparent flex items-center gap-2">
+                        Kudajitu FM
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-brand-500/15 text-brand-300 border border-brand-500/30">v2.5</span>
                     </h1>
                     <p class="text-xs text-gray-400 hidden sm:block">Request lagu favoritmu & dengarkan bersama di kantor</p>
                 </div>
@@ -112,14 +117,14 @@
             <!-- View Switcher Tabs & Controls -->
             <div class="flex items-center space-x-2 md:space-x-3">
                 <!-- Share QR Button -->
-                <button onclick="openQRModal()" class="px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs md:text-sm font-medium transition flex items-center gap-2 border border-gray-700/50" title="Bagikan QR Code">
+                <button onclick="openQRModal()" class="px-3 py-2 rounded-xl bg-gray-900/80 hover:bg-gray-800 text-gray-300 text-xs md:text-sm font-medium transition flex items-center gap-2 border border-teal-800/40" title="Bagikan QR Code">
                     <i class="fa-solid fa-qrcode text-brand-400"></i>
                     <span class="hidden md:inline">Bagikan Link</span>
                 </button>
 
                 <!-- Mode Selector -->
-                <div class="bg-gray-900/90 p-1 rounded-xl border border-gray-800 flex items-center">
-                    <button id="btn-user-mode" onclick="switchMode('user')" class="px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-brand-600 text-white shadow-md">
+                <div class="bg-gray-950/90 p-1 rounded-xl border border-teal-900/50 flex items-center">
+                    <button id="btn-user-mode" onclick="switchMode('user')" class="px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-brand-600 text-white shadow-md shadow-brand-600/30">
                         <i class="fa-solid fa-music"></i>
                         <span>User Request</span>
                     </button>
@@ -137,17 +142,17 @@
     <main class="max-w-7xl mx-auto px-4 lg:px-8 py-6 flex-1 w-full space-y-6">
 
         <!-- NOW PLAYING BANNER -->
-        <div id="now-playing-container" class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-gray-900 via-indigo-950 to-purple-950 p-5 md:p-6 border border-indigo-500/30 shadow-2xl">
-            <div class="absolute -right-10 -bottom-10 w-60 h-60 bg-brand-500/10 rounded-full blur-3xl pointer-events-none"></div>
-            <div class="absolute -left-10 -top-10 w-60 h-60 bg-neon-purple/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div id="now-playing-container" class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-gray-950 via-brand-950 to-teal-900/60 p-5 md:p-6 border border-brand-500/30 shadow-2xl">
+            <div class="absolute -right-10 -bottom-10 w-60 h-60 bg-brand-500/15 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -left-10 -top-10 w-60 h-60 bg-neon-cyan/10 rounded-full blur-3xl pointer-events-none"></div>
 
             <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4">
                 <div class="flex items-center gap-4 md:gap-6 w-full md:w-auto">
                     <div class="relative flex-shrink-0">
-                        <div id="now-playing-disc" class="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gray-900 border-2 border-brand-500/50 flex items-center justify-center shadow-lg shadow-brand-500/20">
+                        <div id="now-playing-disc" class="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gray-950 border-2 border-brand-400/60 flex items-center justify-center shadow-lg shadow-brand-500/30">
                             <i class="fa-solid fa-music text-2xl md:text-3xl text-brand-400 animate-pulse"></i>
                         </div>
-                        <div class="absolute -bottom-1 -right-1 bg-neon-green text-gray-950 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow">
+                        <div class="absolute -bottom-1 -right-1 bg-brand-400 text-gray-950 text-[10px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1 shadow">
                             <span class="w-1.5 h-1.5 rounded-full bg-gray-950 animate-ping"></span>
                             NOW PLAYING
                         </div>
@@ -156,30 +161,30 @@
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2 mb-1">
                             <div class="flex items-end gap-1 h-4">
-                                <span class="w-1 bg-neon-cyan rounded-full equalizer-bar"></span>
-                                <span class="w-1 bg-neon-purple rounded-full equalizer-bar"></span>
-                                <span class="w-1 bg-neon-pink rounded-full equalizer-bar"></span>
+                                <span class="w-1 bg-brand-300 rounded-full equalizer-bar"></span>
                                 <span class="w-1 bg-brand-500 rounded-full equalizer-bar"></span>
+                                <span class="w-1 bg-neon-cyan rounded-full equalizer-bar"></span>
+                                <span class="w-1 bg-emerald-400 rounded-full equalizer-bar"></span>
                             </div>
-                            <span class="text-xs uppercase tracking-wider font-bold text-neon-cyan">Sedang Diputar</span>
+                            <span class="text-xs uppercase tracking-wider font-bold text-brand-300">Sedang Diputar</span>
                         </div>
                         <h2 id="np-title" class="text-lg md:text-2xl font-extrabold text-white truncate">Belum ada lagu diputar</h2>
-                        <p id="np-artist" class="text-sm text-gray-300 truncate">Pilih lagu dari panel admin atau tunggu giliran</p>
-                        <p id="np-requester" class="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                        <p id="np-artist" class="text-sm text-teal-100/80 truncate">Pilih lagu dari panel admin atau tunggu giliran</p>
+                        <p id="np-requester" class="text-xs text-teal-200/60 mt-1 flex items-center gap-1">
                             <i class="fa-solid fa-user-circle text-brand-400"></i>
-                            <span>Direquest oleh: <strong id="np-requester-name" class="text-gray-200">-</strong></span>
+                            <span>Direquest oleh: <strong id="np-requester-name" class="text-gray-100">-</strong></span>
                         </p>
                     </div>
                 </div>
 
-                <div class="flex items-center gap-3 w-full md:w-auto justify-end border-t md:border-t-0 border-gray-800/80 pt-3 md:pt-0">
-                    <div class="bg-gray-900/80 px-4 py-2 rounded-xl border border-gray-800 text-center flex-1 md:flex-initial">
+                <div class="flex items-center gap-3 w-full md:w-auto justify-end border-t md:border-t-0 border-teal-900/60 pt-3 md:pt-0">
+                    <div class="bg-gray-950/70 px-4 py-2 rounded-xl border border-teal-800/40 text-center flex-1 md:flex-initial">
                         <span class="block text-xs text-gray-400">Di Antrean</span>
-                        <span id="stat-pending-count" class="text-lg font-bold text-neon-pink">0</span>
+                        <span id="stat-pending-count" class="text-lg font-bold text-amber-400">0</span>
                     </div>
-                    <div class="bg-gray-900/80 px-4 py-2 rounded-xl border border-gray-800 text-center flex-1 md:flex-initial">
+                    <div class="bg-gray-950/70 px-4 py-2 rounded-xl border border-teal-800/40 text-center flex-1 md:flex-initial">
                         <span class="block text-xs text-gray-400">Selesai</span>
-                        <span id="stat-played-count" class="text-lg font-bold text-neon-green">0</span>
+                        <span id="stat-played-count" class="text-lg font-bold text-brand-400">0</span>
                     </div>
                 </div>
             </div>
@@ -190,9 +195,9 @@
             
             <!-- Request Form (Left Column on Desktop) -->
             <div class="lg:col-span-5">
-                <div class="glass-card rounded-2xl p-6 sticky top-24 border border-gray-800">
+                <div class="glass-card rounded-2xl p-6 sticky top-24">
                     
-                    <!-- Form Header & Mode Switch (Single vs Batch) -->
+                    <!-- Form Header & Mode Switch -->
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-lg font-bold text-white flex items-center gap-2">
                             <i class="fa-solid fa-paper-plane text-brand-400"></i>
@@ -201,7 +206,7 @@
                     </div>
 
                     <!-- Input Mode Tabs -->
-                    <div class="flex bg-gray-900 p-1 rounded-xl border border-gray-800 mb-4">
+                    <div class="flex bg-gray-950 p-1 rounded-xl border border-teal-900/50 mb-4">
                         <button type="button" id="tab-form-single" onclick="switchFormTab('single')" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-brand-600 text-white transition">
                             <i class="fa-solid fa-music mr-1"></i>1 Lagu
                         </button>
@@ -212,56 +217,56 @@
 
                     <!-- Common Requester Name Input -->
                     <div class="mb-4">
-                        <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">
+                        <label class="block text-xs font-semibold text-teal-200/80 uppercase tracking-wider mb-1">
                             Nama Kamu <span class="text-neon-pink">*</span>
                         </label>
                         <div class="relative">
-                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-teal-600">
                                 <i class="fa-solid fa-user text-sm"></i>
                             </span>
                             <input type="text" id="input-requester" required placeholder="Contoh: Budi (Divisi IT)" onchange="saveRequesterName()"
-                                class="w-full bg-gray-900/90 border border-gray-700/80 rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition">
+                                class="w-full bg-gray-950/90 border border-teal-800/60 rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-400 transition">
                         </div>
-                        <p class="text-[10px] text-gray-500 mt-1"><i class="fa-solid fa-circle-check text-neon-green mr-0.5"></i> Nama akan tersimpan otomatis di HP/Browser ini</p>
+                        <p class="text-[10px] text-gray-400 mt-1"><i class="fa-solid fa-circle-check text-brand-400 mr-0.5"></i> Nama akan tersimpan otomatis di HP/Browser ini</p>
                     </div>
 
                     <!-- TAB 1: SINGLE SONG FORM -->
                     <form id="form-single-song" onsubmit="handleSingleSubmit(event)" class="space-y-3">
                         <div>
-                            <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">
+                            <label class="block text-xs font-semibold text-teal-200/80 uppercase tracking-wider mb-1">
                                 Judul Lagu <span class="text-neon-pink">*</span>
                             </label>
                             <div class="relative">
-                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
+                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-teal-600">
                                     <i class="fa-solid fa-music text-sm"></i>
                                 </span>
                                 <input type="text" id="input-title" required placeholder="Contoh: Hati-Hati di Jalan" 
-                                    class="w-full bg-gray-900/90 border border-gray-700/80 rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition">
+                                    class="w-full bg-gray-950/90 border border-teal-800/60 rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-400 transition">
                             </div>
                         </div>
 
                         <div>
-                            <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">
+                            <label class="block text-xs font-semibold text-teal-200/80 uppercase tracking-wider mb-1">
                                 Penyanyi / Band <span class="text-neon-pink">*</span>
                             </label>
                             <div class="relative">
-                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
+                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-teal-600">
                                     <i class="fa-solid fa-microphone-lines text-sm"></i>
                                 </span>
                                 <input type="text" id="input-artist" required placeholder="Contoh: Tulus" 
-                                    class="w-full bg-gray-900/90 border border-gray-700/80 rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition">
+                                    class="w-full bg-gray-950/90 border border-teal-800/60 rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-400 transition">
                             </div>
                         </div>
 
                         <div>
-                            <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">
+                            <label class="block text-xs font-semibold text-teal-200/80 uppercase tracking-wider mb-1">
                                 Catatan (Opsional)
                             </label>
                             <textarea id="input-note" rows="2" placeholder="Pesan semangat untuk tim..." 
-                                class="w-full bg-gray-900/90 border border-gray-700/80 rounded-xl py-2 px-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition"></textarea>
+                                class="w-full bg-gray-950/90 border border-teal-800/60 rounded-xl py-2 px-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand-400 transition"></textarea>
                         </div>
 
-                        <button type="submit" class="w-full bg-gradient-to-r from-brand-600 to-neon-purple hover:from-brand-500 hover:to-neon-pink text-white font-bold py-2.5 px-4 rounded-xl shadow-lg shadow-brand-500/25 transition duration-200 flex items-center justify-center gap-2 text-sm">
+                        <button type="submit" class="w-full bg-gradient-to-r from-brand-600 via-brand-500 to-teal-400 hover:opacity-90 text-gray-950 font-extrabold py-2.5 px-4 rounded-xl shadow-lg shadow-brand-500/20 transition duration-200 flex items-center justify-center gap-2 text-sm">
                             <i class="fa-solid fa-paper-plane"></i>
                             <span>Kirim Request (1 Lagu)</span>
                         </button>
@@ -271,20 +276,20 @@
                     <form id="form-batch-song" onsubmit="handleBatchSubmit(event)" class="space-y-3 hidden">
                         <div>
                             <div class="flex items-center justify-between mb-1">
-                                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                                <label class="block text-xs font-semibold text-teal-200/80 uppercase tracking-wider">
                                     Daftar Lagu (1 Lagu per Baris) <span class="text-neon-pink">*</span>
                                 </label>
                             </div>
                             <textarea id="input-batch-text" rows="6" required placeholder="Format: Judul Lagu - Penyanyi&#10;&#10;Contoh:&#10;Hati Hati di Jalan - Tulus&#10;Separuh Aku - NOAH&#10;Komang - Raim Laode&#10;Sial - Mahalini" 
-                                class="w-full bg-gray-900/90 border border-gray-700/80 rounded-xl py-2.5 px-3 text-xs font-mono text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition leading-relaxed"></textarea>
+                                class="w-full bg-gray-950/90 border border-teal-800/60 rounded-xl py-2.5 px-3 text-xs font-mono text-white placeholder-gray-500 focus:outline-none focus:border-brand-400 transition leading-relaxed"></textarea>
                         </div>
 
-                        <div class="p-2.5 rounded-xl bg-brand-950/40 border border-brand-500/20 text-[11px] text-brand-300 space-y-1">
-                            <p class="font-bold"><i class="fa-solid fa-lightbulb text-amber-400 mr-1"></i> Tips Pengisian Cepat:</p>
+                        <div class="p-2.5 rounded-xl bg-brand-950/60 border border-brand-500/30 text-[11px] text-brand-200 space-y-1">
+                            <p class="font-bold text-brand-300"><i class="fa-solid fa-lightbulb text-amber-400 mr-1"></i> Tips Pengisian Cepat:</p>
                             <p>Tulis atau copas daftar lagu dengan pemisah tanda strip (<strong class="text-white">-</strong>) antara judul dan penyanyi.</p>
                         </div>
 
-                        <button type="submit" class="w-full bg-gradient-to-r from-neon-purple via-brand-600 to-neon-pink hover:opacity-90 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg shadow-purple-500/25 transition duration-200 flex items-center justify-center gap-2 text-sm">
+                        <button type="submit" class="w-full bg-gradient-to-r from-brand-600 via-teal-500 to-emerald-400 hover:opacity-90 text-gray-950 font-extrabold py-2.5 px-4 rounded-xl shadow-lg shadow-brand-500/20 transition duration-200 flex items-center justify-center gap-2 text-sm">
                             <i class="fa-solid fa-rocket"></i>
                             <span>Kirim Semua Lagu Sekaligus</span>
                         </button>
@@ -296,17 +301,17 @@
             <!-- Requested Songs List View (Right Column on Desktop) -->
             <div class="lg:col-span-7 space-y-4">
                 <!-- Search & Filters -->
-                <div class="glass-card rounded-2xl p-4 border border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div class="glass-card rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
                     <div class="relative w-full sm:w-64">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-teal-600">
                             <i class="fa-solid fa-magnifying-glass text-xs"></i>
                         </span>
                         <input type="text" id="user-search-input" onkeyup="filterUserList()" placeholder="Cari lagu / penyanyi..." 
-                            class="w-full bg-gray-900 border border-gray-700/80 rounded-xl py-1.5 pl-9 pr-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-brand-500">
+                            class="w-full bg-gray-950 border border-teal-800/60 rounded-xl py-1.5 pl-9 pr-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-brand-400">
                     </div>
 
                     <!-- Category Pills -->
-                    <div class="flex items-center gap-1 bg-gray-900/90 p-1 rounded-xl border border-gray-800 w-full sm:w-auto justify-center">
+                    <div class="flex items-center gap-1 bg-gray-950 p-1 rounded-xl border border-teal-900/50 w-full sm:w-auto justify-center">
                         <button onclick="setUserFilter('all')" id="ufilter-all" class="px-3 py-1 rounded-lg text-xs font-semibold bg-brand-600 text-white">Semua</button>
                         <button onclick="setUserFilter('pending')" id="ufilter-pending" class="px-3 py-1 rounded-lg text-xs font-semibold text-gray-400 hover:text-white">Menunggu</button>
                         <button onclick="setUserFilter('played')" id="ufilter-played" class="px-3 py-1 rounded-lg text-xs font-semibold text-gray-400 hover:text-white">Selesai</button>
@@ -323,7 +328,7 @@
         <!-- VIEW 2: ADMIN MANAGEMENT PANEL SECTION -->
         <div id="view-admin" class="hidden space-y-6">
             <!-- Admin Top Tools Bar -->
-            <div class="glass-card rounded-2xl p-5 border border-gray-800 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div class="glass-card rounded-2xl p-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
                 <div>
                     <h2 class="text-xl font-bold text-white flex items-center gap-2">
                         <i class="fa-solid fa-sliders text-brand-400"></i>
@@ -333,8 +338,8 @@
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-                    <button onclick="markAllPlayed()" class="px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-semibold transition border border-gray-700 flex items-center gap-2">
-                        <i class="fa-solid fa-check-double text-neon-green"></i>
+                    <button onclick="markAllPlayed()" class="px-3 py-2 rounded-xl bg-gray-900 hover:bg-gray-800 text-teal-200 text-xs font-semibold transition border border-teal-800/50 flex items-center gap-2">
+                        <i class="fa-solid fa-check-double text-brand-400"></i>
                         Tandai Semua Selesai
                     </button>
                     <button onclick="confirmClearAll()" class="px-3 py-2 rounded-xl bg-red-950/60 hover:bg-red-900/80 text-red-300 text-xs font-semibold transition border border-red-800/50 flex items-center gap-2">
@@ -345,16 +350,16 @@
             </div>
 
             <!-- Admin Filters & Search -->
-            <div class="glass-card rounded-2xl p-4 border border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="glass-card rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
                 <div class="relative w-full sm:w-80">
-                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-teal-600">
                         <i class="fa-solid fa-magnifying-glass text-xs"></i>
                     </span>
                     <input type="text" id="admin-search-input" onkeyup="renderAdminTable()" placeholder="Filter berdasarkan nama, lagu, atau penyanyi..." 
-                        class="w-full bg-gray-900 border border-gray-700/80 rounded-xl py-2 pl-9 pr-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-brand-500">
+                        class="w-full bg-gray-950 border border-teal-800/60 rounded-xl py-2 pl-9 pr-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-brand-400">
                 </div>
 
-                <div class="flex items-center gap-1 bg-gray-900 p-1 rounded-xl border border-gray-800">
+                <div class="flex items-center gap-1 bg-gray-950 p-1 rounded-xl border border-teal-900/50">
                     <button onclick="setAdminFilter('all')" id="afilter-all" class="px-3 py-1 rounded-lg text-xs font-semibold bg-brand-600 text-white">Semua (<span id="cnt-all">0</span>)</button>
                     <button onclick="setAdminFilter('pending')" id="afilter-pending" class="px-3 py-1 rounded-lg text-xs font-semibold text-gray-400 hover:text-white">Menunggu (<span id="cnt-pending">0</span>)</button>
                     <button onclick="setAdminFilter('played')" id="afilter-played" class="px-3 py-1 rounded-lg text-xs font-semibold text-gray-400 hover:text-white">Selesai (<span id="cnt-played">0</span>)</button>
@@ -362,11 +367,11 @@
             </div>
 
             <!-- Admin Request Table -->
-            <div class="glass-card rounded-2xl border border-gray-800 overflow-hidden">
+            <div class="glass-card rounded-2xl overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
-                            <tr class="bg-gray-900/90 text-gray-400 text-[11px] uppercase tracking-wider border-b border-gray-800">
+                            <tr class="bg-gray-950/90 text-teal-200/60 text-[11px] uppercase tracking-wider border-b border-teal-900/60">
                                 <th class="p-4 text-center w-12">Diputar?</th>
                                 <th class="p-4">Lagu & Penyanyi</th>
                                 <th class="p-4">Peminta</th>
@@ -376,13 +381,13 @@
                                 <th class="p-4 text-right">Aksi & Cari</th>
                             </tr>
                         </thead>
-                        <tbody id="admin-table-body" class="divide-y divide-gray-800/60 text-sm">
+                        <tbody id="admin-table-body" class="divide-y divide-teal-900/40 text-sm">
                             <!-- Populated dynamically by JS -->
                         </tbody>
                     </table>
                 </div>
                 <div id="admin-empty-state" class="p-12 text-center hidden">
-                    <div class="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-500">
+                    <div class="w-16 h-16 bg-gray-900 rounded-full flex items-center justify-center mx-auto mb-3 text-teal-600">
                         <i class="fa-solid fa-inbox text-2xl"></i>
                     </div>
                     <h4 class="text-gray-300 font-semibold">Tidak ada permintaan lagu</h4>
@@ -394,18 +399,18 @@
     </main>
 
     <!-- FOOTER -->
-    <footer class="border-t border-gray-800/80 glass-card mt-12 py-4 px-4 text-center text-xs text-gray-500">
+    <footer class="border-t border-teal-900/50 glass-card mt-12 py-4 px-4 text-center text-xs text-gray-500">
         <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
             <p>© 2026 Kudajitu FM Manager. Dikembangkan untuk keceriaan tim kantor Anda.</p>
             <div class="flex items-center space-x-3 text-gray-400">
-                <span class="flex items-center gap-1"><i class="fa-solid fa-wifi text-neon-green text-[10px]"></i> Local Storage Auto-Sync</span>
+                <span class="flex items-center gap-1"><i class="fa-solid fa-wifi text-brand-400 text-[10px]"></i> Local Storage Auto-Sync</span>
             </div>
         </div>
     </footer>
 
     <!-- QR CODE & SHARE MODAL -->
     <div id="modal-qr" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
-        <div class="glass-card rounded-2xl max-w-sm w-full p-6 border border-gray-700 text-center relative space-y-4">
+        <div class="glass-card rounded-2xl max-w-sm w-full p-6 text-center relative space-y-4">
             <button onclick="closeQRModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white text-lg">
                 <i class="fa-solid fa-xmark"></i>
             </button>
@@ -422,7 +427,7 @@
             </div>
 
             <div class="flex items-center gap-2">
-                <input type="text" id="share-url-input" readonly class="bg-gray-900 border border-gray-700 text-xs text-gray-300 rounded-lg p-2.5 w-full focus:outline-none truncate">
+                <input type="text" id="share-url-input" readonly class="bg-gray-950 border border-teal-800/60 text-xs text-teal-200 rounded-lg p-2.5 w-full focus:outline-none truncate">
                 <button onclick="copyShareURL()" class="bg-brand-600 hover:bg-brand-500 text-white px-3 py-2.5 rounded-lg text-xs font-semibold flex-shrink-0 transition">
                     <i class="fa-solid fa-copy"></i>
                 </button>
@@ -611,7 +616,7 @@
             if (filtered.length === 0) {
                 container.innerHTML = `
                     <div class="glass-card rounded-2xl p-8 text-center text-gray-400">
-                        <i class="fa-solid fa-music-slash text-3xl mb-2 text-gray-600"></i>
+                        <i class="fa-solid fa-music-slash text-3xl mb-2 text-teal-800"></i>
                         <p class="text-sm font-semibold">Belum ada lagu dalam kategori ini.</p>
                         <p class="text-xs text-gray-500">Jadilah yang pertama me-request lagu!</p>
                     </div>
@@ -621,19 +626,19 @@
 
             container.innerHTML = filtered.map(item => {
                 let statusBadge = '';
-                let borderClass = 'border-gray-800';
+                let borderClass = 'border-teal-900/40';
 
                 if (item.status === 'playing') {
-                    statusBadge = `<span class="bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/30 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-neon-cyan animate-ping"></span> DIPUTAR NOW
+                    statusBadge = `<span class="bg-brand-500/20 text-brand-300 border border-brand-500/40 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-brand-400 animate-ping"></span> DIPUTAR NOW
                                    </span>`;
-                    borderClass = 'border-neon-cyan/50 bg-indigo-950/20';
+                    borderClass = 'border-brand-500/60 bg-brand-950/20';
                 } else if (item.status === 'played') {
-                    statusBadge = `<span class="bg-neon-green/10 text-neon-green border border-neon-green/20 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                    statusBadge = `<span class="bg-teal-500/10 text-teal-300 border border-teal-500/20 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
                                     <i class="fa-solid fa-check mr-1"></i>Selesai
                                    </span>`;
                 } else {
-                    statusBadge = `<span class="bg-gray-800 text-gray-300 border border-gray-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                    statusBadge = `<span class="bg-gray-900 text-gray-300 border border-gray-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
                                     <i class="fa-solid fa-clock mr-1 text-amber-400"></i>Menunggu
                                    </span>`;
                 }
@@ -641,20 +646,20 @@
                 return `
                     <div class="glass-card glass-card-hover rounded-2xl p-4 border ${borderClass} transition duration-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <div class="flex items-start gap-3.5 flex-1 min-w-0">
-                            <div class="w-10 h-10 rounded-xl bg-gray-800 border border-gray-700 flex items-center justify-center text-brand-400 font-bold text-base flex-shrink-0 mt-0.5">
-                                <i class="${item.status === 'playing' ? 'fa-solid fa-compact-disc fa-spin text-neon-cyan' : 'fa-solid fa-music'}"></i>
+                            <div class="w-10 h-10 rounded-xl bg-gray-950 border border-teal-800/60 flex items-center justify-center text-brand-400 font-bold text-base flex-shrink-0 mt-0.5">
+                                <i class="${item.status === 'playing' ? 'fa-solid fa-compact-disc fa-spin text-brand-400' : 'fa-solid fa-music'}"></i>
                             </div>
                             <div class="min-w-0 flex-1">
                                 <div class="flex items-center gap-2 flex-wrap mb-1">
                                     <h4 class="font-bold text-white text-base truncate">${escapeHtml(item.title)}</h4>
                                     ${statusBadge}
                                 </div>
-                                <p class="text-xs text-gray-300 truncate font-medium">
-                                    <i class="fa-solid fa-microphone-lines text-gray-500 mr-1"></i>${escapeHtml(item.artist)}
+                                <p class="text-xs text-teal-100/80 truncate font-medium">
+                                    <i class="fa-solid fa-microphone-lines text-teal-600 mr-1"></i>${escapeHtml(item.artist)}
                                 </p>
-                                ${item.note ? `<p class="text-xs text-brand-300/80 italic mt-1 line-clamp-1 bg-brand-950/40 px-2 py-0.5 rounded border border-brand-500/10">"${escapeHtml(item.note)}"</p>` : ''}
+                                ${item.note ? `<p class="text-xs text-brand-200/80 italic mt-1 line-clamp-1 bg-brand-950/60 px-2 py-0.5 rounded border border-brand-500/20">"${escapeHtml(item.note)}"</p>` : ''}
                                 <div class="flex items-center gap-3 mt-2 text-[11px] text-gray-400">
-                                    <span><i class="fa-solid fa-user text-gray-500 mr-1"></i>${escapeHtml(item.requester)}</span>
+                                    <span><i class="fa-solid fa-user text-teal-700 mr-1"></i>${escapeHtml(item.requester)}</span>
                                     <span>•</span>
                                     <span>${timeAgo(item.timestamp)}</span>
                                 </div>
@@ -662,7 +667,7 @@
                         </div>
 
                         <div class="flex items-center gap-2 self-end sm:self-center">
-                            <button onclick="upvoteRequest('${item.id}')" class="px-3 py-1.5 rounded-xl bg-gray-800/90 hover:bg-brand-600/30 hover:border-brand-500/50 text-gray-300 hover:text-brand-300 border border-gray-700/80 text-xs font-semibold transition flex items-center gap-1.5">
+                            <button onclick="upvoteRequest('${item.id}')" class="px-3 py-1.5 rounded-xl bg-gray-950/80 hover:bg-brand-600/30 hover:border-brand-500/50 text-teal-200 hover:text-white border border-teal-800/50 text-xs font-semibold transition flex items-center gap-1.5">
                                 <i class="fa-solid fa-thumbs-up text-brand-400"></i>
                                 <span>${item.votes || 0}</span>
                             </button>
@@ -710,22 +715,22 @@
                 const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(item.artist + ' ' + item.title)}`;
 
                 return `
-                    <tr class="hover:bg-gray-800/40 transition duration-150 ${isPlayed ? 'opacity-60 bg-gray-950/40' : ''}">
+                    <tr class="hover:bg-gray-900/40 transition duration-150 ${isPlayed ? 'opacity-50 bg-gray-950/50' : ''}">
                         <td class="p-4 text-center">
                             <input type="checkbox" ${isPlayed ? 'checked' : ''} 
                                 onchange="togglePlayedCheckbox('${item.id}', this.checked)"
                                 title="Tandai sudah diputar"
-                                class="w-5 h-5 rounded border-gray-700 bg-gray-900 text-neon-green focus:ring-neon-green focus:ring-offset-gray-900 cursor-pointer">
+                                class="w-5 h-5 rounded border-teal-800 bg-gray-950 text-brand-500 focus:ring-brand-400 focus:ring-offset-gray-950 cursor-pointer">
                         </td>
 
                         <td class="p-4">
-                            <div class="font-bold text-white ${isPlayed ? 'line-through text-gray-400' : ''}">${escapeHtml(item.title)}</div>
-                            <div class="text-xs text-gray-400"><i class="fa-solid fa-microphone-lines mr-1 text-gray-500"></i>${escapeHtml(item.artist)}</div>
+                            <div class="font-bold text-white ${isPlayed ? 'line-through text-gray-500' : ''}">${escapeHtml(item.title)}</div>
+                            <div class="text-xs text-teal-200/60"><i class="fa-solid fa-microphone-lines mr-1 text-teal-600"></i>${escapeHtml(item.artist)}</div>
                             ${item.note ? `<div class="text-[11px] text-brand-300 italic mt-0.5">"${escapeHtml(item.note)}"</div>` : ''}
                         </td>
 
                         <td class="p-4 text-xs text-gray-300 font-medium">
-                            <i class="fa-solid fa-user-circle text-gray-500 mr-1"></i>${escapeHtml(item.requester)}
+                            <i class="fa-solid fa-user-circle text-teal-600 mr-1"></i>${escapeHtml(item.requester)}
                         </td>
 
                         <td class="p-4 text-xs text-gray-400">
@@ -738,11 +743,11 @@
 
                         <td class="p-4 text-center">
                             ${isPlaying ? 
-                                `<span class="bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/30 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-neon-cyan animate-ping"></span> Diputar
+                                `<span class="bg-brand-500/20 text-brand-300 border border-brand-500/40 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-brand-400 animate-ping"></span> Diputar
                                  </span>` :
                               isPlayed ? 
-                                `<span class="bg-neon-green/10 text-neon-green border border-neon-green/20 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                `<span class="bg-teal-500/10 text-teal-300 border border-teal-500/20 text-[10px] font-bold px-2 py-0.5 rounded-full">
                                     <i class="fa-solid fa-check mr-1"></i>Selesai
                                  </span>` :
                                 `<span class="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold px-2 py-0.5 rounded-full">
@@ -754,7 +759,7 @@
                         <td class="p-4 text-right space-x-1">
                             ${!isPlaying && !isPlayed ? `
                                 <button onclick="setNowPlaying('${item.id}')" title="Putar Sekarang" 
-                                    class="px-2.5 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 text-xs font-semibold transition">
+                                    class="px-2.5 py-1.5 rounded-lg bg-teal-600/30 hover:bg-teal-600 text-teal-200 hover:text-white border border-teal-500/40 text-xs font-semibold transition">
                                     <i class="fa-solid fa-play"></i>
                                 </button>
                             ` : ''}
@@ -765,7 +770,7 @@
                             </a>
 
                             <button onclick="deleteRequest('${item.id}')" title="Hapus Request" 
-                                class="px-2.5 py-1.5 rounded-lg bg-gray-800 hover:bg-red-900/60 text-gray-400 hover:text-red-300 border border-gray-700 text-xs transition">
+                                class="px-2.5 py-1.5 rounded-lg bg-gray-900 hover:bg-red-900/60 text-gray-400 hover:text-red-300 border border-teal-900 text-xs transition">
                                 <i class="fa-solid fa-trash"></i>
                             </button>
                         </td>
@@ -800,12 +805,10 @@
             requests.unshift(newReq);
             saveRequests();
 
-            // Reset hanya judul, artist, note (nama tetap tersimpan)
             document.getElementById('input-title').value = '';
             document.getElementById('input-artist').value = '';
             document.getElementById('input-note').value = '';
             
-            // Auto focus ke judul lagu lagi agar siap isi lagu berikutnya
             document.getElementById('input-title').focus();
 
             showToast(`Request lagu "${title}" berhasil dikirim!`, 'success');
@@ -831,7 +834,6 @@
                 let title = trimmed;
                 let artist = 'Unknown Artist';
 
-                // Separator detection: '-' or 'by'
                 if (trimmed.includes('-')) {
                     const parts = trimmed.split('-');
                     title = parts[0].trim();
@@ -1002,12 +1004,12 @@
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             
-            let bgClass = 'bg-gray-800 border-gray-700 text-white';
+            let bgClass = 'bg-gray-900 border-teal-800 text-white';
             let icon = 'fa-circle-info text-brand-400';
 
             if (type === 'success') {
-                bgClass = 'bg-gray-900 border-neon-green/40 text-white';
-                icon = 'fa-circle-check text-neon-green';
+                bgClass = 'bg-gray-950 border-brand-500/50 text-white';
+                icon = 'fa-circle-check text-brand-400';
             }
 
             toast.className = `glass-card border ${bgClass} px-4 py-3 rounded-xl shadow-xl text-xs font-medium flex items-center gap-2.5 transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto`;
@@ -1035,7 +1037,7 @@
                 text: currentUrl,
                 width: 160,
                 height: 160,
-                colorDark : "#0f172a",
+                colorDark : "#042f2e",
                 colorLight : "#ffffff",
                 correctLevel : QRCode.CorrectLevel.H
             });
