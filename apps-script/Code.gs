@@ -1,17 +1,36 @@
 var NAMA_TAB_ANDA = 'req lagu';
+var TIMEZONE = 'Asia/Jakarta';
+
+// ======================================================
+// SHEET / RESPONSE
+// ======================================================
 
 function getSheet_() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NAMA_TAB_ANDA);
-  if (!sheet) throw new Error('Sheet "' + NAMA_TAB_ANDA + '" tidak ditemukan');
+  if (!sheet) {
+    throw new Error('Sheet "' + NAMA_TAB_ANDA + '" tidak ditemukan');
+  }
   return sheet;
 }
 
 function jsonResponse(data) {
-  return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
+// ======================================================
+// DATE HELPERS
+// Semua filter tanggal menggunakan TIMEZONE yang sama.
+// ======================================================
+
 function toDate_(value) {
-  if (value instanceof Date) return value;
+  if (value instanceof Date) {
+    return isNaN(value.getTime()) ? null : new Date(value.getTime());
+  }
+
+  if (!value) return null;
+
   var d = new Date(value);
   return isNaN(d.getTime()) ? null : d;
 }
@@ -19,126 +38,573 @@ function toDate_(value) {
 function dateKey_(value) {
   var d = toDate_(value);
   if (!d) return '';
-  return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+
+  return Utilities.formatDate(
+    d,
+    TIMEZONE,
+    'yyyy-MM-dd'
+  );
 }
 
-function parseRows_(sheet, startRow, numRows) {
-  if (numRows <= 0) return [];
-  var rows = sheet.getRange(startRow, 1, numRows, 8).getValues();
-  return rows.filter(function(row) { return row[0] !== '' && row[0] !== null; }).map(function(row) {
-    return {
-      id: String(row[0]), requester: String(row[1] || ''), title: String(row[2] || ''), artist: String(row[3] || ''),
-      note: String(row[4] || ''), timestamp: row[5], status: String(row[6] || 'pending'), votes: Number(row[7] || 1)
-    };
+function getTodayKey_() {
+  return Utilities.formatDate(
+    new Date(),
+    TIMEZONE,
+    'yyyy-MM-dd'
+  );
+}
+
+function getYesterdayKey_() {
+  var now = new Date();
+
+  // Ambil tanggal kalender di timezone aplikasi,
+  // lalu mundurkan satu hari secara aman.
+  var todayKey = Utilities.formatDate(
+    now,
+    TIMEZONE,
+    'yyyy-MM-dd'
+  );
+
+  var parts = todayKey.split('-');
+  var d = new Date(
+    Number(parts[0]),
+    Number(parts[1]) - 1,
+    Number(parts[2])
+  );
+
+  d.setDate(d.getDate() - 1);
+
+  return Utilities.formatDate(
+    d,
+    TIMEZONE,
+    'yyyy-MM-dd'
+  );
+}
+
+// ======================================================
+// ROW -> OBJECT
+// ======================================================
+
+function rowToObject_(row) {
+  return {
+    id: String(row[0] || ''),
+    requester: String(row[1] || ''),
+    title: String(row[2] || ''),
+    artist: String(row[3] || ''),
+    note: String(row[4] || ''),
+    timestamp: normalizeTimestamp_(row[5]),
+    status: normalizeStatus_(row[6]),
+    votes: Number(row[7] || 1)
+  };
+}
+
+function normalizeTimestamp_(value) {
+  var d = toDate_(value);
+
+  if (d) {
+    return d.toISOString();
+  }
+
+  return value ? String(value) : '';
+}
+
+function normalizeStatus_(status) {
+  var s = String(status || '')
+    .trim()
+    .toLowerCase();
+
+  if (
+    s === 'played' ||
+    s === 'play' ||
+    s === 'selesai' ||
+    s === 'diputar'
+  ) {
+    return 'played';
+  }
+
+  return 'pending';
+}
+
+// ======================================================
+// GET DATA
+// ======================================================
+
+function getAllRows_(sheet) {
+  var lastRow = sheet.getLastRow();
+
+  if (lastRow < 2) return [];
+
+  var values = sheet
+    .getRange(2, 1, lastRow - 1, 8)
+    .getValues();
+
+  var result = [];
+
+  for (var i = 0; i < values.length; i++) {
+    if (!values[i][0]) continue;
+    result.push(rowToObject_(values[i]));
+  }
+
+  // Data terbaru di atas.
+  result.reverse();
+
+  return result;
+}
+
+function filterRows_(rows, range, status, since, until) {
+  var todayKey = getTodayKey_();
+  var yesterdayKey = getYesterdayKey_();
+
+  return rows.filter(function(row) {
+    var rowKey = dateKey_(row.timestamp);
+
+    // Date range
+    if (range === 'today' && rowKey !== todayKey) {
+      return false;
+    }
+
+    if (range === 'yesterday' && rowKey !== yesterdayKey) {
+      return false;
+    }
+
+    // Optional custom boundaries
+    if (since) {
+      var rowDateSince = toDate_(row.timestamp);
+      if (!rowDateSince || rowDateSince < since) {
+        return false;
+      }
+    }
+
+    if (until) {
+      var rowDateUntil = toDate_(row.timestamp);
+      if (!rowDateUntil || rowDateUntil >= until) {
+        return false;
+      }
+    }
+
+    // Status
+    if (status === 'pending' && row.status !== 'pending') {
+      return false;
+    }
+
+    if (status === 'played' && row.status !== 'played') {
+      return false;
+    }
+
+    return true;
   });
 }
 
 function doGet(e) {
   try {
     var sheet = getSheet_();
-    var p = e && e.parameter ? e.parameter : {};
-    var range = String(p.range || 'all').toLowerCase();
-    var status = String(p.status || 'all').toLowerCase();
-    var since = p.since ? new Date(p.since) : null;
-    var until = p.until ? new Date(p.until) : null;
-    var lastRow = sheet.getLastRow();
-    if (lastRow < 2) return jsonResponse({success:true,data:[]});
+    var params = e && e.parameter ? e.parameter : {};
 
-    // Default tetap kompatibel: tanpa parameter mengembalikan semua data.
-    // Dengan range today/yesterday, backend hanya mengirim data yang diperlukan.
-    var rows = parseRows_(sheet, 2, lastRow - 1);
-    var today = new Date();
-    var todayKey = dateKey_(today);
-    var yesterday = new Date(today.getTime() - 86400000);
-    var yesterdayKey = dateKey_(yesterday);
+    // Tanpa range tetap ALL agar kompatibel dengan pemanggil lama.
+    var range = String(params.range || 'all')
+      .trim()
+      .toLowerCase();
 
-    rows = rows.filter(function(r) {
-      var k = dateKey_(r.timestamp);
-      if (range === 'today' && k !== todayKey) return false;
-      if (range === 'yesterday' && k !== yesterdayKey) return false;
-      if (since && (!toDate_(r.timestamp) || toDate_(r.timestamp) < since)) return false;
-      if (until && (!toDate_(r.timestamp) || toDate_(r.timestamp) >= until)) return false;
-      if (status === 'pending' && String(r.status).toLowerCase() === 'played') return false;
-      if (status === 'played' && String(r.status).toLowerCase() !== 'played') return false;
-      return true;
+    if (
+      range !== 'today' &&
+      range !== 'yesterday' &&
+      range !== 'all'
+    ) {
+      range = 'all';
+    }
+
+    var status = String(params.status || 'all')
+      .trim()
+      .toLowerCase();
+
+    if (
+      status !== 'all' &&
+      status !== 'pending' &&
+      status !== 'played'
+    ) {
+      status = 'all';
+    }
+
+    var since = params.since
+      ? toDate_(params.since)
+      : null;
+
+    var until = params.until
+      ? toDate_(params.until)
+      : null;
+
+    var rows = getAllRows_(sheet);
+    var filtered = filterRows_(
+      rows,
+      range,
+      status,
+      since,
+      until
+    );
+
+    return jsonResponse({
+      success: true,
+      range: range,
+      status: status,
+      timezone: TIMEZONE,
+      today: getTodayKey_(),
+      yesterday: getYesterdayKey_(),
+      count: filtered.length,
+      data: filtered
     });
-    return jsonResponse({success:true,data:rows});
+
   } catch (error) {
-    return jsonResponse({success:false,message:error.toString(),data:[]});
+    return jsonResponse({
+      success: false,
+      message: error.toString(),
+      data: []
+    });
   }
 }
 
+// ======================================================
+// FIND ROW
+// ======================================================
+
 function findRowById_(sheet, id) {
   var lastRow = sheet.getLastRow();
+
   if (lastRow < 2) return -1;
-  var ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
-  for (var i = 0; i < ids.length; i++) if (String(ids[i][0]) === id) return i + 2;
+
+  var ids = sheet
+    .getRange(2, 1, lastRow - 1, 1)
+    .getValues();
+
+  for (var i = 0; i < ids.length; i++) {
+    if (String(ids[i][0]) === String(id)) {
+      return i + 2;
+    }
+  }
+
   return -1;
 }
 
+// ======================================================
+// ID
+// ======================================================
+
+function generateId_() {
+  return 'req_' +
+    Date.now() + '_' +
+    Math.random().toString(36).substring(2, 8);
+}
+
+// ======================================================
+// POST
+// ======================================================
+
 function doPost(e) {
+  var lock = LockService.getScriptLock();
+
   try {
+    lock.waitLock(10000);
+
     var sheet = getSheet_();
-    if (!e || !e.postData || !e.postData.contents) return jsonResponse({success:false,message:'Data POST kosong'});
+
+    if (
+      !e ||
+      !e.postData ||
+      !e.postData.contents
+    ) {
+      return jsonResponse({
+        success: false,
+        message: 'Data POST kosong'
+      });
+    }
+
     var data = JSON.parse(e.postData.contents);
     var action = String(data.action || '');
 
+    // --------------------------------------------------
+    // ADD
+    // --------------------------------------------------
+
     if (action === 'add') {
-      sheet.appendRow([String(data.id), data.requester || '', data.title || '', data.artist || '', data.note || '', data.timestamp || new Date().toISOString(), data.status || 'pending', Number(data.votes || 1)]);
-      return jsonResponse({success:true,action:'add',message:'Request berhasil ditambahkan'});
+      var item = {
+        id: String(data.id || generateId_()),
+        requester: String(data.requester || ''),
+        title: String(data.title || ''),
+        artist: String(data.artist || ''),
+        note: String(data.note || ''),
+        timestamp: data.timestamp || new Date().toISOString(),
+        status: normalizeStatus_(data.status || 'pending'),
+        votes: Number(data.votes || 1)
+      };
+
+      sheet.appendRow([
+        item.id,
+        item.requester,
+        item.title,
+        item.artist,
+        item.note,
+        item.timestamp,
+        item.status,
+        item.votes
+      ]);
+
+      return jsonResponse({
+        success: true,
+        action: 'add',
+        data: item,
+        message: 'Request berhasil ditambahkan'
+      });
     }
 
+    // --------------------------------------------------
+    // ADD BATCH
+    // --------------------------------------------------
+
     if (action === 'addBatch') {
-      var items = data.items || [];
-      if (!items.length) return jsonResponse({success:false,message:'Tidak ada data batch'});
-      var rows = items.map(function(item) { return [String(item.id), item.requester || '', item.title || '', item.artist || '', item.note || '', item.timestamp || new Date().toISOString(), item.status || 'pending', Number(item.votes || 1)]; });
-      sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 8).setValues(rows);
-      return jsonResponse({success:true,action:'addBatch',count:rows.length,message:rows.length+' request berhasil ditambahkan'});
+      var items = Array.isArray(data.items)
+        ? data.items
+        : [];
+
+      if (!items.length) {
+        return jsonResponse({
+          success: false,
+          message: 'Tidak ada data batch'
+        });
+      }
+
+      var rows = [];
+
+      for (var i = 0; i < items.length; i++) {
+        var itemBatch = items[i] || {};
+
+        rows.push([
+          String(itemBatch.id || generateId_()),
+          String(itemBatch.requester || ''),
+          String(itemBatch.title || ''),
+          String(itemBatch.artist || ''),
+          String(itemBatch.note || ''),
+          itemBatch.timestamp || new Date().toISOString(),
+          normalizeStatus_(itemBatch.status || 'pending'),
+          Number(itemBatch.votes || 1)
+        ]);
+      }
+
+      sheet
+        .getRange(
+          sheet.getLastRow() + 1,
+          1,
+          rows.length,
+          8
+        )
+        .setValues(rows);
+
+      return jsonResponse({
+        success: true,
+        action: 'addBatch',
+        count: rows.length,
+        message: rows.length + ' request berhasil ditambahkan'
+      });
     }
+
+    // --------------------------------------------------
+    // UPDATE STATUS
+    // --------------------------------------------------
 
     if (action === 'updateStatus') {
       var id = String(data.id || '');
-      if (!id) return jsonResponse({success:false,message:'ID tidak ditemukan'});
+
+      if (!id) {
+        return jsonResponse({
+          success: false,
+          message: 'ID tidak ditemukan'
+        });
+      }
+
       var row = findRowById_(sheet, id);
-      if (row < 0) return jsonResponse({success:false,action:'updateStatus',id:id,message:'ID request tidak ditemukan'});
-      var status = String(data.status || 'pending');
-      sheet.getRange(row, 7).setValue(status);
-      return jsonResponse({success:true,action:'updateStatus',id:id,status:status});
+
+      if (row < 0) {
+        return jsonResponse({
+          success: false,
+          action: 'updateStatus',
+          id: id,
+          message: 'ID request tidak ditemukan'
+        });
+      }
+
+      var status = normalizeStatus_(
+        data.status || 'pending'
+      );
+
+      sheet
+        .getRange(row, 7)
+        .setValue(status);
+
+      return jsonResponse({
+        success: true,
+        action: 'updateStatus',
+        id: id,
+        status: status,
+        message: 'Status berhasil diperbarui'
+      });
     }
 
+    // --------------------------------------------------
+    // UPDATE BANYAK STATUS
+    // --------------------------------------------------
+
     if (action === 'updateStatuses') {
-      var items2 = data.items || [];
+      var updates = Array.isArray(data.items)
+        ? data.items
+        : [];
+
       var changed = 0;
-      items2.forEach(function(item) {
-        var row2 = findRowById_(sheet, String(item.id || ''));
-        if (row2 > 0) { sheet.getRange(row2, 7).setValue(String(item.status || 'played')); changed++; }
+
+      for (var u = 0; u < updates.length; u++) {
+        var update = updates[u] || {};
+        var updateId = String(update.id || '');
+
+        if (!updateId) continue;
+
+        var updateRow = findRowById_(
+          sheet,
+          updateId
+        );
+
+        if (updateRow < 0) continue;
+
+        sheet
+          .getRange(updateRow, 7)
+          .setValue(
+            normalizeStatus_(
+              update.status || 'played'
+            )
+          );
+
+        changed++;
+      }
+
+      return jsonResponse({
+        success: true,
+        action: 'updateStatuses',
+        count: changed,
+        updated: changed
       });
-      return jsonResponse({success:true,action:'updateStatuses',count:changed});
     }
+
+    // --------------------------------------------------
+    // DELETE
+    // --------------------------------------------------
 
     if (action === 'delete') {
       var deleteId = String(data.id || '');
-      if (!deleteId) return jsonResponse({success:false,message:'ID tidak ditemukan'});
-      var deleteRow = findRowById_(sheet, deleteId);
-      if (deleteRow < 0) return jsonResponse({success:false,action:'delete',id:deleteId,message:'ID request tidak ditemukan'});
+
+      if (!deleteId) {
+        return jsonResponse({
+          success: false,
+          message: 'ID tidak ditemukan'
+        });
+      }
+
+      var deleteRow = findRowById_(
+        sheet,
+        deleteId
+      );
+
+      if (deleteRow < 0) {
+        return jsonResponse({
+          success: false,
+          action: 'delete',
+          id: deleteId,
+          message: 'ID request tidak ditemukan'
+        });
+      }
+
       sheet.deleteRow(deleteRow);
-      return jsonResponse({success:true,action:'delete',id:deleteId});
+
+      return jsonResponse({
+        success: true,
+        action: 'delete',
+        id: deleteId,
+        message: 'Request berhasil dihapus'
+      });
     }
+
+    // --------------------------------------------------
+    // DELETE BATCH
+    // --------------------------------------------------
 
     if (action === 'deleteBatch') {
-      var ids = (data.ids || []).map(String);
+      var deleteItems = Array.isArray(data.ids)
+        ? data.ids.map(String)
+        : [];
+
+      if (
+        !deleteItems.length &&
+        Array.isArray(data.items)
+      ) {
+        deleteItems = data.items
+          .map(function(item) {
+            return String(item && item.id || '');
+          })
+          .filter(Boolean);
+      }
+
+      if (!deleteItems.length) {
+        return jsonResponse({
+          success: false,
+          message: 'Tidak ada ID untuk dihapus'
+        });
+      }
+
       var rowsToDelete = [];
       var last = sheet.getLastRow();
+
       if (last >= 2) {
-        var allIds = sheet.getRange(2,1,last-1,1).getValues();
-        allIds.forEach(function(v, i) { if (ids.indexOf(String(v[0])) !== -1) rowsToDelete.push(i + 2); });
+        var allIds = sheet
+          .getRange(2, 1, last - 1, 1)
+          .getValues();
+
+        for (var d = 0; d < allIds.length; d++) {
+          if (
+            deleteItems.indexOf(
+              String(allIds[d][0])
+            ) !== -1
+          ) {
+            rowsToDelete.push(d + 2);
+          }
+        }
       }
-      rowsToDelete.sort(function(a,b){return b-a;}).forEach(function(rowNum){sheet.deleteRow(rowNum);});
-      return jsonResponse({success:true,action:'deleteBatch',count:rowsToDelete.length});
+
+      rowsToDelete.sort(function(a, b) {
+        return b - a;
+      });
+
+      for (var x = 0; x < rowsToDelete.length; x++) {
+        sheet.deleteRow(rowsToDelete[x]);
+      }
+
+      return jsonResponse({
+        success: true,
+        action: 'deleteBatch',
+        count: rowsToDelete.length,
+        deleted: rowsToDelete.length,
+        message: rowsToDelete.length + ' request berhasil dihapus'
+      });
     }
 
-    return jsonResponse({success:false,message:'Action tidak dikenal: '+action});
+    return jsonResponse({
+      success: false,
+      message: 'Action tidak dikenal: ' + action
+    });
+
   } catch (error) {
-    return jsonResponse({success:false,message:error.toString()});
+    return jsonResponse({
+      success: false,
+      message: error.toString()
+    });
+
+  } finally {
+    try {
+      lock.releaseLock();
+    } catch (e) {}
   }
 }
