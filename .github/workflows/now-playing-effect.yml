@@ -10,18 +10,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Repair NOW PLAYING render syntax
+      - name: Stabilize NOW PLAYING selection
         run: |
           python - <<'PY'
           from pathlib import Path
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
-          bad = "return (Date.parse(b.playedAt)||Date.parse(b.timestamp)||0)-(Date.parse(a.playedAt)||Date.parse(a.timestamp)||0);$('statPending')"
-          good = "return (Date.parse(b.playedAt)||Date.parse(b.timestamp)||0)-(Date.parse(a.playedAt)||Date.parse(a.timestamp)||0)});$('statPending')"
-          if bad in s:
-              s = s.replace(bad, good, 1)
-          p.write_text(s, encoding='utf-8')
+          old = "var now=q[0];$('npTitle').textContent=now?now.title:'Belum ada lagu diputar';$('npArtist').textContent=now?now.artist:'Request lagu dan tunggu giliranmu';$('npRequester').textContent=now?'Direquest oleh '+(now.requester||'-'):'-';$('npStage').classList.toggle('playing',!!now);"
+          new = "var now=null;if(q.length){now=q.reduce(function(best,item){if(!best)return item;var bt=Date.parse(best.playedAt)||Date.parse(best.timestamp)||0,it=Date.parse(item.playedAt)||Date.parse(item.timestamp)||0;if(it>bt)return item;if(it===bt){var bi=String(best.id||''),ii=String(item.id||'');return ii>bi?item:best}return best},null)}$('npTitle').textContent=now?now.title:'Belum ada lagu diputar';$('npArtist').textContent=now?now.artist:'Request lagu dan tunggu giliranmu';$('npRequester').textContent=now?'Direquest oleh '+(now.requester||'-'):'-';$('npStage').classList.toggle('playing',!!now);"
+          if old not in s:
+              raise SystemExit('NOW PLAYING block not found; no file changed')
+          s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
           PY
+      - name: Validate JavaScript syntax
+        run: |
+          node --check <(python - <<'PY'
+          from pathlib import Path
+          s=Path('index.html').read_text(encoding='utf-8')
+          a=s.find('<script>')
+          b=s.rfind('</script>')
+          print(s[a+8:b])
+          PY
+          )
       - name: Commit repair
         run: |
           git config user.name "github-actions[bot]"
