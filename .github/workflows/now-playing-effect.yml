@@ -10,24 +10,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inject visual effect
+      - name: Inject visual effect and restore NOW PLAYING sync
         run: |
           python - <<'PY'
           from pathlib import Path
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
-          css = '''.np-stage{position:relative;width:82px;height:82px;flex:0 0 82px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#071719 0 34%,#0f766e 35% 38%,#042f2e 39% 62%,#14b8a6 63% 65%,#041315 66%);box-shadow:0 0 0 1px rgba(45,212,191,.35),0 0 28px rgba(20,184,166,.18);transition:.3s}.np-disc{width:66px;height:66px;border-radius:50%;background:radial-gradient(circle at 50% 50%,#14b8a6 0 8%,#111827 9% 11%,#374151 12% 14%,#111827 15% 22%,#374151 23% 24%,#111827 25% 34%,#374151 35% 36%,#111827 37% 49%,#020617 50%);box-shadow:inset 0 0 10px rgba(0,0,0,.8),0 0 18px rgba(45,212,191,.22);position:relative}.np-disc:after{content:"";position:absolute;inset:8px;border-radius:50%;border:1px solid rgba(255,255,255,.12)}.np-stage.playing .np-disc{animation:npSpin 2.2s linear infinite}.np-stage.playing{box-shadow:0 0 0 1px rgba(45,212,191,.5),0 0 35px rgba(20,184,166,.35);animation:npPulse 1.8s ease-in-out infinite}.np-eq{display:flex;align-items:flex-end;justify-content:center;gap:3px;height:28px;margin-top:8px}.np-eq i{display:block;width:4px;height:7px;border-radius:4px;background:#2dd4bf;box-shadow:0 0 7px rgba(45,212,191,.6)}.np-stage.playing + .np-info .np-eq i:nth-child(1){animation:npBar .75s ease-in-out infinite}.np-stage.playing + .np-info .np-eq i:nth-child(2){animation:npBar .55s ease-in-out .1s infinite}.np-stage.playing + .np-info .np-eq i:nth-child(3){animation:npBar .8s ease-in-out .18s infinite}.np-stage.playing + .np-info .np-eq i:nth-child(4){animation:npBar .5s ease-in-out .05s infinite}.np-stage.playing + .np-info .np-eq i:nth-child(5){animation:npBar .7s ease-in-out .2s infinite}@keyframes npSpin{to{transform:rotate(360deg)}}@keyframes npPulse{50%{filter:brightness(1.2)}}@keyframes npBar{0%,100%{height:6px;opacity:.55}50%{height:25px;opacity:1}}@media(prefers-reduced-motion:reduce){.np-stage.playing,.np-stage.playing .np-disc,.np-stage.playing + .np-info .np-eq i{animation:none!important}}'''
-          if '.np-stage{' not in s:
+          old_norm = "function normalize(x){x=x||{};return{id:String(x.id||''),requester:String(x.requester||''),title:String(x.title||''),artist:String(x.artist||''),note:String(x.note||''),timestamp:String(x.timestamp||''),status:String(x.status||'pending').toLowerCase()==='played'?'played':'pending',votes:Number(x.votes||1)}}"
+          new_norm = "function normalize(x){x=x||{};return{id:String(x.id||''),requester:String(x.requester||''),title:String(x.title||''),artist:String(x.artist||''),note:String(x.note||''),timestamp:String(x.timestamp||''),playedAt:String(x.playedAt||''),status:String(x.status||'pending').toLowerCase()==='played'?'played':'pending',votes:Number(x.votes||1)}}"
+          s = s.replace(old_norm, new_norm, 1)
+          old_q = "var p=requests.filter(function(x){return x.status==='pending'}).sort(function(a,b){return queueTime(a)-queueTime(b)}),q=requests.filter(function(x){return x.status==='played'});"
+          new_q = "var p=requests.filter(function(x){return x.status==='pending'}).sort(function(a,b){return queueTime(a)-queueTime(b)}),q=requests.filter(function(x){return x.status==='played'}).sort(function(a,b){return (Date.parse(b.playedAt)||Date.parse(b.timestamp)||0)-(Date.parse(a.playedAt)||Date.parse(a.timestamp)||0));"
+          s = s.replace(old_q, new_q, 1)
+          if 'npStage' not in s:
+              css = '''.np-stage{position:relative;width:82px;height:82px;flex:0 0 82px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#071719 0 34%,#0f766e 35% 38%,#042f2e 39% 62%,#14b8a6 63% 65%,#041315 66%);box-shadow:0 0 0 1px rgba(45,212,191,.35),0 0 28px rgba(20,184,166,.18);transition:.3s}.np-disc{width:66px;height:66px;border-radius:50%;background:radial-gradient(circle at 50% 50%,#14b8a6 0 8%,#111827 9% 11%,#374151 12% 14%,#111827 15% 22%,#374151 23% 24%,#111827 25% 34%,#374151 35% 36%,#111827 37% 49%,#020617 50%);box-shadow:inset 0 0 10px rgba(0,0,0,.8),0 0 18px rgba(45,212,191,.22);position:relative}.np-disc:after{content:"";position:absolute;inset:8px;border-radius:50%;border:1px solid rgba(255,255,255,.12)}.np-stage.playing .np-disc{animation:npSpin 2.2s linear infinite}.np-stage.playing{box-shadow:0 0 0 1px rgba(45,212,191,.5),0 0 35px rgba(20,184,166,.35);animation:npPulse 1.8s ease-in-out infinite}.np-eq{display:flex;align-items:flex-end;justify-content:center;gap:3px;height:28px;margin-top:8px}.np-eq i{display:block;width:4px;height:7px;border-radius:4px;background:#2dd4bf;box-shadow:0 0 7px rgba(45,212,191,.6)}.np-stage.playing + .np-info .np-eq i:nth-child(1){animation:npBar .75s ease-in-out infinite}.np-stage.playing + .np-info .np-eq i:nth-child(2){animation:npBar .55s ease-in-out .1s infinite}.np-stage.playing + .np-info .np-eq i:nth-child(3){animation:npBar .8s ease-in-out .18s infinite}.np-stage.playing + .np-info .np-eq i:nth-child(4){animation:npBar .5s ease-in-out .05s infinite}.np-stage.playing + .np-info .np-eq i:nth-child(5){animation:npBar .7s ease-in-out .2s infinite}@keyframes npSpin{to{transform:rotate(360deg)}}@keyframes npPulse{50%{filter:brightness(1.2)}}@keyframes npBar{0%,100%{height:6px;opacity:.55}50%{height:25px;opacity:1}}@media(prefers-reduced-motion:reduce){.np-stage.playing,.np-stage.playing .np-disc,.np-stage.playing + .np-info .np-eq i{animation:none!important}}'''
               s = s.replace('</style></head>', css + '</style></head>', 1)
-          old = '<div class="flex items-center gap-4 min-w-0"><div class="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gray-950 border-2 border-teal-400/60 flex items-center justify-center shrink-0"><i class="fa-solid fa-music text-2xl text-teal-400"></i></div><div class="min-w-0">'
-          new = '<div class="flex items-center gap-4 min-w-0"><div id="npStage" class="np-stage"><div class="np-disc"></div></div><div class="min-w-0 np-info">'
-          s = s.replace(old, new, 1)
-          old_render = "$('npRequester').textContent=now?'Direquest oleh '+(now.requester||'-'):'-';"
-          new_render = "$('npRequester').textContent=now?'Direquest oleh '+(now.requester||'-'):'-';$('npStage').classList.toggle('playing',!!now);"
-          s = s.replace(old_render, new_render, 1)
-          old_np = '<p class="text-xs text-gray-400 mt-1"><i class="fa-solid fa-user text-teal-400 mr-1"></i><span id="npRequester">-</span></p>'
-          new_np = '<p class="text-xs text-gray-400 mt-1"><i class="fa-solid fa-user text-teal-400 mr-1"></i><span id="npRequester">-</span></p><div class="np-eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>'
-          s = s.replace(old_np, new_np, 1)
+              old = '<div class="flex items-center gap-4 min-w-0"><div class="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gray-950 border-2 border-teal-400/60 flex items-center justify-center shrink-0"><i class="fa-solid fa-music text-2xl text-teal-400"></i></div><div class="min-w-0">'
+              new = '<div class="flex items-center gap-4 min-w-0"><div id="npStage" class="np-stage"><div class="np-disc"></div></div><div class="min-w-0 np-info">'
+              s = s.replace(old, new, 1)
+              old_render = "$('npRequester').textContent=now?'Direquest oleh '+(now.requester||'-'):'-';"
+              new_render = "$('npRequester').textContent=now?'Direquest oleh '+(now.requester||'-'):'-';$('npStage').classList.toggle('playing',!!now);"
+              s = s.replace(old_render, new_render, 1)
+              old_np = '<p class="text-xs text-gray-400 mt-1"><i class="fa-solid fa-user text-teal-400 mr-1"></i><span id="npRequester">-</span></p>'
+              new_np = '<p class="text-xs text-gray-400 mt-1"><i class="fa-solid fa-user text-teal-400 mr-1"></i><span id="npRequester">-</span></p><div class="np-eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>'
+              s = s.replace(old_np, new_np, 1)
           p.write_text(s, encoding='utf-8')
           PY
       - name: Commit patched index
