@@ -1,22 +1,161 @@
-(function(){'use strict';
-const GAS='https://script.google.com/macros/s/AKfycbyUB8drjL1dSJedYjKIKjVc5gzIE3Pe-QS0FF8o1_zU4NkAweGLFquhHLfy1Nt_eITA-Q/exec',TOKEN_KEY='kudajitu_member_token_v1';
-function token(){return localStorage.getItem(TOKEN_KEY)||''}
-function api(action,data,timeout){var q='?action='+encodeURIComponent(action);Object.keys(data||{}).forEach(function(k){q+='&'+encodeURIComponent(k)+'='+encodeURIComponent(data[k])});return new Promise(function(ok,no){var cb='__k_'+Date.now()+'_'+Math.random().toString(36).slice(2),s=document.createElement('script'),done=false,t=setTimeout(function(){finish();no(Error('timeout'))},timeout||20000);function finish(){if(done)return;done=true;clearTimeout(t);s.remove();try{delete window[cb]}catch(e){window[cb]=undefined}}window[cb]=function(r){finish();r&&r.success!==false?ok(r):no(Error(r&&r.message||'Server gagal'))};s.src=GAS+q+'&callback='+cb+'&_='+Date.now();s.onerror=function(){finish();no(Error('network error'))};document.head.appendChild(s)})}
-function retry(action,data,timeout,n){return api(action,data,timeout).catch(function(e){if((n||2)<=1)throw e;return new Promise(function(r){setTimeout(r,800)}).then(function(){return retry(action,data,timeout,(n||2)-1)})})}
-function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]})}
-function style(){if(document.getElementById('k-auth-style'))return;var s=document.createElement('style');s.id='k-auth-style';s.textContent='.auth-overlay{position:fixed;inset:0;z-index:10000;background:#020809f5;display:flex;align-items:center;justify-content:center;padding:18px}.auth-card{width:min(420px,100%);background:#071719;border:1px solid #115e59;border-radius:22px;padding:28px;box-shadow:0 25px 80px #000}.auth-field{box-sizing:border-box;width:100%;background:#030a0c;border:1px solid #115e59;border-radius:11px;padding:12px;color:#fff;margin-top:8px;outline:0}.auth-btn{width:100%;border:0;border-radius:11px;padding:12px;background:#0d9488;color:#fff;font-weight:800;margin-top:13px;cursor:pointer}.auth-link{border:0;background:none;color:#5eead4;font-size:11px;cursor:pointer;margin-top:10px}.auth-msg{font-size:12px;color:#f87171;margin-top:10px;min-height:18px}.member-chip{position:static!important;right:auto!important;top:auto!important;background:#071719;border:1px solid #115e59;color:#99f6e4;border-radius:11px;padding:7px 10px;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto}.login-chip{position:static!important;right:auto!important;top:auto!important;background:#0d9488;border:1px solid #2dd4bf;color:#fff;border-radius:11px;padding:7px 11px;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap;box-shadow:0 0 16px rgba(45,212,191,.12)}.account-menu{position:fixed;right:12px;top:70px;z-index:10001;width:min(330px,calc(100vw - 24px));background:#071719;border:1px solid #115e59;border-radius:16px;padding:16px;box-shadow:0 20px 60px #000}.auth-card{max-height:calc(100dvh - 36px);overflow:auto}@media(max-width:640px){header>div{min-width:0}header>div>div:last-child{flex:0 1 auto;min-width:0;gap:4px;flex-wrap:wrap;justify-content:flex-end}header>div>div:last-child button{flex:0 0 auto}.member-chip{max-width:92px;padding:7px 8px;font-size:9px}.login-chip{padding:7px 9px;font-size:9px}.account-menu{top:62px}.auth-card{padding:22px;border-radius:18px}.auth-overlay{padding:12px}.field{font-size:16px!important}.np-stage{width:64px;height:64px;flex-basis:64px}.np-disc{width:52px;height:52px}.np-eq{height:22px;margin-top:5px}.np-eq i{width:3px}.glass{backdrop-filter:blur(8px)}main.max-w-7xl{padding-left:10px!important;padding-right:10px!important;padding-top:14px!important;gap:14px!important}main.max-w-7xl>section{border-radius:16px}main.max-w-7xl>section:first-child{padding:14px!important}main.max-w-7xl .p-6{padding:14px!important}main.max-w-7xl .p-5{padding:14px!important}main.max-w-7xl .gap-6{gap:14px!important}main.max-w-7xl .gap-5{gap:14px!important}#npTitle{font-size:18px!important;line-height:1.2;max-width:100%}#npArtist{font-size:12px!important}#npRequester{font-size:10px}#statPending,#statPlayed,#statTotal{font-size:18px!important}#feed .glass{padding:12px!important}#feed .glass b{font-size:13px}#feed .glass p{font-size:11px}.filter{padding:.42rem .58rem;font-size:9px}.btn{min-height:38px}.topList{min-width:0}}
-@media(max-width:420px){.member-chip{max-width:78px}.login-chip{max-width:78px;padding:7px 8px}.account-menu{right:8px;width:calc(100vw - 16px)}#syncState{display:none!important}#accountBtn{max-width:76px}#loginBtn{max-width:76px}#qrbox{max-width:100%}#npStage{margin-left:2px}main.max-w-7xl .grid{min-width:0}main.max-w-7xl .grid>div{min-width:0}.np-info{min-width:0;overflow:hidden}.np-info h2,.np-info p{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
-@media(min-width:641px){header>div>div:last-child{display:flex;align-items:center;justify-content:flex-end;gap:8px}.member-chip:hover,.login-chip:hover{filter:brightness(1.12);box-shadow:0 0 18px rgba(45,212,191,.12)}}';document.head.appendChild(s)}
-function headerActions(){return document.querySelector('header>div>div:last-child')}
-function showLoginButton(){style();if(document.getElementById('accountBtn'))document.getElementById('accountBtn').remove();if(document.getElementById('loginBtn'))return;var b=document.createElement('button');b.id='loginBtn';b.type='button';b.className='login-chip';b.title='Login member';b.textContent='🔐 Login';b.onclick=function(){loginOverlay()};var target=headerActions();if(target)target.appendChild(b)}
-function closeAuth(){var x=document.getElementById('authOverlay');if(x)x.remove()}
-function account(u){var old=document.getElementById('loginBtn');if(old)old.remove();if(document.getElementById('accountBtn'))document.getElementById('accountBtn').remove();var b=document.createElement('button');b.id='accountBtn';b.className='member-chip';b.title='Akun '+(u.name||u.username);b.textContent='⚙ '+(u.name||u.username);b.onclick=function(){var m=document.getElementById('accountMenu');if(m){m.remove();return}style();m=document.createElement('div');m.id='accountMenu';m.className='account-menu';m.innerHTML='<b style="color:#fff">Akun</b><div style="font-size:11px;color:#94a3b8;margin:6px 0 12px">@'+esc(u.username)+'</div><button id="cp" class="auth-btn">Ganti Password</button><button id="lo" class="auth-btn" style="background:#123033">Keluar</button>';document.body.appendChild(m);m.querySelector('#cp').onclick=function(){m.remove();changePassword()};m.querySelector('#lo').onclick=logout};var target=headerActions();if(target)target.appendChild(b);else document.body.appendChild(b)}
-function apply(u){closeAuth();window.KUDAJITUUser=u;account(u);var n=document.getElementById('name');if(n){n.value=u.name||u.username;n.readOnly=true}}
-function login(){var u=document.getElementById('ku'),p=document.getElementById('kp'),b=document.getElementById('kb'),m=document.getElementById('km');if(!u.value.trim()||!p.value){m.textContent='Username dan password wajib diisi.';return}b.disabled=true;b.textContent='Memeriksa...';retry('login',{username:u.value.trim(),password:p.value},30000,2).then(function(r){if(!r.token)throw Error(r.message||'Login gagal');localStorage.setItem(TOKEN_KEY,r.token);apply(r.user)}).catch(function(e){m.textContent=e.message==='timeout'?'Server sedang sibuk. Silakan coba lagi.':e.message}).finally(function(){b.disabled=false;b.textContent='Masuk'})}
-function loginOverlay(){style();showLoginButton();if(document.getElementById('authOverlay'))return;var o=document.createElement('div');o.id='authOverlay';o.className='auth-overlay';o.innerHTML='<div class="auth-card"><div style="text-align:center;color:#fff;font-size:22px;font-weight:800;margin-bottom:6px">KUDAJITU FM</div><div style="text-align:center;color:#94a3b8;font-size:11px;margin-bottom:18px">Login untuk mengirim request lagu</div><input id="ku" class="auth-field" autocomplete="username" placeholder="Username"><input id="kp" type="password" class="auth-field" autocomplete="current-password" placeholder="Password"><button id="kb" class="auth-btn">Masuk</button><button id="forgot" class="auth-link">Lupa password?</button><div id="km" class="auth-msg"></div></div>';document.body.appendChild(o);o.querySelector('#kb').onclick=login;o.querySelector('#kp').onkeydown=function(e){if(e.key==='Enter')login()};o.querySelector('#forgot').onclick=forgot}
-function forgot(){var o=document.getElementById('authOverlay');o.innerHTML='<div class="auth-card"><b style="color:#fff;font-size:18px">Lupa Password</b><p style="font-size:12px;color:#94a3b8;line-height:1.6">Hubungi admin untuk mendapatkan password sementara.</p><input id="fu" class="auth-field" autocomplete="username" placeholder="Username"><button id="fs" class="auth-btn">Ajukan Reset</button><button id="fb" class="auth-link">← Kembali</button><div id="fm" class="auth-msg"></div></div>';o.querySelector('#fs').onclick=function(){var u=o.querySelector('#fu').value.trim(),m=o.querySelector('#fm');if(!u){m.textContent='Username wajib diisi.';return}retry('forgotpassword',{username:u},20000,2).then(function(r){m.style.color='#5eead4';m.textContent=r.message}).catch(function(e){m.textContent=e.message})};o.querySelector('#fb').onclick=loginOverlay}
-function changePassword(){style();var o=document.createElement('div');o.id='authOverlay';o.className='auth-overlay';o.innerHTML='<div class="auth-card"><b style="color:#fff;font-size:18px">Ganti Password</b><input id="op" type="password" class="auth-field" autocomplete="current-password" placeholder="Password lama"><input id="np" type="password" class="auth-field" autocomplete="new-password" placeholder="Password baru (min. 6)"><input id="nc" type="password" class="auth-field" autocomplete="new-password" placeholder="Konfirmasi password baru"><button id="ns" class="auth-btn">Simpan</button><button id="nb" class="auth-link">Batal</button><div id="nm" class="auth-msg"></div></div>';document.body.appendChild(o);o.querySelector('#ns').onclick=function(){var a=o.querySelector('#op').value,b=o.querySelector('#np').value,c=o.querySelector('#nc').value,m=o.querySelector('#nm');if(!a||!b||!c){m.textContent='Semua kolom wajib diisi.';return}if(b!==c){m.textContent='Konfirmasi tidak sama.';return}retry('changepassword',{token:token(),oldPassword:a,newPassword:b},20000,2).then(function(r){m.style.color='#5eead4';m.textContent=r.message;setTimeout(function(){localStorage.removeItem(TOKEN_KEY);location.reload()},1000)}).catch(function(e){m.textContent=e.message})};o.querySelector('#nb').onclick=function(){o.remove()}}
-function logout(){var t=token();localStorage.removeItem(TOKEN_KEY);window.KUDAJITUUser=null;var m=document.getElementById('accountMenu');if(m)m.remove();api('logout',{token:t},5000).catch(function(){});location.reload()}
-function initAuth(){style();var t=token();if(!t){showLoginButton();loginOverlay();return}retry('session',{token:t},20000,2).then(function(r){if(!r.success)throw Error('LOGIN_REQUIRED');apply(r.user)}).catch(function(){localStorage.removeItem(TOKEN_KEY);window.KUDAJITUUser=null;showLoginButton();loginOverlay()})}
-window.KUDAJITUAuth={logout:logout,login:loginOverlay};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initAuth);else initAuth();
-(function(){var tokenKey=TOKEN_KEY;function currentUser(){var u=window.KUDAJITUUser,tk=localStorage.getItem(tokenKey)||'';if(!tk)return Promise.reject(Error('Silakan login terlebih dahulu.'));if(u)return Promise.resolve(u);return retry('session',{token:tk},12000,2).then(function(r){if(!r.success)throw Error('Sesi login sudah berakhir. Silakan login kembali.');window.KUDAJITUUser=r.user;return r.user})}function sendSingle(ev){ev.preventDefault();ev.stopImmediatePropagation();var b=document.getElementById('sendBtn'),title=(document.getElementById('title').value||'').trim(),artist=(document.getElementById('artist').value||'').trim(),note=(document.getElementById('note').value||'').trim();if(!b||b.disabled||!title||!artist)return false;b.disabled=true;var old=b.innerHTML;b.innerHTML='Mengirim...';currentUser().then(function(u){return retry('add',{token:localStorage.getItem(tokenKey)||'',requester:u.name||u.username,title:title,artist:artist,note:note},20000,2)}).then(function(r){if(typeof toast==='function')toast(r.message||'Request berhasil dikirim.');if(typeof sync==='function')sync();document.getElementById('title').value='';document.getElementById('artist').value='';document.getElementById('note').value=''}).catch(function(e){if(typeof toast==='function')toast(e.message||'Request gagal.','error')}).finally(function(){b.disabled=false;b.innerHTML=old});return false}function sendBatch(ev){ev.preventDefault();ev.stopImmediatePropagation();var b=document.getElementById('batchBtn'),raw=(document.getElementById('batch').value||'').trim();if(!b||b.disabled||!raw)return false;var items=raw.split(/\r?\n/).map(function(x){return x.trim()}).filter(Boolean).map(function(x){var p=x.split(/\s+-\s+/);return{title:(p.shift()||'').trim(),artist:p.join(' - ').trim()}}).filter(function(x){return x.title&&x.artist});if(!items.length){if(typeof toast==='function')toast('Format: Judul Lagu - Artist','error');return false}b.disabled=true;var old=b.innerHTML;b.innerHTML='Mengirim...';currentUser().then(function(u){return retry('addbatch',{token:localStorage.getItem(tokenKey)||'',requester:u.name||u.username,items:JSON.stringify(items)},25000,2)}).then(function(r){if(typeof toast==='function')toast(r.message||('Berhasil mengirim '+items.length+' request.'));if(typeof sync==='function')sync();document.getElementById('batch').value=''}).catch(function(e){if(typeof toast==='function')toast(e.message||'Batch request gagal.','error')}).finally(function(){b.disabled=false;b.innerHTML=old});return false}document.addEventListener('submit',function(ev){if(ev.target&&ev.target.id==='singleForm')sendSingle(ev);else if(ev.target&&ev.target.id==='batchForm')sendBatch(ev)},true)})();})();
+(function(){
+'use strict';
+var GAS='https://script.google.com/macros/s/AKfycbyUB8drjL1dSJedYjKIKjVc5gzIE3Pe-QS0FF8o1_zU4NkAweGLFquhHLfy1Nt_eITA-Q/exec';
+var TOKEN_KEY='kudajitu_member_token_v1';
+function getToken(){return localStorage.getItem(TOKEN_KEY)||'';}
+function request(action,data,timeout){
+  data=data||{};
+  var query='?action='+encodeURIComponent(action);
+  Object.keys(data).forEach(function(key){query+='&'+encodeURIComponent(key)+'='+encodeURIComponent(data[key]);});
+  return new Promise(function(resolve,reject){
+    var callback='kudaAuth_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    var script=document.createElement('script');
+    var finished=false;
+    var timer=setTimeout(function(){finish();reject(new Error('timeout'));},timeout||30000);
+    function finish(){if(finished)return;finished=true;clearTimeout(timer);script.remove();try{delete window[callback];}catch(e){window[callback]=undefined;}}
+    window[callback]=function(result){finish();if(result&&result.success!==false)resolve(result);else reject(new Error(result&&result.message||'Server gagal merespons.'));};
+    script.onerror=function(){finish();reject(new Error('network error'));};
+    script.src=GAS+query+'&callback='+callback+'&_='+Date.now();
+    document.head.appendChild(script);
+  });
+}
+function retry(action,data,timeout){
+  return request(action,data,timeout).catch(function(error){return new Promise(function(resolve){setTimeout(resolve,900);}).then(function(){return request(action,data,timeout);});});
+}
+function esc(value){return String(value==null?'':value).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];});}
+function addStyle(){
+  if(document.getElementById('kuda-auth-style'))return;
+  var style=document.createElement('style');
+  style.id='kuda-auth-style';
+  style.textContent=''+
+  '.auth-overlay{position:fixed;inset:0;z-index:10000;background:rgba(2,8,9,.96);display:flex;align-items:center;justify-content:center;padding:14px}'+
+  '.auth-card{width:min(420px,100%);max-height:calc(100dvh - 28px);overflow:auto;background:#071719;border:1px solid #115e59;border-radius:20px;padding:24px;box-shadow:0 25px 80px #000}'+
+  '.auth-field{box-sizing:border-box;width:100%;background:#030a0c;border:1px solid #115e59;border-radius:11px;padding:12px;color:#fff;margin-top:8px;outline:0;font-size:16px}'+
+  '.auth-btn{width:100%;border:0;border-radius:11px;padding:12px;background:#0d9488;color:#fff;font-weight:800;margin-top:12px;cursor:pointer}'+
+  '.auth-btn:disabled{opacity:.55;cursor:wait}'+
+  '.auth-link{border:0;background:none;color:#5eead4;font-size:11px;cursor:pointer;margin-top:10px}'+
+  '.auth-msg{font-size:12px;color:#f87171;margin-top:10px;min-height:18px}'+
+  '.login-chip,.member-chip{position:static!important;display:inline-flex!important;align-items:center;justify-content:center;background:#071719;border:1px solid #115e59;color:#99f6e4;border-radius:10px;padding:7px 10px;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}'+
+  '.login-chip{background:#0d9488;border-color:#2dd4bf;color:#fff}'+
+  '.account-menu{position:fixed;right:12px;top:68px;z-index:10001;width:min(330px,calc(100vw - 24px));background:#071719;border:1px solid #115e59;border-radius:16px;padding:16px;box-shadow:0 20px 60px #000}'+
+  '@media(max-width:640px){.auth-overlay{padding:10px}.auth-card{padding:20px;border-radius:18px}.account-menu{top:62px;right:8px;width:calc(100vw - 16px)}.login-chip,.member-chip{font-size:9px;padding:7px 8px;max-width:90px}}';
+  document.head.appendChild(style);
+}
+function header(){return document.querySelector('header>div>div:last-child');}
+function showLoginButton(){
+  addStyle();
+  var account=document.getElementById('accountBtn');
+  if(account)account.remove();
+  if(document.getElementById('loginBtn'))return;
+  var button=document.createElement('button');
+  button.id='loginBtn';button.type='button';button.className='login-chip';button.textContent='Login';button.title='Login member';
+  button.onclick=showLogin;
+  var target=header();
+  if(target)target.appendChild(button);
+}
+function closeOverlay(){var overlay=document.getElementById('authOverlay');if(overlay)overlay.remove();}
+function showLogin(){
+  addStyle();showLoginButton();
+  if(document.getElementById('authOverlay'))return;
+  var overlay=document.createElement('div');overlay.id='authOverlay';overlay.className='auth-overlay';
+  overlay.innerHTML='<div class="auth-card"><div style="text-align:center;color:#fff;font-size:22px;font-weight:800;margin-bottom:5px">KUDAJITU FM</div><div style="text-align:center;color:#94a3b8;font-size:11px;margin-bottom:16px">Login untuk mengirim request lagu</div><input id="ku" class="auth-field" autocomplete="username" placeholder="Username"><input id="kp" type="password" class="auth-field" autocomplete="current-password" placeholder="Password"><button id="kb" class="auth-btn">Masuk</button><button id="forgotBtn" class="auth-link">Lupa password?</button><div id="km" class="auth-msg"></div></div>';
+  document.body.appendChild(overlay);
+  document.getElementById('kb').onclick=doLogin;
+  document.getElementById('kp').onkeydown=function(event){if(event.key==='Enter')doLogin();};
+  document.getElementById('forgotBtn').onclick=showForgot;
+}
+function doLogin(){
+  var username=document.getElementById('ku'),password=document.getElementById('kp'),button=document.getElementById('kb'),message=document.getElementById('km');
+  if(!username||!password)return;
+  if(!username.value.trim()||!password.value){message.textContent='Username dan password wajib diisi.';return;}
+  button.disabled=true;button.textContent='Memeriksa...';message.textContent='';
+  retry('login',{username:username.value.trim(),password:password.value},30000).then(function(result){
+    if(!result.token||!result.user)throw new Error(result.message||'Login gagal.');
+    localStorage.setItem(TOKEN_KEY,result.token);applyUser(result.user);
+  }).catch(function(error){message.textContent=error.message==='timeout'?'Server sedang sibuk. Silakan coba lagi.':error.message;}).finally(function(){button.disabled=false;button.textContent='Masuk';});
+}
+function showForgot(){
+  var overlay=document.getElementById('authOverlay');if(!overlay)return;
+  overlay.innerHTML='<div class="auth-card"><b style="color:#fff;font-size:18px">Lupa Password</b><p style="font-size:12px;color:#94a3b8;line-height:1.6">Masukkan username Anda. Admin dapat membantu melakukan reset password.</p><input id="forgotUser" class="auth-field" autocomplete="username" placeholder="Username"><button id="forgotSend" class="auth-btn">Ajukan Reset</button><button id="forgotBack" class="auth-link">Kembali ke Login</button><div id="forgotMsg" class="auth-msg"></div></div>';
+  document.getElementById('forgotSend').onclick=function(){
+    var username=document.getElementById('forgotUser').value.trim(),msg=document.getElementById('forgotMsg'),button=document.getElementById('forgotSend');
+    if(!username){msg.textContent='Username wajib diisi.';return;}
+    button.disabled=true;button.textContent='Mengirim...';
+    retry('forgotpassword',{username:username},20000).then(function(result){msg.style.color='#5eead4';msg.textContent=result.message||'Permintaan reset dikirim ke admin.';}).catch(function(error){msg.textContent=error.message;}).finally(function(){button.disabled=false;button.textContent='Ajukan Reset';});
+  };
+  document.getElementById('forgotBack').onclick=showLogin;
+}
+function applyUser(user){
+  closeOverlay();window.KUDAJITUUser=user;
+  var loginButton=document.getElementById('loginBtn');if(loginButton)loginButton.remove();
+  var old=document.getElementById('accountBtn');if(old)old.remove();
+  var button=document.createElement('button');button.id='accountBtn';button.className='member-chip';button.title='Akun '+(user.name||user.username);button.textContent='@ '+(user.name||user.username);
+  button.onclick=function(){
+    var menu=document.getElementById('accountMenu');if(menu){menu.remove();return;}
+    addStyle();menu=document.createElement('div');menu.id='accountMenu';menu.className='account-menu';
+    menu.innerHTML='<b style="color:#fff">Akun</b><div style="font-size:11px;color:#94a3b8;margin:6px 0 12px">@'+esc(user.username)+'</div><button id="changePwBtn" class="auth-btn">Ganti Password</button><button id="logoutBtn" class="auth-btn" style="background:#123033">Keluar</button>';
+    document.body.appendChild(menu);document.getElementById('changePwBtn').onclick=function(){menu.remove();changePassword();};document.getElementById('logoutBtn').onclick=logout;
+  };
+  var target=header();if(target)target.appendChild(button);
+  var name=document.getElementById('name');if(name){name.value=user.name||user.username;name.readOnly=true;}
+}
+function changePassword(){
+  addStyle();var overlay=document.createElement('div');overlay.id='authOverlay';overlay.className='auth-overlay';
+  overlay.innerHTML='<div class="auth-card"><b style="color:#fff;font-size:18px">Ganti Password</b><input id="oldPw" type="password" class="auth-field" autocomplete="current-password" placeholder="Password lama"><input id="newPw" type="password" class="auth-field" autocomplete="new-password" placeholder="Password baru"><input id="confirmPw" type="password" class="auth-field" autocomplete="new-password" placeholder="Konfirmasi password baru"><button id="savePw" class="auth-btn">Simpan</button><button id="cancelPw" class="auth-link">Batal</button><div id="pwMsg" class="auth-msg"></div></div>';
+  document.body.appendChild(overlay);
+  document.getElementById('cancelPw').onclick=closeOverlay;
+  document.getElementById('savePw').onclick=function(){
+    var oldPw=document.getElementById('oldPw').value,newPw=document.getElementById('newPw').value,confirmPw=document.getElementById('confirmPw').value,msg=document.getElementById('pwMsg'),button=document.getElementById('savePw');
+    if(!oldPw||!newPw||!confirmPw){msg.textContent='Semua kolom wajib diisi.';return;}
+    if(newPw.length<6){msg.textContent='Password baru minimal 6 karakter.';return;}
+    if(newPw!==confirmPw){msg.textContent='Konfirmasi password tidak sama.';return;}
+    button.disabled=true;button.textContent='Menyimpan...';
+    retry('changepassword',{token:getToken(),oldPassword:oldPw,newPassword:newPw},20000).then(function(result){msg.style.color='#5eead4';msg.textContent=result.message||'Password berhasil diganti.';setTimeout(logout,1000);}).catch(function(error){msg.textContent=error.message;}).finally(function(){button.disabled=false;button.textContent='Simpan';});
+  };
+}
+function logout(){
+  var oldToken=getToken();localStorage.removeItem(TOKEN_KEY);window.KUDAJITUUser=null;
+  var menu=document.getElementById('accountMenu');if(menu)menu.remove();
+  request('logout',{token:oldToken},5000).catch(function(){}).finally(function(){location.reload();});
+}
+function validateSession(){
+  var currentToken=getToken();
+  if(!currentToken){showLogin();return;}
+  retry('session',{token:currentToken},30000).then(function(result){if(!result.success||!result.user)throw new Error('LOGIN_REQUIRED');applyUser(result.user);}).catch(function(){localStorage.removeItem(TOKEN_KEY);window.KUDAJITUUser=null;showLogin();});
+}
+function currentUser(){
+  var currentToken=getToken();
+  if(!currentToken)return Promise.reject(new Error('Silakan login terlebih dahulu.'));
+  if(window.KUDAJITUUser)return Promise.resolve(window.KUDAJITUUser);
+  return retry('session',{token:currentToken},30000).then(function(result){if(!result.success||!result.user)throw new Error('Sesi login berakhir. Silakan login kembali.');window.KUDAJITUUser=result.user;return result.user;});
+}
+function sendSingleCapture(event){
+  event.preventDefault();event.stopImmediatePropagation();
+  var button=document.getElementById('sendBtn'),title=document.getElementById('title'),artist=document.getElementById('artist'),note=document.getElementById('note');
+  if(!button||button.disabled||!title||!artist||!title.value.trim()||!artist.value.trim())return false;
+  var oldText=button.innerHTML;button.disabled=true;button.textContent='Mengirim...';
+  currentUser().then(function(user){return retry('add',{token:getToken(),requester:user.name||user.username,title:title.value.trim(),artist:artist.value.trim(),note:note?note.value.trim():''},30000);}).then(function(result){
+    if(typeof toast==='function')toast(result.message||'Request berhasil dikirim.');
+    title.value='';artist.value='';if(note)note.value='';if(typeof loadData==='function')loadData(false);
+  }).catch(function(error){if(typeof toast==='function')toast(error.message||'Request gagal.','error');}).finally(function(){button.disabled=false;button.innerHTML=oldText;});
+  return false;
+}
+function sendBatchCapture(event){
+  event.preventDefault();event.stopImmediatePropagation();
+  var button=document.getElementById('batchBtn'),field=document.getElementById('batch');
+  if(!button||button.disabled||!field||!field.value.trim())return false;
+  var lines=field.value.split(/\r?\n/).map(function(line){return line.trim();}).filter(Boolean).slice(0,3);
+  var items=lines.map(function(line,index){var parts=line.split(/\s+-\s+/);return{title:(parts.shift()||'').trim(),artist:parts.join(' - ').trim()||'Unknown Artist',note:'Batch Request'};}).filter(function(item){return item.title&&item.artist;});
+  if(!items.length){if(typeof toast==='function')toast('Format: Judul Lagu - Artist','error');return false;}
+  var oldText=button.innerHTML;button.disabled=true;button.textContent='Mengirim...';
+  currentUser().then(function(user){return retry('addbatch',{token:getToken(),requester:user.name||user.username,items:JSON.stringify(items)},30000);}).then(function(result){if(typeof toast==='function')toast(result.message||'Request berhasil dikirim.');field.value='';if(typeof loadData==='function')loadData(false);}).catch(function(error){if(typeof toast==='function')toast(error.message||'Batch request gagal.','error');}).finally(function(){button.disabled=false;button.innerHTML=oldText;});
+  return false;
+}
+function init(){
+  addStyle();
+  validateSession();
+  document.addEventListener('submit',function(event){if(event.target&&event.target.id==='singleForm'){sendSingleCapture(event);}else if(event.target&&event.target.id==='batchForm'){sendBatchCapture(event);}},true);
+}
+window.KUDAJITUAuth={logout:logout,login:showLogin};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
