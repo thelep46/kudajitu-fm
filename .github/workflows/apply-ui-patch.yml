@@ -1,4 +1,4 @@
-name: Apply KUDAJITU UI patch
+name: Apply KUDAJITU UI and request patch
 
 on:
   push:
@@ -15,31 +15,40 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Inject UI patch script
+      - name: Patch frontend loader and request limit
         shell: python
         run: |
           from pathlib import Path
-          path = Path('index.html')
-          text = path.read_text(encoding='utf-8')
+
+          index = Path('index.html')
+          text = index.read_text(encoding='utf-8')
           tag = '<script src="./ui-patch.js"></script>'
           if tag not in text:
               marker = '</head>'
               if marker not in text:
                   raise SystemExit('index.html tidak memiliki </head>')
               text = text.replace(marker, tag + marker, 1)
-              path.write_text(text, encoding='utf-8')
-          else:
-              print('UI patch sudah terpasang.')
+              index.write_text(text, encoding='utf-8')
 
-      - name: Commit patched index
+          code = Path('apps-script/Code.gs')
+          code_text = code.read_text(encoding='utf-8')
+          old = "var items=raw.slice(0,3).map(function(x){"
+          new = "var items=raw.map(function(x){"
+          if old in code_text:
+              code_text = code_text.replace(old, new, 1)
+              code.write_text(code_text, encoding='utf-8')
+          else:
+              print('Batas batch backend sudah tidak ditemukan; tidak ada perubahan backend.')
+
+      - name: Commit patched files
         shell: bash
         run: |
-          if git diff --quiet -- index.html; then
+          if git diff --quiet -- index.html apps-script/Code.gs; then
             echo "Tidak ada perubahan."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html
-          git commit -m "chore: load KUDAJITU UI patch"
+          git add index.html apps-script/Code.gs
+          git commit -m "fix: remove request batch limit"
           git push
