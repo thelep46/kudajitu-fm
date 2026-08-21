@@ -1,8 +1,6 @@
 (function(){
 'use strict';
 
-function escPatch(v){return String(v==null?'':v).replace(/[&<>\"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c]})}
-
 function addRegisterButton(){
   var overlay=document.getElementById('authOverlay');
   if(!overlay)return;
@@ -32,12 +30,30 @@ function showRegisterInfo(){
   overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove();});
 }
 
+function removeRequestLimit(){
+  if(typeof window.canSubmit==='function'){
+    window.canSubmit=function(){
+      var now=Date.now();
+      if(typeof window.lastSubmit==='number' && now-window.lastSubmit<5000){
+        toast('Tunggu beberapa detik sebelum request lagi.','error');
+        return false;
+      }
+      var name=document.getElementById('name');
+      if(!name||!name.value.trim()){
+        toast('Nama wajib diisi.','error');
+        return false;
+      }
+      return true;
+    };
+  }
+}
+
 function patchBatchForm(){
   var form=document.getElementById('batchForm');
   var area=document.getElementById('batch');
   if(area){area.removeAttribute('maxlength');area.placeholder='Satu lagu per baris, contoh:\nHati-Hati di Jalan - Tulus\nSial - Mahalini\nSeparuh Aku - Noah';}
   var note=form&&form.querySelector('p');
-  if(note)note.textContent='Satu lagu per baris. Tidak ada batas jumlah lagu dari sisi fitur; sistem akan mengirim otomatis dalam beberapa bagian.';
+  if(note)note.textContent='Satu lagu per baris. Tidak ada batas jumlah lagu; sistem akan mengirim otomatis dalam beberapa bagian.';
   if(!form || form.dataset.unlimitedPatched==='1')return;
   form.dataset.unlimitedPatched='1';
   form.addEventListener('submit',function(event){
@@ -57,16 +73,7 @@ async function submitUnlimitedBatch(){
   var base=Date.now();
   var items=lines.map(function(line,i){
     var parts=line.split('-');
-    return normalize({
-      id:'req_'+(base+i)+'_'+Math.random().toString(36).slice(2,8),
-      requester:name,
-      title:(parts[0]||'').trim(),
-      artist:(parts.length>1?parts.slice(1).join('-').trim():'Unknown Artist'),
-      note:'Batch Request',
-      timestamp:new Date(base+i).toISOString(),
-      status:'pending',
-      votes:1
-    });
+    return normalize({id:'req_'+(base+i)+'_'+Math.random().toString(36).slice(2,8),requester:name,title:(parts[0]||'').trim(),artist:(parts.length>1?parts.slice(1).join('-').trim():'Unknown Artist'),note:'Batch Request',timestamp:new Date(base+i).toISOString(),status:'pending',votes:1});
   }).filter(function(x){return x.title;});
   if(!items.length){toast('Tidak ada judul lagu yang valid.','error');return;}
   localStorage.setItem('kudajitu_name',name);
@@ -93,15 +100,15 @@ async function submitUnlimitedBatch(){
 
 function observeLogin(){
   addRegisterButton();
+  removeRequestLimit();
+  patchBatchForm();
   var observer=new MutationObserver(function(){
     addRegisterButton();
+    removeRequestLimit();
     patchBatchForm();
   });
   observer.observe(document.body,{childList:true,subtree:true});
-  patchBatchForm();
 }
 
-window.addEventListener('DOMContentLoaded',function(){
-  observeLogin();
-});
+window.addEventListener('DOMContentLoaded',function(){observeLogin();});
 })();
