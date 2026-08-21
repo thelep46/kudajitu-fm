@@ -1,0 +1,45 @@
+name: Apply KUDAJITU UI patch
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Inject UI patch script
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+          tag = '<script src="./ui-patch.js"></script>'
+          if tag not in text:
+              marker = '</head>'
+              if marker not in text:
+                  raise SystemExit('index.html tidak memiliki </head>')
+              text = text.replace(marker, tag + marker, 1)
+              path.write_text(text, encoding='utf-8')
+          else:
+              print('UI patch sudah terpasang.')
+
+      - name: Commit patched index
+        shell: bash
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "Tidak ada perubahan."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "chore: load KUDAJITU UI patch"
+          git push
