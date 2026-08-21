@@ -2,6 +2,7 @@
 'use strict';
 var GAS='https://script.google.com/macros/s/AKfycbyUB8drjL1dSJedYjKIKjVc5gzIE3Pe-QS0FF8o1_zU4NkAweGLFquhHLfy1Nt_eITA-Q/exec';
 var TOKEN_KEY='kudajitu_member_token_v1';
+var ANN_KEY='kudajitu_announcement_seen_v2';
 function getToken(){return localStorage.getItem(TOKEN_KEY)||'';}
 function request(action,data,timeout){
   data=data||{};
@@ -12,7 +13,7 @@ function request(action,data,timeout){
     var script=document.createElement('script');
     var finished=false;
     var timer=setTimeout(function(){finish();reject(new Error('timeout'));},timeout||30000);
-    function finish(){if(finished)return;finished=true;clearTimeout(timer);script.remove();try{delete window[callback];}catch(e){window[callback]=undefined;}}
+    function finish(){if(finished)return;finished=true;clearTimeout(timer);script.remove();try{delete window[callback]}catch(e){window[callback]=undefined;}}
     window[callback]=function(result){finish();if(result&&result.success!==false)resolve(result);else reject(new Error(result&&result.message||'Server gagal merespons.'));};
     script.onerror=function(){finish();reject(new Error('network error'));};
     script.src=GAS+query+'&callback='+callback+'&_='+Date.now();
@@ -22,7 +23,7 @@ function request(action,data,timeout){
 function retry(action,data,timeout){
   return request(action,data,timeout).catch(function(error){return new Promise(function(resolve){setTimeout(resolve,900);}).then(function(){return request(action,data,timeout);});});
 }
-function esc(value){return String(value==null?'':value).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];});}
+function esc(value){return String(value==null?'':value).replace(/[&<>\"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c];});}
 function addStyle(){
   if(document.getElementById('kuda-auth-style'))return;
   var style=document.createElement('style');
@@ -38,7 +39,13 @@ function addStyle(){
   '.login-chip,.member-chip{position:static!important;display:inline-flex!important;align-items:center;justify-content:center;background:#071719;border:1px solid #115e59;color:#99f6e4;border-radius:10px;padding:7px 10px;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}'+
   '.login-chip{background:#0d9488;border-color:#2dd4bf;color:#fff}'+
   '.account-menu{position:fixed;right:12px;top:68px;z-index:10001;width:min(330px,calc(100vw - 24px));background:#071719;border:1px solid #115e59;border-radius:16px;padding:16px;box-shadow:0 20px 60px #000}'+
-  '@media(max-width:640px){.auth-overlay{padding:10px}.auth-card{padding:20px;border-radius:18px}.account-menu{top:62px;right:8px;width:calc(100vw - 16px)}.login-chip,.member-chip{font-size:9px;padding:7px 8px;max-width:90px}}';
+  '.kuda-ann-overlay{position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:16px;animation:kudaAnnFade .18s ease}'+
+  '.kuda-ann-card{width:min(520px,100%);max-height:calc(100dvh - 32px);overflow:auto;background:#071719;border:1px solid rgba(45,212,191,.32);border-radius:22px;padding:22px;box-shadow:0 25px 90px rgba(0,0,0,.8);animation:kudaAnnPop .2s ease}'+
+  '.kuda-ann-icon{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:rgba(20,184,166,.12);color:#5eead4;font-size:20px;flex:0 0 46px}'+
+  '.kuda-ann-content{white-space:pre-wrap;word-break:break-word;color:#cbd5e1;line-height:1.7;font-size:13px}'+
+  '.kuda-ann-btn{width:100%;border:0;border-radius:11px;padding:12px;background:#0d9488;color:#fff;font-weight:800;cursor:pointer;margin-top:18px}'+
+  '@keyframes kudaAnnFade{from{opacity:0}to{opacity:1}}@keyframes kudaAnnPop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}'+
+  '@media(max-width:640px){.auth-overlay{padding:10px}.auth-card{padding:20px;border-radius:18px}.account-menu{top:62px;right:8px;width:calc(100vw - 16px)}.login-chip,.member-chip{font-size:9px;padding:7px 8px;max-width:90px}.kuda-ann-overlay{padding:10px}.kuda-ann-card{padding:18px;border-radius:18px}.kuda-ann-content{font-size:12px}}';
   document.head.appendChild(style);
 }
 function header(){return document.querySelector('header>div>div:last-child');}
@@ -98,6 +105,7 @@ function applyUser(user){
   };
   var target=header();if(target)target.appendChild(button);
   var name=document.getElementById('name');if(name){name.value=user.name||user.username;name.readOnly=true;}
+  showAnnouncement();
 }
 function changePassword(){
   addStyle();var overlay=document.createElement('div');overlay.id='authOverlay';overlay.className='auth-overlay';
@@ -129,15 +137,39 @@ function currentUser(){
   if(window.KUDAJITUUser)return Promise.resolve(window.KUDAJITUUser);
   return retry('session',{token:currentToken},30000).then(function(result){if(!result.success||!result.user)throw new Error('Sesi login berakhir. Silakan login kembali.');window.KUDAJITUUser=result.user;return result.user;});
 }
+function showAnnouncement(){
+  if(document.getElementById('kudaAnnouncement'))return;
+  request('announcement',{},12000).then(function(result){
+    var a=result&&result.announcement;
+    if(!a||a.enabled!==true||!String(a.title||'').trim()&&!String(a.content||'').trim())return;
+    var version=String(a.updatedAt||'');
+    var mode=String(a.mode||'once');
+    if(mode==='once'&&version&&localStorage.getItem(ANN_KEY)===version)return;
+    addStyle();
+    var overlay=document.createElement('div');overlay.id='kudaAnnouncement';overlay.className='kuda-ann-overlay';
+    var type=String(a.type||'info');
+    var icon=type==='important'?'⚠️':type==='warning'?'🔔':'📢';
+    var title=esc(a.title||'INFORMASI KUDAJITU FM');
+    var content=esc(a.content||'');
+    overlay.innerHTML='<div class="kuda-ann-card"><div style="display:flex;gap:12px;align-items:flex-start"><div class="kuda-ann-icon">'+icon+'</div><div style="flex:1;min-width:0"><div style="color:#fff;font-size:18px;font-weight:800;line-height:1.35">'+title+'</div><div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:.16em;margin-top:4px">Pengumuman</div></div><button id="kudaAnnClose" type="button" style="border:0;background:none;color:#94a3b8;font-size:24px;line-height:1;cursor:pointer">×</button></div><div class="kuda-ann-content" style="margin-top:16px">'+content+'</div><button id="kudaAnnOk" class="kuda-ann-btn" type="button">✓ Saya Mengerti</button></div>';
+    document.body.appendChild(overlay);
+    function close(){if(mode==='once'&&version)localStorage.setItem(ANN_KEY,version);overlay.remove();}
+    document.getElementById('kudaAnnClose').onclick=close;
+    document.getElementById('kudaAnnOk').onclick=close;
+    overlay.addEventListener('click',function(e){if(e.target===overlay)close();});
+  }).catch(function(){});
+}
+function init(){
+  addStyle();
+  validateSession();
+  document.addEventListener('submit',function(event){if(event.target&&event.target.id==='singleForm'){sendSingleCapture(event);}else if(event.target&&event.target.id==='batchForm'){sendBatchCapture(event);}},true);
+}
 function sendSingleCapture(event){
   event.preventDefault();event.stopImmediatePropagation();
   var button=document.getElementById('sendBtn'),title=document.getElementById('title'),artist=document.getElementById('artist'),note=document.getElementById('note');
   if(!button||button.disabled||!title||!artist||!title.value.trim()||!artist.value.trim())return false;
   var oldText=button.innerHTML;button.disabled=true;button.textContent='Mengirim...';
-  currentUser().then(function(user){return retry('add',{token:getToken(),requester:user.name||user.username,title:title.value.trim(),artist:artist.value.trim(),note:note?note.value.trim():''},30000);}).then(function(result){
-    if(typeof toast==='function')toast(result.message||'Request berhasil dikirim.');
-    title.value='';artist.value='';if(note)note.value='';if(typeof loadData==='function')loadData(false);
-  }).catch(function(error){if(typeof toast==='function')toast(error.message||'Request gagal.','error');}).finally(function(){button.disabled=false;button.innerHTML=oldText;});
+  currentUser().then(function(user){return retry('add',{token:getToken(),requester:user.name||user.username,title:title.value.trim(),artist:artist.value.trim(),note:note?note.value.trim():''},30000);}).then(function(result){if(typeof toast==='function')toast(result.message||'Request berhasil dikirim.');title.value='';artist.value='';if(note)note.value='';if(typeof loadData==='function')loadData(false);}).catch(function(error){if(typeof toast==='function')toast(error.message||'Request gagal.','error');}).finally(function(){button.disabled=false;button.innerHTML=oldText;});
   return false;
 }
 function sendBatchCapture(event){
@@ -145,16 +177,11 @@ function sendBatchCapture(event){
   var button=document.getElementById('batchBtn'),field=document.getElementById('batch');
   if(!button||button.disabled||!field||!field.value.trim())return false;
   var lines=field.value.split(/\r?\n/).map(function(line){return line.trim();}).filter(Boolean).slice(0,3);
-  var items=lines.map(function(line,index){var parts=line.split(/\s+-\s+/);return{title:(parts.shift()||'').trim(),artist:parts.join(' - ').trim()||'Unknown Artist',note:'Batch Request'};}).filter(function(item){return item.title&&item.artist;});
+  var items=lines.map(function(line){var parts=line.split(/\s+-\s+/);return{title:(parts.shift()||'').trim(),artist:parts.join(' - ').trim()||'Unknown Artist',note:'Batch Request'};}).filter(function(item){return item.title&&item.artist;});
   if(!items.length){if(typeof toast==='function')toast('Format: Judul Lagu - Artist','error');return false;}
   var oldText=button.innerHTML;button.disabled=true;button.textContent='Mengirim...';
   currentUser().then(function(user){return retry('addbatch',{token:getToken(),requester:user.name||user.username,items:JSON.stringify(items)},30000);}).then(function(result){if(typeof toast==='function')toast(result.message||'Request berhasil dikirim.');field.value='';if(typeof loadData==='function')loadData(false);}).catch(function(error){if(typeof toast==='function')toast(error.message||'Batch request gagal.','error');}).finally(function(){button.disabled=false;button.innerHTML=oldText;});
   return false;
-}
-function init(){
-  addStyle();
-  validateSession();
-  document.addEventListener('submit',function(event){if(event.target&&event.target.id==='singleForm'){sendSingleCapture(event);}else if(event.target&&event.target.id==='batchForm'){sendBatchCapture(event);}},true);
 }
 window.KUDAJITUAuth={logout:logout,login:showLogin};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
