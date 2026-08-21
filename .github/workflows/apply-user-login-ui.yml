@@ -1,0 +1,93 @@
+name: Apply user login UI updates
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  update-ui:
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.head_commit.message, '[ui-auto-fix]') }}
+    steps:
+      - name: Update login and request UI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const repo = process.env.REPO;
+          const token = process.env.GH_TOKEN;
+          const headers = {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2026-03-10',
+            'User-Agent': 'kudajitu-ui-fix'
+          };
+
+          async function getFile(path) {
+            const r = await fetch(`https://api.github.com/repos/${repo}/contents/${path}?ref=main`, {headers});
+            if (!r.ok) throw new Error(`GET ${path}: ${r.status} ${await r.text()}`);
+            const j = await r.json();
+            return { sha: j.sha, text: Buffer.from(j.content, 'base64').toString('utf8') };
+          }
+
+          async function putFile(path, sha, text, message) {
+            const r = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+              method: 'PUT', headers,
+              body: JSON.stringify({message, content: Buffer.from(text, 'utf8').toString('base64'), sha, branch: 'main'})
+            });
+            if (!r.ok) throw new Error(`PUT ${path}: ${r.status} ${await r.text()}`);
+          }
+
+          async function main() {
+            let changed = false;
+
+            // 1) Disable the batch request UI completely. Single-song request remains.
+            const index = await getFile('index.html');
+            let html = index.text;
+            const before = html;
+            html = html.replace(/<div class="flex bg-gray-950 p-1 rounded-xl border border-teal-900\/50 mb-4"><button type="button" id="singleTab"[\s\S]*?<\/div><form id="singleForm"/, '<form id="singleForm"');
+            html = html.replace(/<form id="batchForm"[\s\S]*?<\/form>/, '');
+            if (html !== before) {
+              await putFile('index.html', index.sha, html, 'Disable batch request UI [ui-auto-fix]');
+              changed = true;
+            }
+
+            // 2) Add a clear "Daftar Akun" action to the login modal.
+            const auth = await getFile('announcement.js');
+            let js = auth.text;
+            const beforeJs = js;
+            const forgotButton = '<button id="forgotBtn" class="auth-link">Lupa password?</button>';
+            const forgotWithRegister = forgotButton + '<button id="registerBtn" class="auth-link">Daftar Akun</button>';
+            if (js.includes(forgotButton) && !js.includes('id="registerBtn"')) {
+              js = js.replace(forgotButton, forgotWithRegister);
+            }
+            const forgotBind = 'document.getElementById(\'forgotBtn\').onclick=showForgot;';
+            const forgotBindWithRegister = forgotBind + 'document.getElementById(\'registerBtn\').onclick=showRegisterInfo;';
+            if (js.includes(forgotBind) && !js.includes('showRegisterInfo;')) {
+              js = js.replace(forgotBind, forgotBindWithRegister);
+            }
+            const marker = 'function showForgot(){';
+            if (js.includes(marker) && !js.includes('function showRegisterInfo(){')) {
+              const fn = `function showRegisterInfo(){
+  var overlay=document.getElementById('authOverlay');if(!overlay)return;
+  overlay.innerHTML='<div class="auth-card"><div style="text-align:center;color:#fff;font-size:20px;font-weight:800;margin-bottom:6px">Daftar Akun</div><p style="text-align:center;color:#94a3b8;font-size:12px;line-height:1.7;margin:0 0 14px">Pendaftaran akun dilakukan melalui admin KUDAJITU.</p><div style="background:#030a0c;border:1px solid #115e59;border-radius:12px;padding:14px;color:#cbd5e1;font-size:12px;line-height:1.7">Silakan hubungi <b style="color:#5eead4">Admin KUDAJITU</b> melalui <b>Microsoft Teams</b> atau <b>Telegram</b> untuk meminta dibuatkan akun.</div><button id="registerClose" class="auth-btn">Kembali ke Login</button></div>';
+  document.getElementById('registerClose').onclick=showLogin;
+}
+`;
+              js = js.replace(marker, fn + marker);
+            }
+            if (js !== beforeJs) {
+              await putFile('announcement.js', auth.sha, js, 'Add account registration guidance [ui-auto-fix]');
+              changed = true;
+            }
+
+            console.log(changed ? 'UI changes applied.' : 'No UI changes needed.');
+          }
+
+          main().catch(err => { console.error(err); process.exit(1); });
+          NODE
