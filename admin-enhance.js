@@ -66,40 +66,6 @@ const boot=()=>{
   }
 
   refreshExtras();
-
-  // Fase 3B-2A: intercept the existing checkbox action before the inline onchange.
-  // This avoids relying on wrapping a function after the page has already rendered.
-  if(!window.__adminStatusConfirm){
-    window.__adminStatusConfirm=true;
-    document.addEventListener('change',(event)=>{
-      const box=event.target;
-      if(!(box instanceof HTMLInputElement)||box.type!=='checkbox')return;
-      const rowEl=box.closest('#list [data-id]');
-      if(!rowEl)return;
-
-      const id=decodeURIComponent(rowEl.getAttribute('data-id')||'');
-      const row=(Array.isArray(window.data)?window.data:[]).find(x=>String(x.id)===String(id));
-      if(!row||typeof window.changeStatus!=='function')return;
-
-      const oldPlayed=String(row.status||'pending').toLowerCase()==='played';
-      const nextPlayed=!!box.checked;
-      const actionText=nextPlayed
-        ? 'menandai request ini sebagai SUDAH DIPUTAR'
-        : 'mengembalikan request ini ke ANTREAN';
-
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      box.checked=oldPlayed;
-
-      const ok=confirm(`Yakin ingin ${actionText}?\n\n${row.title||'Request ini'}${row.artist?'\n'+row.artist:''}`);
-      if(!ok)return;
-
-      box.checked=nextPlayed;
-      rowEl.classList.add('opacity-60','pointer-events-none');
-      Promise.resolve(window.changeStatus(encodeURIComponent(id),box))
-        .finally(()=>rowEl.classList.remove('opacity-60','pointer-events-none'));
-    },true);
-  }
 };
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
