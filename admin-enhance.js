@@ -65,6 +65,52 @@ const boot=()=>{
     };
   }
 
+  // Reliability guard: keep the operator informed when the browser loses connectivity.
+  const networkBadge=()=>{
+    let el=document.getElementById('adminNetworkStatus');
+    if(!el){
+      el=document.createElement('span');
+      el.id='adminNetworkStatus';
+      el.className='hidden text-[10px] px-2 py-1 rounded-full border';
+      const source=document.getElementById('sourceInfo');
+      source?.appendChild(el);
+    }
+    return el;
+  };
+  const setNetwork=(online)=>{
+    const el=networkBadge();
+    if(!el)return;
+    el.classList.remove('hidden','text-red-300','border-red-800','text-teal-300','border-teal-800');
+    if(online){
+      el.textContent='● Online';
+      el.classList.add('text-teal-300','border-teal-800');
+      setTimeout(()=>el.classList.add('hidden'),2200);
+    }else{
+      el.textContent='● Offline';
+      el.classList.add('text-red-300','border-red-800');
+    }
+  };
+  window.addEventListener('offline',()=>setNetwork(false));
+  window.addEventListener('online',()=>{
+    setNetwork(true);
+    if(typeof window.load==='function'&&typeof window.token==='function'&&window.token())window.load(false);
+  });
+  if(!navigator.onLine)setNetwork(false);
+
+  // Prevent accidental duplicate refresh clicks while the native loader is active.
+  if(typeof window.load==='function'&&!window.__adminLoadGuarded){
+    const oldLoad=window.load;
+    window.__adminLoadGuarded=true;
+    window.load=async function(force=false){
+      if(!navigator.onLine){
+        if(typeof window.toast==='function')window.toast('Koneksi internet terputus. Data terakhir tetap ditampilkan.',true);
+        setNetwork(false);
+        return;
+      }
+      return oldLoad(force);
+    };
+  }
+
   refreshExtras();
 };
 
