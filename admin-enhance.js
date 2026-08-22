@@ -54,6 +54,32 @@ const boot=()=>{
     window.render=function(){oldRender();requestAnimationFrame(refreshExtras)};
   }
   refreshExtras();
+
+  // Fase 3B-2A: protect the existing pending <-> played action.
+  // No new backend status is introduced in this phase.
+  if(typeof window.changeStatus==='function'&&!window.__safeStatusAction){
+    const originalChangeStatus=window.changeStatus;
+    window.__safeStatusAction=true;
+    window.changeStatus=async(id,box)=>{
+      if(!box||box.disabled)return;
+      const realId=decodeURIComponent(id);
+      const row=(Array.isArray(window.data)?window.data:[]).find(x=>String(x.id)===String(realId));
+      if(!row)return;
+      const next=box.checked?'played':'pending';
+      const actionText=next==='played'?'menandai request ini sebagai SUDAH DIPUTAR':'mengembalikan request ini ke ANTREAN';
+      if(!confirm(`Yakin ingin ${actionText}?\n\n${row.title||'Request ini'}`)){
+        box.checked=row.status==='played';
+        return;
+      }
+      const rowEl=box.closest('[data-id]');
+      if(rowEl)rowEl.classList.add('opacity-60','pointer-events-none');
+      try{
+        await originalChangeStatus(id,box);
+      }finally{
+        if(rowEl)rowEl.classList.remove('opacity-60','pointer-events-none');
+      }
+    };
+  }
 };
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
