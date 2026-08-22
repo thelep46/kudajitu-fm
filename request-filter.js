@@ -1,12 +1,84 @@
 (function(){'use strict';
-/* Request filter + queue compact fix. Deliberately event-driven and DOM-light. */
-let mode='all', queueObserver=null;
-function section(){return document.getElementById('myRequestsSection')}
-function statusOf(el){if(!el)return'waiting';const badge=el.querySelector('.myreq-status,.myreq-feature-status');const t=(badge?badge.textContent:el.getAttribute('data-status')||'').toLowerCase().replace(/\s+/g,' ').trim();if(t.includes('ditolak')||t.includes('tolak'))return'reject';if(t.includes('selesai')||t.includes('played'))return'done';if(t.includes('diproses')||t.includes('proses'))return'process';return'waiting';}
-function apply(){const s=section();if(!s)return;const items=[];const feature=s.querySelector('.myreq-feature');if(feature)items.push(feature);s.querySelectorAll('.myreq-card').forEach(x=>items.push(x));let visible=0;items.forEach(el=>{const st=statusOf(el);const show=mode==='all'||(mode==='waiting'&&st==='waiting')||(mode==='done'&&st==='done');el.setAttribute('data-filter-status',st);el.style.setProperty('display',show?'':'none','important');if(show)visible++;});let empty=s.querySelector('.myreq-filter-empty');if(!visible){if(!empty){empty=document.createElement('div');empty.className='myreq-filter-empty';empty.style='padding:14px;text-align:center;color:#64748b;font-size:10px;border:1px dashed #16413e;border-radius:10px;margin-top:8px';const list=s.querySelector('.myreq-list');if(list)list.appendChild(empty);}empty.textContent=mode==='waiting'?'Belum ada request yang masih dalam antrean.':mode==='done'?'Belum ada request yang selesai.':'Belum ada request.';}else if(empty)empty.remove();}
-function setMode(next){mode=next;requestAnimationFrame(apply)}
-function handleClick(e){const btn=e.target&&e.target.closest?e.target.closest('button'):null;if(!btn||btn.closest('#myRequestsSection'))return;const label=(btn.textContent||'').replace(/\s+/g,' ').trim().toLowerCase();if(label==='semua')setMode('all');else if(label==='antrean')setMode('waiting');else if(label==='selesai')setMode('done');}
-function cleanQueue(){const feed=document.getElementById('feed');if(!feed)return false;while(feed.parentElement&&feed.parentElement.classList.contains('queue-compact-wrap')){const w=feed.parentElement,p=w.parentElement;p.insertBefore(feed,w);w.remove();}const parent=feed.parentElement;if(!parent)return false;parent.querySelectorAll(':scope>.queue-toggle').forEach(x=>x.remove());parent.querySelectorAll(':scope>.queue-compact-wrap').forEach(w=>w.remove());const wrap=document.createElement('div');wrap.className='queue-compact-wrap is-collapsed';feed.parentNode.insertBefore(wrap,feed);wrap.appendChild(feed);const button=document.createElement('button');button.type='button';button.className='queue-toggle';button.id='queueToggle';wrap.appendChild(button);let style=document.getElementById('kuda-queue-fix-style');if(!style){style=document.createElement('style');style.id='kuda-queue-fix-style';style.textContent='#feed.queue-feed-collapsed{max-height:430px;overflow:hidden;position:relative}#feed.queue-feed-collapsed:after{content:"";position:absolute;left:0;right:0;bottom:0;height:70px;background:linear-gradient(to bottom,rgba(7,23,25,0),rgba(7,23,25,.98));pointer-events:none}.queue-compact-wrap.is-expanded #feed{max-height:none!important;overflow:visible}.queue-toggle{width:100%;margin-top:10px;border:1px solid #115e59;background:#071719;color:#99f6e4;border-radius:10px;padding:9px 12px;font-size:10px;font-weight:800;cursor:pointer}.queue-toggle:hover{border-color:#2dd4bf;background:#0b2729}.queue-toggle:active{transform:scale(.99)}.queue-count{color:#64748b;font-weight:500;margin-left:4px}';document.head.appendChild(style);}function update(){const count=feed.children.length;wrap.classList.toggle('has-overflow',count>6);if(count<=6){wrap.classList.remove('is-collapsed','is-expanded');feed.classList.remove('queue-feed-collapsed');button.style.display='none';return;}button.style.display='block';const collapsed=wrap.classList.contains('is-collapsed');feed.classList.toggle('queue-feed-collapsed',collapsed);button.innerHTML=collapsed?'⌄ Tampilkan semua antrean <span class="queue-count">('+count+' request)</span>':'⌃ Ringkas antrean <span class="queue-count">('+count+' request)</span>';}button.onclick=function(){wrap.classList.toggle('is-collapsed');wrap.classList.toggle('is-expanded');update()};update();if(queueObserver)queueObserver.disconnect();queueObserver=new MutationObserver(update);queueObserver.observe(feed,{childList:true});return true;}
-function init(){document.addEventListener('click',handleClick,false);setTimeout(function(){cleanQueue();apply()},1200)}
+/* Stable filter for Request Saya. It follows the main queue tabs but filters only the user's cards. */
+let mode='all';
+let sectionObserver=null;
+let hooked=false;
+function section(){return document.getElementById('myRequestsSection');}
+function statusOf(el){
+  if(!el)return 'waiting';
+  const badge=el.querySelector('.myreq-status,.myreq-feature-status');
+  const text=(badge?badge.textContent:'').toLowerCase().replace(/\s+/g,' ').trim();
+  if(text.includes('ditolak')||text.includes('tolak'))return 'reject';
+  if(text.includes('selesai')||text.includes('played'))return 'done';
+  if(text.includes('diproses')||text.includes('proses'))return 'process';
+  return 'waiting';
+}
+function wanted(st){
+  if(mode==='all')return true;
+  if(mode==='waiting')return st==='waiting';
+  if(mode==='done')return st==='done';
+  return true;
+}
+function apply(){
+  const s=section();
+  if(!s)return;
+  const feature=s.querySelector('.myreq-feature');
+  const cards=Array.from(s.querySelectorAll('.myreq-card'));
+  const items=[];
+  if(feature)items.push(feature);
+  cards.forEach(x=>items.push(x));
+  let visible=0;
+  items.forEach(el=>{
+    const st=statusOf(el);
+    el.dataset.filterStatus=st;
+    const show=wanted(st);
+    el.style.display=show?'':'none';
+    if(show)visible++;
+  });
+  let empty=s.querySelector('.myreq-filter-empty');
+  if(mode==='all'){
+    if(empty)empty.remove();
+    return;
+  }
+  if(!visible){
+    if(!empty){
+      empty=document.createElement('div');
+      empty.className='myreq-filter-empty';
+      empty.style.cssText='padding:14px;text-align:center;color:#64748b;font-size:10px;border:1px dashed #16413e;border-radius:10px;margin-top:8px';
+      const list=s.querySelector('.myreq-list');
+      if(list)list.appendChild(empty);
+      else s.querySelector('.myreq-panel')?.appendChild(empty);
+    }
+    empty.textContent=mode==='waiting'?'Belum ada request yang masih dalam antrean.':'Belum ada request yang selesai.';
+  }else if(empty)empty.remove();
+}
+function setMode(next){
+  mode=next;
+  requestAnimationFrame(apply);
+}
+function hookMainFilter(){
+  if(hooked)return;
+  if(typeof window.setFilter!=='function')return;
+  const original=window.setFilter;
+  window.setFilter=function(f){
+    original(f);
+    if(f==='pending')setMode('waiting');
+    else if(f==='played')setMode('done');
+    else setMode('all');
+    requestAnimationFrame(apply);
+  };
+  hooked=true;
+}
+function observeSection(){
+  const s=section();
+  if(!s||sectionObserver)return;
+  sectionObserver=new MutationObserver(function(){requestAnimationFrame(apply);});
+  sectionObserver.observe(s,{childList:true});
+}
+function init(){
+  hookMainFilter();
+  observeSection();
+  setTimeout(function(){hookMainFilter();observeSection();apply();},1200);
+}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
