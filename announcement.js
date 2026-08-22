@@ -35,6 +35,8 @@ function addStyle(){
   '.auth-btn{width:100%;border:0;border-radius:11px;padding:12px;background:#0d9488;color:#fff;font-weight:800;margin-top:12px;cursor:pointer}'+
   '.auth-btn:disabled{opacity:.55;cursor:wait}'+
   '.auth-link{border:0;background:none;color:#5eead4;font-size:11px;cursor:pointer;margin-top:10px}'+
+  '.auth-links{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}'+
+  '.auth-link-sep{color:#475569;font-size:11px}'+
   '.auth-msg{font-size:12px;color:#f87171;margin-top:10px;min-height:18px}'+
   '.login-chip,.member-chip{position:static!important;display:inline-flex!important;align-items:center;justify-content:center;background:#071719;border:1px solid #115e59;color:#99f6e4;border-radius:10px;padding:7px 10px;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}'+
   '.login-chip{background:#0d9488;border-color:#2dd4bf;color:#fff}'+
@@ -65,11 +67,12 @@ function showLogin(){
   addStyle();showLoginButton();
   if(document.getElementById('authOverlay'))return;
   var overlay=document.createElement('div');overlay.id='authOverlay';overlay.className='auth-overlay';
-  overlay.innerHTML='<div class="auth-card"><div style="text-align:center;color:#fff;font-size:22px;font-weight:800;margin-bottom:5px">KUDAJITU FM</div><div style="text-align:center;color:#94a3b8;font-size:11px;margin-bottom:16px">Login untuk mengirim request lagu</div><input id="ku" class="auth-field" autocomplete="username" placeholder="Username"><input id="kp" type="password" class="auth-field" autocomplete="current-password" placeholder="Password"><button id="kb" class="auth-btn">Masuk</button><button id="forgotBtn" class="auth-link">Lupa password?</button><div id="km" class="auth-msg"></div></div>';
+  overlay.innerHTML='<div class="auth-card"><div style="text-align:center;color:#fff;font-size:22px;font-weight:800;margin-bottom:5px">KUDAJITU FM</div><div style="text-align:center;color:#94a3b8;font-size:11px;margin-bottom:16px">Login untuk mengirim request lagu</div><input id="ku" class="auth-field" autocomplete="username" placeholder="Username"><input id="kp" type="password" class="auth-field" autocomplete="current-password" placeholder="Password"><button id="kb" class="auth-btn">Masuk</button><div class="auth-links"><button id="forgotBtn" class="auth-link">Lupa password?</button><span class="auth-link-sep">•</span><button id="registerBtn" class="auth-link">Daftar</button></div><div id="km" class="auth-msg"></div></div>';
   document.body.appendChild(overlay);
   document.getElementById('kb').onclick=doLogin;
   document.getElementById('kp').onkeydown=function(event){if(event.key==='Enter')doLogin();};
   document.getElementById('forgotBtn').onclick=showForgot;
+  document.getElementById('registerBtn').onclick=function(){window.location.href='register.html';};
 }
 function doLogin(){
   var username=document.getElementById('ku'),password=document.getElementById('kp'),button=document.getElementById('kb'),message=document.getElementById('km');
@@ -83,7 +86,7 @@ function doLogin(){
 }
 function showForgot(){
   var overlay=document.getElementById('authOverlay');if(!overlay)return;
-  overlay.innerHTML='<div class="auth-card"><b style="color:#fff;font-size:18px">Lupa Password</b><p style="font-size:12px;color:#94a3b8;line-height:1.6">Masukkan username Anda. Admin dapat membantu melakukan reset password.</p><input id="forgotUser" class="auth-field" autocomplete="username" placeholder="Username"><button id="forgotSend" class="auth-btn">Ajukan Reset</button><button id="forgotBack" class="auth-link">Kembali ke Login</button><div id="forgotMsg" class="auth-msg"></div></div>';
+  overlay.innerHTML='<div class="auth-card"><b style="color:#fff;font-size:18px">Lupa Password</b><p style="font-size:12px;color:#94a3b8;line-height:1.6">Masukkan username Anda. Admin dapat membantu melakukan reset password.</p><input id="forgotUser" class="auth-field" autocomplete="username" placeholder="Username"><button id="forgotSend" class="auth-btn">Ajukan Reset</button><div class="auth-links"><button id="forgotBack" class="auth-link">Kembali ke Login</button><span class="auth-link-sep">•</span><button id="forgotRegister" class="auth-link">Daftar</button></div><div id="forgotMsg" class="auth-msg"></div></div>';
   document.getElementById('forgotSend').onclick=function(){
     var username=document.getElementById('forgotUser').value.trim(),msg=document.getElementById('forgotMsg'),button=document.getElementById('forgotSend');
     if(!username){msg.textContent='Username wajib diisi.';return;}
@@ -91,6 +94,7 @@ function showForgot(){
     retry('forgotpassword',{username:username},20000).then(function(result){msg.style.color='#5eead4';msg.textContent=result.message||'Permintaan reset dikirim ke admin.';}).catch(function(error){msg.textContent=error.message;}).finally(function(){button.disabled=false;button.textContent='Ajukan Reset';});
   };
   document.getElementById('forgotBack').onclick=showLogin;
+  document.getElementById('forgotRegister').onclick=function(){window.location.href='register.html';};
 }
 function applyUser(user){
   closeOverlay();window.KUDAJITUUser=user;
