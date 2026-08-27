@@ -9,7 +9,11 @@ const boot=()=>{
     if(typeof window.jsonp==='function'){
       const originalJsonp=window.jsonp;
       window.jsonp=function(url,timeout){
-        return originalJsonp(url,Math.max(Number(timeout)||0,25000));
+        const u=String(url||'');
+        const action=(u.match(/[?&]action=([^&]+)/)||[])[1]||'';
+        const defaults={adminlogin:12000,adminsession:9000,adminlogout:9000,updateStatus:20000,updateStatuses:20000,delete:20000,deleteBatch:20000};
+        const chosen=defaults[action]||Math.max(Number(timeout)||0,15000);
+        return originalJsonp(url,chosen);
       };
     }
     if(typeof window.retry==='function'){
@@ -25,9 +29,8 @@ const boot=()=>{
     window.__kudaAdminApiGuard=true;
   }
 
-  // Login guard: a transient Apps Script delay must not become an immediate
-  // false timeout. The original login is retried once without touching the
-  // request/mutation paths that are already stable.
+  // Login guard: retry only transient login failures. Request/mutation paths
+  // remain untouched because they are already working in production tests.
   if(typeof window.login==='function'&&!window.__kudaAdminLoginGuard){
     const originalLogin=window.login;
     window.__kudaAdminLoginGuard=true;
@@ -42,18 +45,16 @@ const boot=()=>{
       if(button){button.disabled=true;button.dataset.loginOld=button.innerHTML;button.innerHTML='⏳ Menghubungkan...';}
       let lastError=null;
       try{
-        // First attempt uses the existing production login implementation.
-        try{
-          await originalLogin();
-          if(sessionStorage.getItem('kudajitu_admin_token'))return;
-        }catch(e){lastError=e;}
-        // One controlled retry handles a transient Apps Script cold-start/network delay.
-        if(msg)msg.textContent='Server belum merespons, mencoba kembali...';
-        await new Promise(r=>setTimeout(r,700));
-        try{
-          await originalLogin();
-          if(sessionStorage.getItem('kudajitu_admin_token'))return;
-        }catch(e){lastError=e;}
+        for(let attempt=0;attempt<2;attempt++){
+          try{
+            await originalLogin();
+            if(sessionStorage.getItem('kudajitu_admin_token'))return;
+          }catch(e){lastError=e;}
+          if(attempt===0){
+            if(msg)msg.textContent='Server belum merespons, mencoba kembali...';
+            await new Promise(r=>setTimeout(r,700));
+          }
+        }
         if(msg)msg.textContent='Gagal menghubungi server: '+(lastError?.message||'Timeout');
       }finally{
         window.__kudaAdminLoginBusy=false;
