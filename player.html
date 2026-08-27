@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kudajitu Auto Player</title>
+<style>
+:root{color-scheme:dark;--bg:#090b10;--card:#121620;--line:#273044;--text:#f4f7fb;--muted:#9aa5b5;--accent:#ef4444;--ok:#22c55e}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,sans-serif}main{max-width:720px;margin:auto;padding:16px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.top h1{font-size:20px;margin:0}.badge{font-size:12px;color:var(--muted)}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}.now{font-size:18px;font-weight:700;margin:5px 0}.meta{font-size:13px;color:var(--muted)}#player{width:100%;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden;margin-top:12px}.controls{display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:8px;margin-top:12px}button{min-height:46px;border:1px solid var(--line);border-radius:12px;background:#1a2130;color:var(--text);font-weight:700;padding:10px;cursor:pointer}button.primary{background:var(--accent);border-color:var(--accent)}button:disabled{opacity:.45;cursor:not-allowed}.row{display:flex;gap:8px;align-items:center}.row input{flex:1;min-width:0;background:#0c111a;border:1px solid var(--line);border-radius:10px;color:var(--text);padding:11px}.small{font-size:12px;color:var(--muted);line-height:1.5}.queue{display:grid;gap:7px;margin-top:10px}.item{padding:10px;border:1px solid var(--line);border-radius:10px}.item b{display:block;font-size:14px}.item span{font-size:12px;color:var(--muted)}.hidden{display:none!important}.error{color:#fca5a5}.ok{color:#86efac}@media(max-width:380px){main{padding:10px}.card{padding:11px}.controls{grid-template-columns:1fr 1fr 1fr}}
+</style>
+</head>
+<body>
+<main>
+  <div class="top"><div><h1>🎧 Kudajitu Auto Player</h1><div class="badge">Player Admin • mobile</div></div><button id="refresh">↻ Refresh</button></div>
+  <section class="card">
+    <div class="meta">Sekarang</div><div id="nowTitle" class="now">Belum ada lagu</div><div id="nowMeta" class="meta">Tekan Mulai untuk memuat antrean.</div>
+    <div id="player"></div>
+    <div class="controls"><button id="prev">⏮ Sebelumnya</button><button id="start" class="primary">▶ Mulai</button><button id="next">Berikutnya ⏭</button></div>
+    <p id="status" class="small">Player belum dimulai.</p>
+  </section>
+  <section class="card">
+    <b>Video YouTube untuk request ini</b>
+    <div class="row" style="margin-top:8px"><input id="videoId" placeholder="Tempel YouTube Video ID" inputmode="text"><button id="setVideo">Pasang</button></div>
+    <p class="small">Untuk request pertama, Admin memilih video YouTube sekali. Setelah itu ID disimpan di browser ini dan digunakan kembali saat request tersebut dimainkan.</p>
+  </section>
+  <section class="card"><b>Antrean berikutnya</b><div id="queue" class="queue"></div></section>
+</main>
+<script>
+const API='';
+let queue=[],index=0,yt=null,ready=false,started=false,loading=false;
+const $=id=>document.getElementById(id);
+function esc(s){return String(s||'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]))}
+function setStatus(t,c){$('status').textContent=t;$('status').className='small '+(c||'')}
+function key(id){return'kudajitu_yt_'+id}
+function getId(){return queue[index]?.id||''}
+async function loadQueue(){if(loading)return;loading=true;setStatus('Memuat antrean…');try{let u='/api/data?range=today&status=pending';let r=await fetch(u,{credentials:'include',cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);let d=await r.json();if(!d.success)throw Error(d.message||'Gagal mengambil data');queue=Array.isArray(d.data)?d.data:[];index=Math.min(index,Math.max(0,queue.length-1));render();setStatus(queue.length?queue.length+' request pending.':'Tidak ada request pending.','ok')}catch(e){setStatus('Gagal memuat antrean: '+e.message,'error')}finally{loading=false}}
+function render(){let x=queue[index];if(!x){$('nowTitle').textContent='Belum ada lagu';$('nowMeta').textContent='Antrean kosong';$('queue').innerHTML='';return}$('nowTitle').textContent=x.title||'Tanpa judul';$('nowMeta').textContent=(x.artist||'Tanpa penyanyi')+' • '+(x.requester||'User');$('videoId').value=localStorage.getItem(key(x.id))||'';let rest=queue.slice(index+1,Math.min(index+6,queue.length));$('queue').innerHTML=rest.length?rest.map((q,i)=>`<div class="item"><b>${esc(i+1+'. '+q.title)}</b><span>${esc(q.artist||'')}</span></div>`).join(''):'<div class="small">Tidak ada request berikutnya.</div>'}
+function loadYT(){if(window.YT&&YT.Player){createYT();return}let s=document.createElement('script');s.src='https://www.youtube.com/iframe_api';document.head.appendChild(s);window.onYouTubeIframeAPIReady=createYT}
+function createYT(){if(yt)return;yt=new YT.Player('player',{height:'100%',width:'100%',videoId:'',playerVars:{playsinline:1,rel:0},events:{onReady:()=>{ready=true;setStatus('Player siap. Tekan Mulai.','ok')},onStateChange:e=>{if(e.data===YT.PlayerState.ENDED)finishAndNext()},onError:e=>setStatus('Video YouTube tidak dapat diputar (kode '+e.data+'). Pilih video lain.','error')}})}
+function start(){if(!queue.length){loadQueue().then(start);return}started=true;let id=localStorage.getItem(key(getId()));if(!id){setStatus('Tempel Video ID YouTube untuk request ini lalu tekan Pasang.','error');return}if(!yt)loadYT();setTimeout(()=>{if(!ready)return;yt.loadVideoById(id)},300)}
+async function markPlayed(q){try{let r=await fetch('/api/data?action=updateStatus&id='+encodeURIComponent(q.id)+'&status=played',{credentials:'include'});let d=await r.json();return !!d.success}catch(e){return false}}
+async function finishAndNext(){let q=queue[index];if(!q)return;setStatus('Lagu selesai. Menandai sebagai sudah diputar…');let ok=await markPlayed(q);if(!ok){setStatus('Gagal menandai request. Tidak lanjut otomatis agar status tidak salah.','error');return}queue.splice(index,1);if(index>=queue.length)index=0;render();if(queue.length){let id=localStorage.getItem(key(getId()));if(id&&ready)yt.loadVideoById(id);else setStatus('Request berikutnya membutuhkan Video ID YouTube. Pilih dan tekan Pasang.','error')}else setStatus('Antrean selesai.','ok')}
+$('start').onclick=start;$('refresh').onclick=loadQueue;$('prev').onclick=()=>{if(index>0){index--;render();let id=localStorage.getItem(key(getId()));if(id&&ready)yt.loadVideoById(id);}};$('next').onclick=async()=>{if(!queue.length)return;await finishAndNext()};$('setVideo').onclick=()=>{let id=$('videoId').value.trim();let m=id.match(/(?:v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]{11})/);id=m?m[1]:id;if(!/^[A-Za-z0-9_-]{11}$/.test(id)){setStatus('Video ID tidak valid. Gunakan 11 karakter ID YouTube.','error');return}localStorage.setItem(key(getId()),id);setStatus('Video ID tersimpan untuk request ini.','ok');if(!yt)loadYT();setTimeout(()=>{if(ready&&started)yt.loadVideoById(id)},300)};
+loadQueue();
+</script>
+</body>
+</html>
