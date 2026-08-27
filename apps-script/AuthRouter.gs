@@ -28,4 +28,27 @@ function kudaAdminResetPassword_(p){kudaRequireAdmin_(p);var f=kudaFindUserById_
 function kudaForgotPassword_(p){var u=String(p.username||'').trim(),f=kudaFindUser_(u);if(!f||!kudaActive_(f.user))return{success:false,message:'Jika username terdaftar, reset password harus dilakukan oleh admin.'};return{success:false,message:'Silakan hubungi admin untuk reset password akun Anda.'};}
 function kudaAuthGet_(e){var p=e&&e.parameter?e.parameter:{},cb=p.callback||p.prefix||'',a=String(p.action||'').toLowerCase();if(a==='login')return kudaAuthResponse_(cb,kudaLogin_(p));if(a==='session')return kudaAuthResponse_(cb,kudaSession_(p));if(a==='logout')return kudaAuthResponse_(cb,kudaLogout_(p));if(a==='adminlogin')return kudaAuthResponse_(cb,kudaAdminLogin_(p));if(a==='adminsession')return kudaAuthResponse_(cb,kudaAdminSession_(p));if(a==='adminlogout')return kudaAuthResponse_(cb,kudaAdminLogout_(p));if(a==='users')return kudaAuthResponse_(cb,kudaUsers_(p));if(a==='saveuser')return kudaAuthResponse_(cb,kudaSaveUser_(p));if(a==='deleteuser')return kudaAuthResponse_(cb,kudaDeleteUser_(p));if(a==='changepassword')return kudaAuthResponse_(cb,kudaChangePassword_(p));if(a==='adminresetpassword')return kudaAuthResponse_(cb,kudaAdminResetPassword_(p));if(a==='forgotpassword')return kudaAuthResponse_(cb,kudaForgotPassword_(p));if(['updateStatus','markPlayed','updateStatuses','delete','deleteBatch','saveannouncement','clearannouncement'].indexOf(a)>=0){kudaRequireAdmin_(p);return _kudaOriginalDoGet_(e);}if(a==='add'||a==='addbatch'){var user=kudaRequire_(p);p.requester=user.name||user.username;if(a==='add')return _kudaOriginalDoGet_(e);var raw=[];try{raw=JSON.parse(p.items||'[]');}catch(x){throw new Error('Format batch tidak valid');}var out={success:true,action:'addBatch',count:0,added:0,existing:0,ids:[]};for(var i=0;i<raw.length;i+=3){var chunk=raw.slice(i,i+3);p.items=JSON.stringify(chunk);var q={};Object.keys(p).forEach(function(k){if(k!=='callback'&&k!=='prefix')q[k]=p[k];});var r=_kudaOriginalDoGet_({parameter:q});var data=JSON.parse(r.getContent());if(!data.success)throw new Error(data.message||'Batch gagal');out.count+=Number(data.count||0);out.added+=Number(data.added||0);out.existing+=Number(data.existing||0);out.ids=out.ids.concat(data.ids||[]);}return kudaAuthResponse_(cb,out);}return null;}
 var _kudaOriginalDoGet_=doGet;doGet=function(e){var p=e&&e.parameter?e.parameter:{},a=String(p.action||'').toLowerCase();if(['login','session','logout','adminlogin','adminsession','adminlogout','users','saveuser','deleteuser','changepassword','adminresetpassword','forgotpassword','add','addbatch','updateStatus','markPlayed','updateStatuses','delete','deleteBatch','saveannouncement','clearannouncement'].indexOf(a)>=0){try{return kudaAuthGet_(e);}catch(err){var cb=p.callback||p.prefix||'';return respond_(cb,{success:false,message:String(err.message||err),data:[]});}}return _kudaOriginalDoGet_(e);};
-function KUDAJITU_SetAdminPassword(){var ui=SpreadsheetApp.getUi(),r=ui.prompt('KUDAJITU FM','Masukkan password admin baru:',ui.ButtonSet.OK_CANCEL);if(r.getSelectedButton()!==ui.Button.OK)return;var pw=String(r.getResponseText()||'');if(pw.length<8)throw new Error('Password admin minimal 8 karakter.');PropertiesService.getScriptProperties().setProperty(KUDA_ADMIN_HASH_PROPERTY,kudaHash_(pw));ui.alert('Berhasil','Password admin sudah disimpan di Script Properties.',ui.ButtonSet.OK);}
+function KUDAJITU_SetAdminPassword() {
+  const password = '290979';
+
+  if (!password || password.length < 6) {
+    throw new Error('Password minimal 6 karakter.');
+  }
+
+  const hash = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    password,
+    Utilities.Charset.UTF_8
+  )
+    .map(b => {
+      const v = (b < 0 ? b + 256 : b).toString(16);
+      return v.length === 1 ? '0' + v : v;
+    })
+    .join('');
+
+  PropertiesService
+    .getScriptProperties()
+    .setProperty('KUDA_ADMIN_PASSWORD_HASH', hash);
+
+  Logger.log('Admin password berhasil disimpan.');
+}
