@@ -10,23 +10,39 @@ const ALLOWED_ACTIONS = new Set([
   'changepassword'
 ]);
 
-export async function onRequestGet({ request }) {
+async function handleAuth(request) {
   const incoming = new URL(request.url);
-  const action = String(incoming.searchParams.get('action') || '').trim().toLowerCase();
+  let action = String(incoming.searchParams.get('action') || '').trim().toLowerCase();
+  let data = {};
+
+  if (request.method === 'POST') {
+    try { data = await request.json(); } catch (_) { data = {}; }
+    action = String(data.action || action || '').trim().toLowerCase();
+  }
 
   if (!ALLOWED_ACTIONS.has(action)) {
-    return Response.json({
-      success: false,
-      message: 'Action auth tidak diizinkan.'
-    }, { status: 400, headers: { 'Cache-Control': 'no-store' } });
+    return Response.json({ success: false, message: 'Action auth tidak diizinkan.' }, {
+      status: 400,
+      headers: { 'Cache-Control': 'no-store' }
+    });
   }
 
   const target = new URL(GAS);
-  incoming.searchParams.forEach((value, key) => {
-    if (key !== 'callback' && key !== 'prefix' && key !== '_') {
-      target.searchParams.append(key, value);
-    }
-  });
+  target.searchParams.set('action', action);
+
+  if (request.method === 'POST') {
+    Object.keys(data).forEach(key => {
+      if (key !== 'action' && key !== 'callback' && key !== 'prefix' && key !== '_') {
+        target.searchParams.set(key, String(data[key] == null ? '' : data[key]));
+      }
+    });
+  } else {
+    incoming.searchParams.forEach((value, key) => {
+      if (key !== 'callback' && key !== 'prefix' && key !== '_' && key !== 'action') {
+        target.searchParams.set(key, value);
+      }
+    });
+  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 20000);
@@ -45,10 +61,7 @@ export async function onRequestGet({ request }) {
     try {
       body = JSON.parse(text);
     } catch (_) {
-      body = {
-        success: false,
-        message: 'Server auth mengembalikan respons yang tidak valid.'
-      };
+      body = { success: false, message: 'Server auth mengembalikan respons yang tidak valid.' };
     }
 
     return Response.json(body, {
@@ -56,7 +69,7 @@ export async function onRequestGet({ request }) {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate',
         'Pragma': 'no-cache',
-        'X-Kuda-Auth-Proxy': 'v1'
+        'X-Kuda-Auth-Proxy': 'v2'
       }
     });
   } catch (error) {
@@ -72,3 +85,6 @@ export async function onRequestGet({ request }) {
     clearTimeout(timer);
   }
 }
+
+export async function onRequestGet({ request }) { return handleAuth(request); }
+export async function onRequestPost({ request }) { return handleAuth(request); }
