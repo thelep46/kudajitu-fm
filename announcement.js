@@ -23,7 +23,8 @@ function request(action,data,timeout){
 function retry(action,data,timeout){
   return request(action,data,timeout).catch(function(error){
     if(error&&error.message==='timeout'){
-      return new Promise(function(resolve){setTimeout(resolve,1200);}).then(function(){return request(action,data,timeout);});
+      var delay=2500+Math.floor(Math.random()*1500);
+      return new Promise(function(resolve){setTimeout(resolve,delay);}).then(function(){return request(action,data,timeout);});
     }
     throw error;
   });
