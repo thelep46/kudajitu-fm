@@ -4,8 +4,33 @@ const AUTH_ACTIONS=/[?&]action=(?:login|session|logout|adminlogin|adminsession|a
 const DATA_ACTION=/[?&]action=data(?:&|$)/i;
 const AUTH_PROXY='/api/auth';
 const DATA_PROXY='/api/data';
+const PLAYER_TOKEN_KEY='kudajitu_admin_token';
 const dash=document.getElementById('dashboard');
 const queue=document.getElementById('list');
+
+function syncPlayerToken(){
+  try{const t=sessionStorage.getItem(PLAYER_TOKEN_KEY)||'';if(t)localStorage.setItem(PLAYER_TOKEN_KEY,t);}
+  catch(e){}
+}
+function clearPlayerToken(){try{localStorage.removeItem(PLAYER_TOKEN_KEY)}catch(e){}}
+function addPlayerLink(){
+  const nav=document.querySelector('header nav');
+  if(!nav||document.getElementById('adminPlayerLink'))return;
+  const a=document.createElement('a');
+  a.id='adminPlayerLink';a.href='player.html';a.className='btn bg-red-950 border border-red-800';a.textContent='🎧 Player';
+  nav.appendChild(a);
+}
+
+if(typeof window.show==='function'&&!window.__kudaPlayerAuthBridge){
+  const oldShow=window.show;
+  window.show=function(){oldShow();syncPlayerToken();addPlayerLink()};
+  window.__kudaPlayerAuthBridge=true;
+}
+if(typeof window.logout==='function'&&!window.__kudaPlayerLogoutBridge){
+  const oldLogout=window.logout;
+  window.logout=async function(){clearPlayerToken();return oldLogout()};
+  window.__kudaPlayerLogoutBridge=true;
+}
 
 if(!window.__kudaAdminProxy&&typeof window.jsonp==='function'){
   const originalJsonp=window.jsonp;
@@ -92,5 +117,6 @@ const networkBadge=()=>{let el=document.getElementById('adminNetworkStatus');if(
 const setNetwork=(online)=>{const el=networkBadge();if(!el)return;el.classList.remove('hidden','text-red-300','border-red-800','text-teal-300','border-teal-800');if(online){el.textContent='● Online';el.classList.add('text-teal-300','border-teal-800');setTimeout(()=>el.classList.add('hidden'),2200)}else{el.textContent='● Offline';el.classList.add('text-red-300','border-red-800')}};
 window.addEventListener('offline',()=>setNetwork(false));window.addEventListener('online',()=>{setNetwork(true);if(typeof window.load==='function'&&typeof window.token==='function'&&window.token())window.load(false)});if(!navigator.onLine)setNetwork(false);
 if(typeof window.load==='function'&&!window.__adminLoadGuarded){const oldLoad=window.load;window.__adminLoadGuarded=true;window.load=async function(force=false){if(!navigator.onLine){if(typeof window.toast==='function')window.toast('Koneksi internet terputus. Data terakhir tetap ditampilkan.',true);setNetwork(false);return}for(let attempt=0;attempt<2;attempt++){await oldLoad(force&&attempt===0);const info=(document.getElementById('sourceInfo')?.textContent||'').toLowerCase();if(!info.includes('gagal sinkronisasi'))return;if(attempt===0){setNetwork(false);await new Promise(r=>setTimeout(r,3500+Math.floor(Math.random()*1500)));setNetwork(true)}}}};
+syncPlayerToken();addPlayerLink();
 refreshExtras();
 })();
