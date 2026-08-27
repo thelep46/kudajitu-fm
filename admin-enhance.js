@@ -8,12 +8,58 @@ const boot=()=>{
   if(!window.__kudaAdminApiGuard){
     if(typeof window.jsonp==='function'){
       const originalJsonp=window.jsonp;
-      window.jsonp=function(url,timeout){return originalJsonp(url,Math.max(Number(timeout)||0,25000));};
+      window.jsonp=function(url,timeout){
+        return originalJsonp(url,Math.max(Number(timeout)||0,25000));
+      };
     }
     if(typeof window.retry==='function'){
-      window.retry=async function(fn,n=3){let e;for(let i=0;i<n;i++){try{return await fn()}catch(x){e=x;if(i<n-1)await new Promise(r=>setTimeout(r,2500*Math.pow(2,i)+Math.floor(Math.random()*1200)))}}throw e;};
+      window.retry=async function(fn,n=3){
+        let e;
+        for(let i=0;i<n;i++){
+          try{return await fn()}
+          catch(x){e=x;if(i<n-1)await new Promise(r=>setTimeout(r,2500*Math.pow(2,i)+Math.floor(Math.random()*1200)))}
+        }
+        throw e;
+      };
     }
     window.__kudaAdminApiGuard=true;
+  }
+
+  // Login guard: a transient Apps Script delay must not become an immediate
+  // false timeout. The original login is retried once without touching the
+  // request/mutation paths that are already stable.
+  if(typeof window.login==='function'&&!window.__kudaAdminLoginGuard){
+    const originalLogin=window.login;
+    window.__kudaAdminLoginGuard=true;
+    window.login=async function(){
+      const input=document.getElementById('password');
+      const msg=document.getElementById('loginMsg');
+      const button=document.querySelector('#login button[onclick="login()"]');
+      const pw=input?.value||'';
+      if(!pw){if(msg)msg.textContent='Password admin wajib diisi.';return;}
+      if(window.__kudaAdminLoginBusy)return;
+      window.__kudaAdminLoginBusy=true;
+      if(button){button.disabled=true;button.dataset.loginOld=button.innerHTML;button.innerHTML='⏳ Menghubungkan...';}
+      let lastError=null;
+      try{
+        // First attempt uses the existing production login implementation.
+        try{
+          await originalLogin();
+          if(sessionStorage.getItem('kudajitu_admin_token'))return;
+        }catch(e){lastError=e;}
+        // One controlled retry handles a transient Apps Script cold-start/network delay.
+        if(msg)msg.textContent='Server belum merespons, mencoba kembali...';
+        await new Promise(r=>setTimeout(r,700));
+        try{
+          await originalLogin();
+          if(sessionStorage.getItem('kudajitu_admin_token'))return;
+        }catch(e){lastError=e;}
+        if(msg)msg.textContent='Gagal menghubungi server: '+(lastError?.message||'Timeout');
+      }finally{
+        window.__kudaAdminLoginBusy=false;
+        if(button){button.disabled=false;button.innerHTML=button.dataset.loginOld||'Masuk';}
+      }
+    };
   }
 
   const statusRow=document.getElementById('sAll')?.parentElement;
