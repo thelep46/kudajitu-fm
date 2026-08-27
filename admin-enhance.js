@@ -65,7 +65,6 @@ const boot=()=>{
     };
   }
 
-  // Reliability guard: keep the operator informed when the browser loses connectivity.
   const networkBadge=()=>{
     let el=document.getElementById('adminNetworkStatus');
     if(!el){
@@ -97,7 +96,8 @@ const boot=()=>{
   });
   if(!navigator.onLine)setNetwork(false);
 
-  // Prevent accidental duplicate refresh clicks while the native loader is active.
+  // Slow Apps Script guard: the native loader handles its own retries, but it
+  // swallows failures. If it reports a sync failure, retry after a backoff.
   if(typeof window.load==='function'&&!window.__adminLoadGuarded){
     const oldLoad=window.load;
     window.__adminLoadGuarded=true;
@@ -107,7 +107,16 @@ const boot=()=>{
         setNetwork(false);
         return;
       }
-      return oldLoad(force);
+      for(let attempt=0;attempt<2;attempt++){
+        await oldLoad(force&&attempt===0);
+        const info=(document.getElementById('sourceInfo')?.textContent||'').toLowerCase();
+        if(!info.includes('gagal sinkronisasi'))return;
+        if(attempt===0){
+          setNetwork(false);
+          await new Promise(r=>setTimeout(r,3500+Math.floor(Math.random()*1500)));
+          setNetwork(true);
+        }
+      }
     };
   }
 
