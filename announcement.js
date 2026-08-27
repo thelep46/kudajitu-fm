@@ -27,6 +27,17 @@ function retry(action,data,timeout){
   function run(n){return request(action,data,timeout).catch(function(error){if(n>=attempts)throw error;var delay=2500*Math.pow(2,n-1)+Math.floor(Math.random()*1200);return new Promise(function(resolve){setTimeout(resolve,delay);}).then(function(){return run(n+1);});});}
   return run(1);
 }
+function installDataReliabilityGuard(){
+  if(window.__kudaDataReliabilityGuard)return;
+  if(typeof window.jsonp==='function'){
+    var originalJsonp=window.jsonp;
+    window.jsonp=function(url,timeout){return originalJsonp(url,Math.max(Number(timeout)||0,25000));};
+  }
+  if(typeof window.withRetry==='function'){
+    window.withRetry=async function(fn,tries){var last;var n=Math.max(1,Number(tries)||3);for(var i=0;i<n;i++){try{return await fn();}catch(e){last=e;if(i<n-1)await new Promise(function(resolve){setTimeout(resolve,2500*Math.pow(2,i)+Math.floor(Math.random()*1200));});}}throw last;};
+  }
+  window.__kudaDataReliabilityGuard=true;
+}
 function esc(value){return String(value==null?'':value).replace(/[&<>\"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c];});}
 function addStyle(){
   if(document.getElementById('kuda-auth-style'))return;
@@ -47,5 +58,5 @@ function validateSession(){var currentToken=getToken();if(!currentToken){showLog
 function currentUser(){var currentToken=getToken();if(!currentToken)return Promise.reject(new Error('Silakan login terlebih dahulu.'));if(window.KUDAJITUUser)return Promise.resolve(window.KUDAJITUUser);return retry('session',{token:currentToken},25000).then(function(result){if(!result.success||!result.user)throw new Error('Sesi login berakhir. Silakan login kembali.');window.KUDAJITUUser=result.user;return result.user;});}
 function showAnnouncement(){if(document.getElementById('kudaAnnouncement'))return;request('announcement',{},10000).then(function(result){var a=result&&result.announcement;if(!a||a.enabled!==true||!String(a.title||'').trim()&&!String(a.content||'').trim())return;var version=String(a.updatedAt||'');if(String(a.mode||'once')==='once'&&version&&localStorage.getItem(ANN_KEY)===version)return;addStyle();var overlay=document.createElement('div');overlay.id='kudaAnnouncement';overlay.className='kuda-ann-overlay';overlay.innerHTML='<div class="kuda-ann-card"><b style="color:#fff;font-size:18px">'+esc(a.title||'INFORMASI KUDAJITU FM')+'</b><div class="kuda-ann-content" style="margin-top:12px">'+esc(a.content||'')+'</div><button class="kuda-ann-btn">Mengerti</button></div>';document.body.appendChild(overlay);overlay.querySelector('button').onclick=function(){if(version)localStorage.setItem(ANN_KEY,version);overlay.remove();};}).catch(function(error){console.warn('Announcement:',error.message);});}
 window.KUDAAuth={getToken:getToken,currentUser:currentUser,validateSession:validateSession,showLogin:showLogin,logout:logout};
-window.addEventListener('DOMContentLoaded',function(){addStyle();showLoginButton();validateSession();});
+window.addEventListener('DOMContentLoaded',function(){installDataReliabilityGuard();addStyle();showLoginButton();validateSession();});
 })();
