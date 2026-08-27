@@ -1,12 +1,11 @@
 (function(){
 'use strict';
-/* Stable filter + unlimited batch-request adapter.
-   The UI has no artificial 3-song limit. Requests are sent in safe chunks so a
-   very large list does not create an oversized JSONP URL. */
+/* Stable request helpers: unlimited batch + YouTube link field for single requests. */
 let mode='all';
 let sectionObserver=null;
 let hooked=false;
 let batchHooked=false;
+let youtubeHooked=false;
 function section(){return document.getElementById('myRequestsSection');}
 function statusOf(el){
   if(!el)return 'waiting';
@@ -76,7 +75,6 @@ function observeSection(){
   sectionObserver=new MutationObserver(function(){requestAnimationFrame(apply);});
   sectionObserver.observe(s,{childList:true});
 }
-
 function parseBatchLines(raw){
   return String(raw||'').split(/\r?\n/).map(function(x){return x.trim()}).filter(Boolean);
 }
@@ -102,8 +100,6 @@ function sendChunk(items){
   return window.jsonp((window.GAS||'https://script.google.com/macros/s/AKfycbyUB8drjL1dSJedYjKIKjVc5gzIE3Pe-QS0FF8o1_zU4NkAweGLFquhHLfy1Nt_eITA-Q/exec')+'?action=addBatch&items='+enc(JSON.stringify(items)),25000);
 }
 async function sendUnlimited(items){
-  /* 10 items per network call keeps the GET/JSONP URL safely below common URL limits.
-     This is an implementation detail; there is no user-facing song limit. */
   const chunkSize=10;
   let added=0,existing=0;
   for(let i=0;i<items.length;i+=chunkSize){
@@ -120,7 +116,6 @@ async function sendUnlimited(items){
 function installUnlimitedBatch(){
   if(batchHooked)return;
   if(typeof window.addBatch!=='function')return;
-  const originalAddBatch=window.addBatch;
   window.addBatch=async function(event){
     if(event&&event.preventDefault)event.preventDefault();
     const nameEl=document.getElementById('name');
@@ -131,7 +126,6 @@ function installUnlimitedBatch(){
     if(!name||!raw){if(typeof window.toast==='function')window.toast('Nama dan daftar lagu wajib diisi.','error');return;}
     const lines=parseBatchLines(raw);
     if(!lines.length){if(typeof window.toast==='function')window.toast('Daftar lagu kosong.','error');return;}
-    /* Keep the existing anti-double-submit protection, but never cap the number of lines. */
     if(typeof window.canSubmit==='function'&&!window.canSubmit(lines.length))return;
     if(button&&typeof window.busy==='function')window.busy(button,true,'Menyimpan '+lines.length+' lagu...');
     window.lastSubmit=Date.now();
@@ -150,7 +144,6 @@ function installUnlimitedBatch(){
       if(button&&typeof window.busy==='function')window.busy(button,false);
     }
   };
-  /* Remove the old HTML maxlength and explain the new behavior. */
   const batch=document.getElementById('batch');
   if(batch)batch.removeAttribute('maxlength');
   const form=document.getElementById('batchForm');
@@ -160,11 +153,67 @@ function installUnlimitedBatch(){
   }
   batchHooked=true;
 }
+function youtubeVideoId(value){
+  const raw=String(value||'').trim();
+  if(!raw)return '';
+  try{
+    const u=new URL(raw);
+    const host=u.hostname.toLowerCase().replace(/^www\./,'');
+    if(host==='youtu.be')return (u.pathname.split('/').filter(Boolean)[0]||'').slice(0,20);
+    if(host==='youtube.com'||host==='m.youtube.com'||host==='music.youtube.com'){
+      if(u.searchParams.get('v'))return u.searchParams.get('v').slice(0,20);
+      const parts=u.pathname.split('/').filter(Boolean);
+      if(parts[0]==='shorts'||parts[0]==='embed'||parts[0]==='live')return (parts[1]||'').slice(0,20);
+    }
+  }catch(e){}
+  return '';
+}
+function installYoutubeSingle(){
+  if(youtubeHooked)return;
+  if(typeof window.addSingle!=='function')return;
+  const note=document.getElementById('note');
+  if(note){
+    const input=document.createElement('input');
+    input.id='note';
+    input.name='youtubeLink';
+    input.type='url';
+    input.required=true;
+    input.maxLength=300;
+    input.autocomplete='url';
+    input.inputMode='url';
+    input.className=note.className;
+    input.placeholder='Link YouTube (wajib)';
+    input.title='Masukkan link video YouTube yang ingin diputar';
+    note.replaceWith(input);
+  }
+  const originalAddSingle=window.addSingle;
+  window.addSingle=async function(event){
+    const field=document.getElementById('note');
+    const link=field?field.value.trim():'';
+    const videoId=youtubeVideoId(link);
+    if(!link||!videoId){
+      if(event&&event.preventDefault)event.preventDefault();
+      if(typeof window.toast==='function')window.toast('Masukkan link YouTube yang valid. Contoh: youtube.com/watch?v=...','error');
+      if(field)field.focus();
+      return false;
+    }
+    /* Keep the existing backend contract: the YouTube link is stored in the note column. */
+    return originalAddSingle.call(this,event);
+  };
+  youtubeHooked=true;
+}
 function init(){
   hookMainFilter();
   observeSection();
   installUnlimitedBatch();
-  setTimeout(function(){hookMainFilter();observeSection();installUnlimitedBatch();apply();},1200);
+  installYoutubeSingle();
+  setTimeout(function(){
+    hookMainFilter();
+    observeSection();
+    installUnlimitedBatch();
+    installYoutubeSingle();
+    apply();
+  },1200);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
