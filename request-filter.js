@@ -1,8 +1,12 @@
-(function(){'use strict';
-/* Stable filter for Request Saya. It follows the main queue tabs but filters only the user's cards. */
+(function(){
+'use strict';
+/* Stable filter + unlimited batch-request adapter.
+   The UI has no artificial 3-song limit. Requests are sent in safe chunks so a
+   very large list does not create an oversized JSONP URL. */
 let mode='all';
 let sectionObserver=null;
 let hooked=false;
+let batchHooked=false;
 function section(){return document.getElementById('myRequestsSection');}
 function statusOf(el){
   if(!el)return 'waiting';
@@ -52,10 +56,7 @@ function apply(){
     empty.textContent=mode==='waiting'?'Belum ada request yang masih dalam antrean.':'Belum ada request yang selesai.';
   }else if(empty)empty.remove();
 }
-function setMode(next){
-  mode=next;
-  requestAnimationFrame(apply);
-}
+function setMode(next){mode=next;requestAnimationFrame(apply);}
 function hookMainFilter(){
   if(hooked)return;
   if(typeof window.setFilter!=='function')return;
@@ -75,10 +76,95 @@ function observeSection(){
   sectionObserver=new MutationObserver(function(){requestAnimationFrame(apply);});
   sectionObserver.observe(s,{childList:true});
 }
+
+function parseBatchLines(raw){
+  return String(raw||'').split(/\r?\n/).map(function(x){return x.trim()}).filter(Boolean);
+}
+function enc(v){return encodeURIComponent(String(v==null?'':v));}
+function makeItems(lines,name){
+  const base=Date.now();
+  return lines.map(function(line,i){
+    const parts=line.split('-');
+    return {
+      id:'req_'+(base+i)+'_'+Math.random().toString(36).slice(2,8),
+      requester:name,
+      title:(parts[0]||'').trim(),
+      artist:(parts.length>1?parts.slice(1).join('-').trim():'Unknown Artist'),
+      note:'Batch Request',
+      timestamp:new Date(base+i).toISOString(),
+      status:'pending',
+      votes:1
+    };
+  });
+}
+function sendChunk(items){
+  if(typeof window.jsonp!=='function')return Promise.reject(new Error('API belum siap.'));
+  return window.jsonp((window.GAS||'https://script.google.com/macros/s/AKfycbyUB8drjL1dSJedYjKIKjVc5gzIE3Pe-QS0FF8o1_zU4NkAweGLFquhHLfy1Nt_eITA-Q/exec')+'?action=addBatch&items='+enc(JSON.stringify(items)),25000);
+}
+async function sendUnlimited(items){
+  /* 10 items per network call keeps the GET/JSONP URL safely below common URL limits.
+     This is an implementation detail; there is no user-facing song limit. */
+  const chunkSize=10;
+  let added=0,existing=0;
+  for(let i=0;i<items.length;i+=chunkSize){
+    const chunk=items.slice(i,i+chunkSize);
+    let result;
+    if(typeof window.withRetry==='function')result=await window.withRetry(function(){return sendChunk(chunk);},3);
+    else result=await sendChunk(chunk);
+    if(!result||result.success===false)throw new Error(result&&result.message||'Batch gagal disimpan.');
+    added+=Number(result.added||0);
+    existing+=Number(result.existing||0);
+  }
+  return {success:true,added:added,existing:existing,count:items.length};
+}
+function installUnlimitedBatch(){
+  if(batchHooked)return;
+  if(typeof window.addBatch!=='function')return;
+  const originalAddBatch=window.addBatch;
+  window.addBatch=async function(event){
+    if(event&&event.preventDefault)event.preventDefault();
+    const nameEl=document.getElementById('name');
+    const batchEl=document.getElementById('batch');
+    const button=document.getElementById('batchBtn');
+    const name=nameEl?nameEl.value.trim():'';
+    const raw=batchEl?batchEl.value.trim():'';
+    if(!name||!raw){if(typeof window.toast==='function')window.toast('Nama dan daftar lagu wajib diisi.','error');return;}
+    const lines=parseBatchLines(raw);
+    if(!lines.length){if(typeof window.toast==='function')window.toast('Daftar lagu kosong.','error');return;}
+    /* Keep the existing anti-double-submit protection, but never cap the number of lines. */
+    if(typeof window.canSubmit==='function'&&!window.canSubmit(lines.length))return;
+    if(button&&typeof window.busy==='function')window.busy(button,true,'Menyimpan '+lines.length+' lagu...');
+    window.lastSubmit=Date.now();
+    try{
+      localStorage.setItem('kudajitu_name',name);
+      const items=makeItems(lines,name);
+      const result=await sendUnlimited(items);
+      if(batchEl)batchEl.value='';
+      if(typeof window.toast==='function')window.toast(result.added+' request berhasil disimpan.');
+      if(typeof window.loadData==='function')await window.loadData(false);
+    }catch(error){
+      console.error('Unlimited batch:',error);
+      if(typeof window.toast==='function')window.toast(error.message||'Request batch gagal disimpan.','error');
+      if(typeof window.loadData==='function')await window.loadData(false);
+    }finally{
+      if(button&&typeof window.busy==='function')window.busy(button,false);
+    }
+  };
+  /* Remove the old HTML maxlength and explain the new behavior. */
+  const batch=document.getElementById('batch');
+  if(batch)batch.removeAttribute('maxlength');
+  const form=document.getElementById('batchForm');
+  if(form){
+    const hint=form.querySelector('p');
+    if(hint)hint.textContent='Satu lagu per baris. Jumlah lagu tidak dibatasi.';
+  }
+  batchHooked=true;
+}
 function init(){
   hookMainFilter();
   observeSection();
-  setTimeout(function(){hookMainFilter();observeSection();apply();},1200);
+  installUnlimitedBatch();
+  setTimeout(function(){hookMainFilter();observeSection();installUnlimitedBatch();apply();},1200);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
