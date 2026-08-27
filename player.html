@@ -2,46 +2,57 @@
 <html lang="id">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Kudajitu Auto Player</title>
 <style>
-:root{color-scheme:dark;--bg:#090b10;--card:#121620;--line:#273044;--text:#f4f7fb;--muted:#9aa5b5;--accent:#ef4444;--ok:#22c55e}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,sans-serif}main{max-width:720px;margin:auto;padding:16px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.top h1{font-size:20px;margin:0}.badge{font-size:12px;color:var(--muted)}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}.now{font-size:18px;font-weight:700;margin:5px 0}.meta{font-size:13px;color:var(--muted)}#player{width:100%;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden;margin-top:12px}.controls{display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:8px;margin-top:12px}button{min-height:46px;border:1px solid var(--line);border-radius:12px;background:#1a2130;color:var(--text);font-weight:700;padding:10px;cursor:pointer}button.primary{background:var(--accent);border-color:var(--accent)}button:disabled{opacity:.45;cursor:not-allowed}.row{display:flex;gap:8px;align-items:center}.row input{flex:1;min-width:0;background:#0c111a;border:1px solid var(--line);border-radius:10px;color:var(--text);padding:11px}.small{font-size:12px;color:var(--muted);line-height:1.5}.queue{display:grid;gap:7px;margin-top:10px}.item{padding:10px;border:1px solid var(--line);border-radius:10px}.item b{display:block;font-size:14px}.item span{font-size:12px;color:var(--muted)}.hidden{display:none!important}.error{color:#fca5a5}.ok{color:#86efac}@media(max-width:380px){main{padding:10px}.card{padding:11px}.controls{grid-template-columns:1fr 1fr 1fr}}
+body{margin:0;background:#090b10;color:#f4f7fb;font-family:system-ui,sans-serif}main{max-width:720px;margin:auto;padding:14px}.card{background:#121620;border:1px solid #273044;border-radius:16px;padding:14px;margin:10px 0}button{min-height:46px;border:1px solid #273044;border-radius:12px;background:#1a2130;color:#fff;font-weight:700;padding:10px;cursor:pointer}button.primary{background:#ef4444;border-color:#ef4444}button.green{background:#0f9f8f;border-color:#0f9f8f}.controls{display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:8px}input{box-sizing:border-box;width:100%;padding:11px;border-radius:10px;background:#0c111a;color:#fff;border:1px solid #273044}.row{display:flex;gap:8px}.row input{flex:1}.small{font-size:12px;color:#9aa5b5}.error{color:#fca5a5}.ok{color:#86efac}.hint{font-size:12px;color:#cbd5e1;line-height:1.45}#player{margin-top:10px;width:100%;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden}#player iframe{width:100%!important;height:100%!important}.item{padding:9px;border:1px solid #273044;border-radius:10px;margin-top:7px}.searchbox{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:9px}@media(max-width:380px){main{padding:9px}.card{padding:11px}.controls{grid-template-columns:1fr 1fr 1fr}.controls button{font-size:11px;padding:8px}.searchbox{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <main>
-  <div class="top"><div><h1>🎧 Kudajitu Auto Player</h1><div class="badge">Player Admin • mobile</div></div><button id="refresh">↻ Refresh</button></div>
-  <section class="card">
-    <div class="meta">Sekarang</div><div id="nowTitle" class="now">Belum ada lagu</div><div id="nowMeta" class="meta">Tekan Mulai untuk memuat antrean.</div>
-    <div id="player"></div>
-    <div class="controls"><button id="prev">⏮ Sebelumnya</button><button id="start" class="primary">▶ Mulai</button><button id="next">Berikutnya ⏭</button></div>
-    <p id="status" class="small">Player belum dimulai.</p>
-  </section>
-  <section class="card">
-    <b>Video YouTube untuk request ini</b>
-    <div class="row" style="margin-top:8px"><input id="videoId" placeholder="Tempel YouTube Video ID" inputmode="text"><button id="setVideo">Pasang</button></div>
-    <p class="small">Untuk request pertama, Admin memilih video YouTube sekali. Setelah itu ID disimpan di browser ini dan digunakan kembali saat request tersebut dimainkan.</p>
-  </section>
-  <section class="card"><b>Antrean berikutnya</b><div id="queue" class="queue"></div></section>
+<div class="card"><b>🎧 Kudajitu Auto Player</b><div class="small">Player Admin • mobile</div><button id="refresh" style="float:right;margin-top:-28px">↻ Refresh</button><div style="clear:both"></div></div>
+<div id="auth" class="card"><b>Memeriksa Login Admin…</b></div>
+<section class="card">
+<div class="small">Sekarang</div><h2 id="title">Belum ada lagu</h2><div id="meta" class="small">-</div>
+<div id="player"></div>
+<div class="controls" style="margin-top:10px"><button id="prev">⏮ Sebelumnya</button><button id="start" class="primary">▶ Mulai</button><button id="next">Berikutnya ⏭</button></div>
+<p id="status" class="small">Menyiapkan player…</p>
+</section>
+<section class="card">
+<b>🎯 Pilih Video YouTube</b>
+<p class="hint">Tidak perlu mengetik Video ID. Tekan <b>Cari di YouTube</b>, pilih video yang benar, lalu salin URL-nya dan tempel di bawah. Sistem otomatis mengambil ID dan mengingat pilihan untuk lagu yang sama.</p>
+<div class="searchbox"><button id="searchyt" class="green">🔎 Cari di YouTube</button><button id="clearMap">Hapus Mapping</button></div>
+<div class="row" style="margin-top:8px"><input id="video" placeholder="Tempel URL YouTube di sini"><button id="save">Pasang</button></div>
+<p id="mapping" class="small"></p>
+</section>
+<section class="card"><b>Antrean berikutnya</b><div id="queue" class="small"></div></section>
 </main>
 <script>
-const API='';
-let queue=[],index=0,yt=null,ready=false,started=false,loading=false;
-const $=id=>document.getElementById(id);
-function esc(s){return String(s||'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]))}
-function setStatus(t,c){$('status').textContent=t;$('status').className='small '+(c||'')}
-function key(id){return'kudajitu_yt_'+id}
-function getId(){return queue[index]?.id||''}
-async function loadQueue(){if(loading)return;loading=true;setStatus('Memuat antrean…');try{let u='/api/data?range=today&status=pending';let r=await fetch(u,{credentials:'include',cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);let d=await r.json();if(!d.success)throw Error(d.message||'Gagal mengambil data');queue=Array.isArray(d.data)?d.data:[];index=Math.min(index,Math.max(0,queue.length-1));render();setStatus(queue.length?queue.length+' request pending.':'Tidak ada request pending.','ok')}catch(e){setStatus('Gagal memuat antrean: '+e.message,'error')}finally{loading=false}}
-function render(){let x=queue[index];if(!x){$('nowTitle').textContent='Belum ada lagu';$('nowMeta').textContent='Antrean kosong';$('queue').innerHTML='';return}$('nowTitle').textContent=x.title||'Tanpa judul';$('nowMeta').textContent=(x.artist||'Tanpa penyanyi')+' • '+(x.requester||'User');$('videoId').value=localStorage.getItem(key(x.id))||'';let rest=queue.slice(index+1,Math.min(index+6,queue.length));$('queue').innerHTML=rest.length?rest.map((q,i)=>`<div class="item"><b>${esc(i+1+'. '+q.title)}</b><span>${esc(q.artist||'')}</span></div>`).join(''):'<div class="small">Tidak ada request berikutnya.</div>'}
-function loadYT(){if(window.YT&&YT.Player){createYT();return}let s=document.createElement('script');s.src='https://www.youtube.com/iframe_api';document.head.appendChild(s);window.onYouTubeIframeAPIReady=createYT}
-function createYT(){if(yt)return;yt=new YT.Player('player',{height:'100%',width:'100%',videoId:'',playerVars:{playsinline:1,rel:0},events:{onReady:()=>{ready=true;setStatus('Player siap. Tekan Mulai.','ok')},onStateChange:e=>{if(e.data===YT.PlayerState.ENDED)finishAndNext()},onError:e=>setStatus('Video YouTube tidak dapat diputar (kode '+e.data+'). Pilih video lain.','error')}})}
-function start(){if(!queue.length){loadQueue().then(start);return}started=true;let id=localStorage.getItem(key(getId()));if(!id){setStatus('Tempel Video ID YouTube untuk request ini lalu tekan Pasang.','error');return}if(!yt)loadYT();setTimeout(()=>{if(!ready)return;yt.loadVideoById(id)},300)}
-async function markPlayed(q){try{let r=await fetch('/api/data?action=updateStatus&id='+encodeURIComponent(q.id)+'&status=played',{credentials:'include'});let d=await r.json();return !!d.success}catch(e){return false}}
-async function finishAndNext(){let q=queue[index];if(!q)return;setStatus('Lagu selesai. Menandai sebagai sudah diputar…');let ok=await markPlayed(q);if(!ok){setStatus('Gagal menandai request. Tidak lanjut otomatis agar status tidak salah.','error');return}queue.splice(index,1);if(index>=queue.length)index=0;render();if(queue.length){let id=localStorage.getItem(key(getId()));if(id&&ready)yt.loadVideoById(id);else setStatus('Request berikutnya membutuhkan Video ID YouTube. Pilih dan tekan Pasang.','error')}else setStatus('Antrean selesai.','ok')}
-$('start').onclick=start;$('refresh').onclick=loadQueue;$('prev').onclick=()=>{if(index>0){index--;render();let id=localStorage.getItem(key(getId()));if(id&&ready)yt.loadVideoById(id);}};$('next').onclick=async()=>{if(!queue.length)return;await finishAndNext()};$('setVideo').onclick=()=>{let id=$('videoId').value.trim();let m=id.match(/(?:v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]{11})/);id=m?m[1]:id;if(!/^[A-Za-z0-9_-]{11}$/.test(id)){setStatus('Video ID tidak valid. Gunakan 11 karakter ID YouTube.','error');return}localStorage.setItem(key(getId()),id);setStatus('Video ID tersimpan untuk request ini.','ok');if(!yt)loadYT();setTimeout(()=>{if(ready&&started)yt.loadVideoById(id)},300)};
-loadQueue();
+const GAS='https://script.google.com/macros/s/AKfycbyUB8drjL1dSJedYjKIKjVc5gzIE3Pe-QS0FF8o1_zU4NkAweGLFquhHLfy1Nt_eITA-Q/exec',TK='kudajitu_admin_token';
+let q=[],i=0,yt=null,ready=false,started=false,busy=false,apiLoading=false;
+const $=x=>document.getElementById(x);
+function token(){return sessionStorage.getItem(TK)||localStorage.getItem(TK)||''}
+function jsonp(url,ms=18000){return new Promise((res,rej)=>{let c='__kp'+Date.now()+Math.random().toString(36).slice(2),s=document.createElement('script'),done=false,t=setTimeout(()=>fin(Error('Timeout')),ms);function fin(e,d){if(done)return;done=true;clearTimeout(t);s.remove();try{delete window[c]}catch(_){}e?rej(e):res(d)}window[c]=d=>d&&d.success===false?fin(Error(d.message||'Server gagal')):fin(null,d);s.src=url+(url.includes('?')?'&':'?')+'callback='+c+'&_='+Date.now();s.onerror=()=>fin(Error('Network error'));document.head.appendChild(s)})}
+async function auth(){let t=token();if(!t){$('auth').innerHTML='<b>Login Admin diperlukan</b><p class="small">Login di /admin terlebih dahulu. Setelah login, buka menu 🎧 Player.</p>';return false}try{let d=await jsonp(GAS+'?action=adminsession&token='+encodeURIComponent(t),12000);if(d.success){sessionStorage.setItem(TK,t);localStorage.setItem(TK,t);$('auth').innerHTML='<span class="ok">✓ Admin terhubung</span>';return true}}catch(e){}sessionStorage.removeItem(TK);localStorage.removeItem(TK);$('auth').innerHTML='<b>Session Admin tidak valid</b><p class="small">Silakan login Admin kembali.</p>';return false}
+async function load(){if(busy)return;if(!(await auth()))return;busy=true;try{let d=await jsonp(GAS+'?action=data&range=today&status=pending');q=Array.isArray(d.data)?d.data:[];if(i>=q.length)i=Math.max(0,q.length-1);render();$('status').textContent=q.length?q.length+' request pending. Player siap.':'Tidak ada request pending.'}catch(e){$('status').textContent='Gagal memuat antrean: '+e.message;$('status').className='small error'}finally{busy=false}}
+function esc(x){return String(x||'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))}
+function songKey(x){return 'kpyt_song_'+String((x?.title||'')+'|'+(x?.artist||'')).trim().toLowerCase().replace(/\s+/g,' ')}
+function getVideo(x){if(!x)return'';return localStorage.getItem('kpyt_'+x.id)||localStorage.getItem(songKey(x))||''}
+function setVideo(x,id){if(!x)return;localStorage.setItem('kpyt_'+x.id,id);localStorage.setItem(songKey(x),id)}
+function render(){let x=q[i];$('title').textContent=x?.title||'Belum ada lagu';$('meta').textContent=x?(x.artist||'Tanpa penyanyi')+' • '+(x.requester||'User'):'Antrean kosong';let id=getVideo(x);$('video').value=id;$('mapping').innerHTML=id?'<span class="ok">✓ Video sudah dipasangkan untuk lagu ini.</span>':'Belum ada video yang dikonfirmasi untuk lagu ini.';let r=q.slice(i+1,i+6);$('queue').innerHTML=r.length?r.map((x,n)=>'<div class="item">'+(n+1)+'. '+esc(x.title)+'<br><span class="small">'+esc(x.artist||'')+(getVideo(x)?' • ✓ video siap':' • belum dipasangkan')+'</span></div>').join(''):'Tidak ada request berikutnya.'}
+function ytLoad(){if(window.YT?.Player){makeYT();return}if(apiLoading)return;apiLoading=true;let s=document.createElement('script');s.src='https://www.youtube.com/iframe_api';document.head.appendChild(s);window.onYouTubeIframeAPIReady=()=>{apiLoading=false;makeYT()}}
+function makeYT(){if(yt||!window.YT?.Player)return;yt=new YT.Player('player',{width:'100%',height:'100%',videoId:'',playerVars:{playsinline:1,rel:0,controls:1,modestbranding:1},events:{onReady:()=>{ready=true;$('status').textContent=q.length?'Player siap. Pilih video lalu tekan Mulai.':'Player siap.'},onStateChange:e=>{if(e.data===YT.PlayerState.ENDED)finish()},onError:e=>{$('status').textContent='YouTube error '+e.data;$('status').className='small error'}}})}
+function currentVideo(){return getVideo(q[i])}
+function play(){let id=currentVideo();if(!id){$('status').textContent='Pilih dan pasangkan video YouTube untuk request ini terlebih dahulu.';$('status').className='small error';return false}if(!yt||!ready){$('status').textContent='Player masih disiapkan. Tekan Mulai lagi setelah player siap.';return false}$('status').textContent='Memuat '+q[i].title+'…';yt.loadVideoById({videoId:id,startSeconds:0});return true}
+async function start(){if(!q.length){await load();if(!q.length)return}started=true;if(!yt||!ready){ytLoad();$('status').textContent='Player disiapkan. Tekan Mulai sekali lagi setelah player siap.';return}play()}
+async function mark(x){try{let d=await jsonp(GAS+'?action=updateStatus&id='+encodeURIComponent(x.id)+'&status=played&adminToken='+encodeURIComponent(token()),18000);return d.success===true}catch(e){return false}}
+async function finish(){if(busy)return;let x=q[i];if(!x)return;$('status').textContent='Lagu selesai, menandai…';if(!(await mark(x))){$('status').textContent='Gagal menandai request. Player berhenti agar status tidak salah.';$('status').className='small error';return}q.splice(i,1);if(i>=q.length)i=0;render();if(q.length&&started)play();else if(q.length)$('status').textContent='Request berikutnya siap. Tekan Mulai.';else $('status').textContent='Antrean selesai.'}
+function openSearch(){let x=q[i];if(!x)return;let query=encodeURIComponent([x.title,x.artist].filter(Boolean).join(' '));window.open('https://www.youtube.com/results?search_query='+query,'_blank','noopener,noreferrer');$('status').textContent='Pilih video yang paling sesuai di YouTube, lalu salin URL dan tempel di sini.'}
+function parseVideo(raw){raw=String(raw||'').trim();let m=raw.match(/(?:v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{11})/);return m?m[1]:raw}
+$('start').onclick=start;$('refresh').onclick=load;$('prev').onclick=()=>{if(i>0){i--;render();if(started)play()}};$('next').onclick=finish;$('searchyt').onclick=openSearch;
+$('save').onclick=()=>{let x=q[i],id=parseVideo($('video').value);if(!x||!/^[A-Za-z0-9_-]{11}$/.test(id)){$('status').textContent='URL/Video ID YouTube tidak valid atau request belum tersedia.';$('status').className='small error';return}setVideo(x,id);render();$('status').textContent='✓ Video dikonfirmasi dan disimpan untuk lagu ini.';$('status').className='small ok';if(started)play()};
+$('clearMap').onclick=()=>{let x=q[i];if(!x)return;localStorage.removeItem('kpyt_'+x.id);localStorage.removeItem(songKey(x));render();$('status').textContent='Mapping video dihapus. Silakan pilih video baru.'};
+load();ytLoad();
 </script>
 </body>
 </html>
