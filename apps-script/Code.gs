@@ -22,8 +22,6 @@ function cacheGet_(k){try{var v=CacheService.getScriptCache().get(cacheKey_(k));
 function cachePut_(k,d){try{var raw=JSON.stringify(d);if(raw.length<95000)CacheService.getScriptCache().put(cacheKey_(k),raw,CACHE_SECONDS)}catch(e){}}
 function clearCaches_(){try{var c=CacheService.getScriptCache();c.removeAll(['today_all','yesterday_all','all_all','today_pending','today_played','yesterday_pending','yesterday_played','all_pending','all_played'].map(cacheKey_))}catch(e){}}
 
-// Reads only column F while locating today's boundary, then reads A:I once.
-// This avoids repeatedly loading all 9 columns during the backwards scan.
 function getRecentRows_(sheet,targetKey){
   var last=sheet.getLastRow();
   if(last<2)return[];
@@ -54,7 +52,49 @@ function findRowById_(sheet,id){var n=Math.max(1,sheet.getLastRow()-1),hit=sheet
 function buildIdRowIndex_(sheet){var ids=getIds_(sheet),index={};for(var i=0;i<ids.length;i++){var id=ids[i];if(id)index[id]=i+2}return index}
 function checkIds_(sheet,ids){var index=buildIdRowIndex_(sheet),found=[];ids.forEach(function(id){if(index[String(id)])found.push(String(id))});return found}
 function generateId_(){return'req_'+Date.now()+'_'+Math.random().toString(36).substring(2,8)}
-function appendIfMissing_(sheet,items){var accepted=[],rows=[],index=buildIdRowIndex_(sheet),appendStart=sheet.getLastRow()+1;items.forEach(function(item){var id=String(item.id||generateId_());if(index[id]){accepted.push(id);return}index[id]=appendStart+rows.length;accepted.push(id);rows.push([id,String(item.requester||''),String(item.title||''),String(item.artist||''),String(item.note||''),item.timestamp||new Date().toISOString(),normalizeStatus_(item.status||'pending'),Number(item.votes||1),''])});if(rows.length)sheet.getRange(appendStart,1,rows.length,9).setValues(rows);return{accepted:accepted,added:rows.length,existing:accepted.length-rows.length}}
+
+function extractYouTubeId_(value){
+  var raw=String(value||'').trim();
+  if(!raw)return'';
+  var m=raw.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i);
+  return m?m[1]:'';
+}
+function autoMapRequestYouTube_(item){
+  try{
+    var video=extractYouTubeId_(item.note);
+    var title=String(item.title||'').trim();
+    var artist=String(item.artist||'').trim();
+    if(!video||!title)return false;
+    if(typeof kudaYoutubeMapSheet_!=='function'||typeof kudaYoutubeKey_!=='function')return false;
+    var s=kudaYoutubeMapSheet_(),key=kudaYoutubeKey_(title,artist),last=s.getLastRow();
+    if(last>=2){
+      var rows=s.getRange(2,1,last-1,4).getValues();
+      for(var i=0;i<rows.length;i++){
+        if(String(rows[i][0]||'')===key){
+          if(String(rows[i][3]||'')!==video)s.getRange(i+2,2,1,3).setValues([[title,artist,video]]);
+          return true;
+        }
+      }
+    }
+    s.appendRow([key,title,artist,video]);
+    return true;
+  }catch(e){
+    console.warn('Auto YouTube mapping gagal: '+e);
+    return false;
+  }
+}
+function appendIfMissing_(sheet,items){
+  var accepted=[],rows=[],index=buildIdRowIndex_(sheet),appendStart=sheet.getLastRow()+1;
+  items.forEach(function(item){
+    var id=String(item.id||generateId_());
+    if(index[id]){accepted.push(id);return}
+    index[id]=appendStart+rows.length;accepted.push(id);
+    rows.push([id,String(item.requester||''),String(item.title||''),String(item.artist||''),String(item.note||''),item.timestamp||new Date().toISOString(),normalizeStatus_(item.status||'pending'),Number(item.votes||1),'']);
+  });
+  if(rows.length)sheet.getRange(appendStart,1,rows.length,9).setValues(rows);
+  rows.forEach(function(r){autoMapRequestYouTube_({title:r[2],artist:r[3],note:r[4]});});
+  return{accepted:accepted,added:rows.length,existing:accepted.length-rows.length}
+}
 function addViaParams_(sheet,p){var item={id:String(p.id||generateId_()),requester:String(p.requester||''),title:String(p.title||''),artist:String(p.artist||''),note:String(p.note||''),timestamp:p.timestamp||new Date().toISOString(),status:normalizeStatus_(p.status||'pending'),votes:Number(p.votes||1)};var r=appendIfMissing_(sheet,[item]);clearCaches_();return{success:true,action:'add',id:item.id,added:r.added,existing:r.existing,data:item}}
 function addBatchViaParams_(sheet,p){var raw=[];try{raw=JSON.parse(p.items||'[]')}catch(e){throw new Error('Format batch tidak valid')}if(!Array.isArray(raw)||!raw.length)return{success:false,message:'Tidak ada data batch'};var batchRequester=String(p.requester||'').trim();var items=raw.map(function(x){x=x||{};return{id:String(x.id||generateId_()),requester:String(x.requester||batchRequester||''),title:String(x.title||''),artist:String(x.artist||''),note:String(x.note||'Batch Request'),timestamp:x.timestamp||new Date().toISOString(),status:normalizeStatus_(x.status||'pending'),votes:Number(x.votes||1)}});var r=appendIfMissing_(sheet,items);clearCaches_();return{success:true,action:'addBatch',count:r.accepted.length,added:r.added,existing:r.existing,ids:r.accepted}}
 
@@ -87,7 +127,6 @@ function mutate_(sheet,p){
     var dels=String(p.ids||'').split(',').map(function(x){return x.trim()}).filter(Boolean),index=buildIdRowIndex_(sheet),rows=[];
     dels.forEach(function(id){if(index[id])rows.push(index[id])});
     rows.sort(function(a,b){return b-a});
-    // Delete contiguous blocks from bottom to top to minimize spreadsheet operations.
     var blocks=[];
     for(var i=0;i<rows.length;i++){var r=rows[i],block=blocks[blocks.length-1];if(!block||r!==block.start-1)blocks.push({start:r,count:1});else{block.start=r;block.count++}}
     blocks.forEach(function(b){sheet.deleteRows(b.start,b.count)});
