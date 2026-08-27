@@ -12,30 +12,73 @@ if(!window.__kudaAdminProxy&&typeof window.jsonp==='function'){
   window.jsonp=function(url,timeout){
     const u=String(url||'');
     if(AUTH_ACTIONS.test(u)||DATA_ACTION.test(u)){
-      const parsed=new URL(u,location.href);
-      const params=new URLSearchParams();
-      parsed.searchParams.forEach((value,key)=>{
-        if(key!=='callback'&&key!=='prefix'&&key!=='_')params.set(key,value);
-      });
-      const proxy=AUTH_ACTIONS.test(u)?AUTH_PROXY:DATA_PROXY;
-      const controller=new AbortController();
-      const limit=Math.max(DATA_ACTION.test(u)?15000:10000,Number(timeout)||20000);
-      const timer=setTimeout(()=>controller.abort(),limit);
+      const parsed=new URL(u,location.href),params=new URLSearchParams();
+      parsed.searchParams.forEach((value,key)=>{if(key!=='callback'&&key!=='prefix'&&key!=='_')params.set(key,value)});
+      const proxy=AUTH_ACTIONS.test(u)?AUTH_PROXY:DATA_PROXY,controller=new AbortController();
+      const limit=Math.max(DATA_ACTION.test(u)?15000:10000,Number(timeout)||20000),timer=setTimeout(()=>controller.abort(),limit);
       return fetch(proxy+'?'+params.toString(),{method:'GET',credentials:'same-origin',cache:'no-store',signal:controller.signal,headers:{'Accept':'application/json'}})
         .then(async r=>{let body=null;try{body=await r.json()}catch(e){throw Error('Respons server tidak valid')}if(!r.ok||body?.success===false)throw Error(body?.message||'Server gagal');return body})
-        .catch(e=>{if(e?.name==='AbortError')throw Error('Timeout');throw e})
-        .finally(()=>clearTimeout(timer));
+        .catch(e=>{if(e?.name==='AbortError')throw Error('Timeout');throw e}).finally(()=>clearTimeout(timer));
     }
     return originalJsonp(url,timeout);
   };
   window.__kudaAdminProxy=true;
 }
-
 if(!dash||!queue)return;
-if(!window.__kudaAdminApiGuard){
-  if(typeof window.retry==='function')window.retry=async function(fn,n=3){let e;for(let i=0;i<n;i++){try{return await fn()}catch(x){e=x;if(i<n-1)await new Promise(r=>setTimeout(r,2500*Math.pow(2,i)+Math.floor(Math.random()*1200)))}}throw e};
+if(!window.__kudaAdminApiGuard&&typeof window.retry==='function'){
+  window.retry=async function(fn,n=3){let e;for(let i=0;i<n;i++){try{return await fn()}catch(x){e=x;if(i<n-1)await new Promise(r=>setTimeout(r,2500*Math.pow(2,i)+Math.floor(Math.random()*1200)))}}throw e};
   window.__kudaAdminApiGuard=true;
 }
+const mobileStyle=document.createElement('style');mobileStyle.id='admin-mobile-responsive-v1';mobileStyle.textContent=`
+@media(max-width:767px){
+ body{overflow-x:hidden}
+ header{padding:.65rem .75rem!important}
+ header>div{gap:.55rem!important}
+ header h1{font-size:1rem!important}
+ header p{font-size:.68rem!important}
+ header nav{display:grid!important;grid-template-columns:1fr 1fr 1fr;gap:.35rem!important;width:100%}
+ header nav .btn{width:100%;padding:.55rem .3rem!important;font-size:.62rem!important;white-space:nowrap}
+ main{padding:.8rem .7rem 1.2rem!important}
+ #dashboard{gap:.8rem!important}
+ #dashboard>div:first-child{align-items:stretch!important}
+ #dashboard>div:first-child>div:first-child{min-width:0}
+ #dashboard h2{font-size:1.25rem!important}
+ #dashboard .grid.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:.45rem!important}
+ #dashboard .grid.grid-cols-3 .glass{padding:.7rem .55rem!important}
+ #dashboard .grid.grid-cols-3 b{font-size:1.35rem!important}
+ #dashboard .grid.lg\\:grid-cols-\\[1\\.35fr_\\.65fr\\]{grid-template-columns:1fr!important;gap:.7rem!important}
+ #dashboard .glass.rounded-2xl{padding:.8rem!important;border-radius:1rem!important}
+ #nextCard .p-5{padding:.75rem!important}
+ #nextCard .flex.gap-4{gap:.65rem!important}
+ #nextCard h4{font-size:.95rem!important;white-space:normal!important}
+ #nextCard .w-14{width:2.7rem!important;height:2.7rem!important;font-size:.9rem!important}
+ #nextCard .btn{width:100%;margin-top:.15rem}
+ #dashboard .flex.flex-wrap.justify-between{gap:.55rem!important}
+ #dashboard .flex.flex-wrap.justify-between>.flex{width:100%;display:grid!important;grid-template-columns:1fr 1fr;gap:.4rem!important}
+ #dashboard .flex.flex-wrap.justify-between>.flex .btn{width:100%}
+ #dashboard .queue-row{padding:.7rem!important;gap:.6rem!important}
+ #dashboard .queue-row .btn{min-height:42px;padding:.55rem .65rem!important}
+ #dashboard section>.flex.flex-wrap.justify-between.items-center{align-items:stretch!important}
+ #dashboard section>.flex.flex-wrap.justify-between.items-center>div:last-child{width:100%}
+ #dashboard section>.flex.flex-wrap.justify-between.items-center>div:last-child{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}
+ #dashboard section>.flex.flex-wrap.justify-between.items-center>div:last-child>div{grid-column:1/-1;width:100%;display:grid;grid-template-columns:repeat(3,1fr)}
+ #dashboard section>.flex.flex-wrap.justify-between.items-center>div:last-child>.btn{width:100%}
+ #dashboard .filter{padding:.55rem .35rem!important;font-size:.62rem!important;min-width:0}
+ #adminSearch{font-size:.78rem!important;min-height:42px}
+ #adminSearchInfo{font-size:.62rem!important}
+ #toast{left:.7rem!important;right:.7rem!important;bottom:.7rem!important;max-width:none!important}
+}
+@media(max-width:380px){
+ header nav{grid-template-columns:1fr 1fr!important}
+ header nav .btn:last-child{grid-column:1/-1}
+ #dashboard .grid.grid-cols-3{grid-template-columns:1fr 1fr!important}
+ #dashboard .grid.grid-cols-3 .glass:last-child{grid-column:1/-1}
+ #dashboard .flex.flex-wrap.justify-between>.flex{grid-template-columns:1fr!important}
+ #dashboard section>.flex.flex-wrap.justify-between.items-center>div:last-child{grid-template-columns:1fr!important}
+ #dashboard section>.flex.flex-wrap.justify-between.items-center>div:last-child>div{grid-column:auto!important;grid-template-columns:1fr 1fr 1fr}
+}
+`;
+document.head.appendChild(mobileStyle);
 const statusRow=document.getElementById('sAll')?.parentElement;
 if(statusRow&&!document.getElementById('adminSearch')){const wrap=document.createElement('div');wrap.className='mt-3 flex flex-col sm:flex-row gap-2';wrap.innerHTML='<input id="adminSearch" class="field sm:max-w-sm" placeholder="🔎 Cari judul, penyanyi, atau nama..." autocomplete="off"><span id="adminSearchInfo" class="text-[10px] text-gray-500 self-center"></span>';statusRow.parentElement.insertBefore(wrap,statusRow.nextSibling);document.getElementById('adminSearch').addEventListener('input',applySearch)}
 const stats=dash.querySelector('.grid.grid-cols-3');
