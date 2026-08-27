@@ -5,6 +5,17 @@ const boot=()=>{
   const queue=document.getElementById('list');
   if(!dash||!queue)return;
 
+  if(!window.__kudaAdminApiGuard){
+    if(typeof window.jsonp==='function'){
+      const originalJsonp=window.jsonp;
+      window.jsonp=function(url,timeout){return originalJsonp(url,Math.max(Number(timeout)||0,25000));};
+    }
+    if(typeof window.retry==='function'){
+      window.retry=async function(fn,n=3){let e;for(let i=0;i<n;i++){try{return await fn()}catch(x){e=x;if(i<n-1)await new Promise(r=>setTimeout(r,2500*Math.pow(2,i)+Math.floor(Math.random()*1200)))}}throw e;};
+    }
+    window.__kudaAdminApiGuard=true;
+  }
+
   const statusRow=document.getElementById('sAll')?.parentElement;
   if(statusRow&&!document.getElementById('adminSearch')){
     const wrap=document.createElement('div');
@@ -96,8 +107,6 @@ const boot=()=>{
   });
   if(!navigator.onLine)setNetwork(false);
 
-  // Slow Apps Script guard: the native loader handles its own retries, but it
-  // swallows failures. If it reports a sync failure, retry after a backoff.
   if(typeof window.load==='function'&&!window.__adminLoadGuarded){
     const oldLoad=window.load;
     window.__adminLoadGuarded=true;
