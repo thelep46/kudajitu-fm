@@ -5,37 +5,23 @@ const AUTH_PROXY='/api/auth';
 const dash=document.getElementById('dashboard');
 const queue=document.getElementById('list');
 
-// Authentication requests no longer use browser JSONP redirects. They go through
-// the same-origin Cloudflare Pages Function, which follows Apps Script redirects
-// server-side and returns plain JSON. Mutation/data JSONP remains untouched.
 if(!window.__kudaAdminAuthProxy&&typeof window.jsonp==='function'){
   const originalJsonp=window.jsonp;
   window.jsonp=function(url,timeout){
     const u=String(url||'');
     if(AUTH_ACTIONS.test(u)){
       const parsed=new URL(u,location.href);
-      const params=new URLSearchParams();
+      const params={};
       parsed.searchParams.forEach((value,key)=>{
-        if(key!=='callback'&&key!=='prefix'&&key!=='_')params.set(key,value);
+        if(key!=='callback'&&key!=='prefix'&&key!=='_')params[key]=value;
       });
       const controller=new AbortController();
       const limit=Math.max(10000,Number(timeout)||20000);
       const timer=setTimeout(()=>controller.abort(),limit);
-      return fetch(AUTH_PROXY+'?'+params.toString(),{
-        method:'GET',
-        credentials:'same-origin',
-        cache:'no-store',
-        signal:controller.signal,
-        headers:{'Accept':'application/json'}
-      }).then(async r=>{
-        let body=null;
-        try{body=await r.json()}catch(e){throw Error('Respons auth tidak valid')}
-        if(!r.ok||body?.success===false)throw Error(body?.message||'Server auth gagal');
-        return body;
-      }).catch(e=>{
-        if(e?.name==='AbortError')throw Error('Timeout');
-        throw e;
-      }).finally(()=>clearTimeout(timer));
+      return fetch(AUTH_PROXY,{method:'POST',credentials:'same-origin',cache:'no-store',signal:controller.signal,headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(params)})
+        .then(async r=>{let body=null;try{body=await r.json()}catch(e){throw Error('Respons auth tidak valid')}if(!r.ok||body?.success===false)throw Error(body?.message||'Server auth gagal');return body})
+        .catch(e=>{if(e?.name==='AbortError')throw Error('Timeout');throw e})
+        .finally(()=>clearTimeout(timer));
     }
     return originalJsonp(url,timeout);
   };
@@ -112,64 +98,36 @@ function refreshExtras(){
 if(typeof window.render==='function'&&!window.__adminRenderEnhanced){
   const oldRender=window.render;
   window.__adminRenderEnhanced=true;
-  window.render=function(){
-    oldRender();
-    requestAnimationFrame(refreshExtras);
-  };
+  window.render=function(){oldRender();requestAnimationFrame(refreshExtras);};
 }
 
 const networkBadge=()=>{
   let el=document.getElementById('adminNetworkStatus');
-  if(!el){
-    el=document.createElement('span');
-    el.id='adminNetworkStatus';
-    el.className='hidden text-[10px] px-2 py-1 rounded-full border';
-    const source=document.getElementById('sourceInfo');
-    source?.appendChild(el);
-  }
+  if(!el){el=document.createElement('span');el.id='adminNetworkStatus';el.className='hidden text-[10px] px-2 py-1 rounded-full border';document.getElementById('sourceInfo')?.appendChild(el);}
   return el;
 };
 const setNetwork=(online)=>{
-  const el=networkBadge();
-  if(!el)return;
+  const el=networkBadge();if(!el)return;
   el.classList.remove('hidden','text-red-300','border-red-800','text-teal-300','border-teal-800');
-  if(online){
-    el.textContent='● Online';
-    el.classList.add('text-teal-300','border-teal-800');
-    setTimeout(()=>el.classList.add('hidden'),2200);
-  }else{
-    el.textContent='● Offline';
-    el.classList.add('text-red-300','border-red-800');
-  }
+  if(online){el.textContent='● Online';el.classList.add('text-teal-300','border-teal-800');setTimeout(()=>el.classList.add('hidden'),2200)}
+  else{el.textContent='● Offline';el.classList.add('text-red-300','border-red-800')}
 };
 window.addEventListener('offline',()=>setNetwork(false));
-window.addEventListener('online',()=>{
-  setNetwork(true);
-  if(typeof window.load==='function'&&typeof window.token==='function'&&window.token())window.load(false);
-});
+window.addEventListener('online',()=>{setNetwork(true);if(typeof window.load==='function'&&typeof window.token==='function'&&window.token())window.load(false)});
 if(!navigator.onLine)setNetwork(false);
 
 if(typeof window.load==='function'&&!window.__adminLoadGuarded){
   const oldLoad=window.load;
   window.__adminLoadGuarded=true;
   window.load=async function(force=false){
-    if(!navigator.onLine){
-      if(typeof window.toast==='function')window.toast('Koneksi internet terputus. Data terakhir tetap ditampilkan.',true);
-      setNetwork(false);
-      return;
-    }
+    if(!navigator.onLine){if(typeof window.toast==='function')window.toast('Koneksi internet terputus. Data terakhir tetap ditampilkan.',true);setNetwork(false);return;}
     for(let attempt=0;attempt<2;attempt++){
       await oldLoad(force&&attempt===0);
       const info=(document.getElementById('sourceInfo')?.textContent||'').toLowerCase();
       if(!info.includes('gagal sinkronisasi'))return;
-      if(attempt===0){
-        setNetwork(false);
-        await new Promise(r=>setTimeout(r,3500+Math.floor(Math.random()*1500)));
-        setNetwork(true);
-      }
+      if(attempt===0){setNetwork(false);await new Promise(r=>setTimeout(r,3500+Math.floor(Math.random()*1500)));setNetwork(true)}
     }
   };
 }
-
 refreshExtras();
 })();
