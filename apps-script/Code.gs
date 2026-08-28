@@ -1,9 +1,7 @@
 var NAMA_TAB_ANDA='req lagu';
 var TIMEZONE='Asia/Jakarta';
 var CACHE_SECONDS=60;
-var BASE_CACHE_KEYS=['today_base','yesterday_base','all_base','ids_base','queue_order'];
-var IDS_CACHE_KEY='ids_base';
-var QUEUE_CACHE_KEY='queue_order';
+var BASE_CACHE_KEYS=['today_base','yesterday_base','all_base'];
 var API_VERSION='kudajitu-v14';
 var ANNOUNCEMENT_KEY='kudajitu_announcement_v1';
 var ANNOUNCEMENT_ADMIN_KEY='290979';
@@ -25,7 +23,8 @@ function cacheGet_(k){try{var v=CacheService.getScriptCache().get(cacheKey_(k));
 function cachePut_(k,d){try{var raw=JSON.stringify(d);if(raw.length<95000)CacheService.getScriptCache().put(cacheKey_(k),raw,CACHE_SECONDS)}catch(e){}}
 function clearCaches_(){
   try{
-    CacheService.getScriptCache().removeAll(BASE_CACHE_KEYS.map(cacheKey_));
+    var c=CacheService.getScriptCache();
+    c.removeAll(BASE_CACHE_KEYS.concat([ID_CACHE_KEY_,QUEUE_ORDER_CACHE_KEY_]).map(cacheKey_));
   }catch(e){}
 }
 function getBaseRowsCached_(sheet,range){
@@ -46,22 +45,35 @@ function getBaseRowsCached_(sheet,range){
   }
 }
 
+var ID_CACHE_KEY_='ids_base';
+var QUEUE_ORDER_CACHE_KEY_='queue_order_base';
+
 function getRecentRows_(sheet,targetKey){
   var last=sheet.getLastRow();
   if(last<2)return[];
-  var vals=sheet.getRange(2,1,last-1,9).getValues(),out=[];
-  for(var i=0;i<vals.length;i++){
-    var row=vals[i];
-    if(row[0]&&dateKey_(row[5])===targetKey)out.push(rowToObject_(row));
+  var out=[],endRow=last,oldestNeeded=true;
+  // Data is appended chronologically. Scan from the bottom in chunks so
+  // today's/yesterday's requests do not require reading the entire sheet.
+  while(endRow>=2&&oldestNeeded){
+    var startRow=Math.max(2,endRow-REQUEST_SCAN_CHUNK+1);
+    var vals=sheet.getRange(startRow,1,endRow-startRow+1,9).getValues();
+    for(var i=vals.length-1;i>=0;i--){
+      var row=vals[i],stamp=row[5],dk=stamp?dateKey_(stamp):'';
+      if(row[0]&&dk===targetKey)out.push(rowToObject_(row));
+      if(stamp){
+        var d=toDate_(stamp);
+        if(d&&dateKey_(d)<targetKey){oldestNeeded=false;break}
+      }
+    }
+    endRow=startRow-1;
   }
   out.sort(function(a,b){
-    if(a.status==='played'&&b.status==='played'){
-      return(toDate_(b.playedAt||b.timestamp)||0)-(toDate_(a.playedAt||a.timestamp)||0);
-    }
-    return(toDate_(a.timestamp)||0)-(toDate_(b.timestamp)||0);
+    if(a.status==='played'&&b.status==='played')return(toDate_(b.playedAt||b.timestamp)||0)-(toDate_(a.playedAt||a.timestamp)||0);
+    return(toDate_(a.timestamp)||0)-(toDate_(b.timestamp)||0)
   });
   return applyQueueOrder_(out);
 }
+
 function getAllRows_(sheet){
   var last=sheet.getLastRow();
   if(last<2)return[];
@@ -70,35 +82,33 @@ function getAllRows_(sheet){
   out.reverse();
   return applyQueueOrder_(out);
 }
-function getIdsCached_(sheet){
-  var ids=cacheGet_(IDS_CACHE_KEY);
-  if(ids!==null)return{ids:ids,cached:true};
-  var lock=LockService.getScriptLock(),locked=false;
-  try{
-    locked=lock.tryLock(3000);
-    if(locked){
-      ids=cacheGet_(IDS_CACHE_KEY);
-      if(ids!==null)return{ids:ids,cached:true};
-    }
-    var last=sheet.getLastRow();
-    ids=last<2?[]:sheet.getRange(2,1,last-1,1).getValues().map(function(r){return String(r[0]||'')});
-    cachePut_(IDS_CACHE_KEY,ids);
-    return{ids:ids,cached:false};
-  }finally{
-    if(locked){try{lock.releaseLock()}catch(e){}}
-  }
+
+function getIds_(sheet){
+  var cached=cacheGet_(ID_CACHE_KEY_);
+  if(cached!==null)return cached;
+  var last=sheet.getLastRow();
+  if(last<2){cachePut_(ID_CACHE_KEY_,[]);return[]}
+  var ids=sheet.getRange(2,1,last-1,1).getValues().map(function(r){return String(r[0]||'')});
+  cachePut_(ID_CACHE_KEY_,ids);
+  return ids;
 }
-function getIds_(sheet){return getIdsCached_(sheet).ids}
+
 function findRowById_(sheet,id){
-  var hit=sheet.getRange(2,1,Math.max(1,sheet.getLastRow()-1),1)
-    .createTextFinder(String(id)).matchEntireCell(true).findNext();
+  var cached=cacheGet_(ID_CACHE_KEY_),target=String(id);
+  if(cached!==null){
+    for(var i=0;i<cached.length;i++)if(String(cached[i])===target)return i+2;
+    return-1;
+  }
+  var n=Math.max(1,sheet.getLastRow()-1),hit=sheet.getRange(2,1,n,1).createTextFinder(target).matchEntireCell(true).findNext();
   return hit?hit.getRow():-1;
 }
+
 function buildIdRowIndex_(sheet){
   var ids=getIds_(sheet),index={};
   for(var i=0;i<ids.length;i++){var id=ids[i];if(id)index[id]=i+2}
   return index;
 }
+
 function checkIds_(sheet,ids){
   var index=buildIdRowIndex_(sheet),found=[];
   ids.forEach(function(id){if(index[String(id)])found.push(String(id))});
@@ -195,20 +205,20 @@ function saveAnnouncement_(p){kudaRequireAdmin_(p);var enabled=String(p.enabled|
 
 var QUEUE_ORDER_KEY_='kudajitu_queue_order_v1';
 function getQueueOrder_(){
-  var cached=cacheGet_(QUEUE_CACHE_KEY);
+  var cached=cacheGet_(QUEUE_ORDER_CACHE_KEY_);
   if(cached!==null)return cached;
   try{
     var raw=PropertiesService.getScriptProperties().getProperty(QUEUE_ORDER_KEY_);
     var a=raw?JSON.parse(raw):[];
     a=Array.isArray(a)?a.map(String):[];
-    cachePut_(QUEUE_CACHE_KEY,a);
+    cachePut_(QUEUE_ORDER_CACHE_KEY_,a);
     return a;
   }catch(e){return[]}
 }
 function setQueueOrder_(ids){
   var clean=(ids||[]).map(String).filter(Boolean);
   PropertiesService.getScriptProperties().setProperty(QUEUE_ORDER_KEY_,JSON.stringify(clean));
-  cachePut_(QUEUE_CACHE_KEY,clean);
+  cachePut_(QUEUE_ORDER_CACHE_KEY_,clean);
   return clean;
 }
 function applyQueueOrder_(rows){
