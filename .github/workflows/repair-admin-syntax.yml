@@ -18,20 +18,23 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Repair literal escaped newlines
+      - name: Repair Queue Block script
         run: |
           python - <<'PY'
           from pathlib import Path
           p = Path('admin.html')
           s = p.read_text(encoding='utf-8')
-          old = s
-          s = s.replace('</script>\\n<script>', '</script>\n<script>')
-          s = s.replace('})();\\n</script>\\n</body></html>', '})();\n</script>\n</body></html>')
-          if s == old:
-              print('No escaped-newline corruption found.')
+          marker = '/* Queue Block Drag v1 */'
+          if marker not in s:
+              raise SystemExit('Queue Block script marker not found')
+          head, tail = s.split(marker, 1)
+          tail = tail.replace('\\n', '\n')
+          s2 = head + marker + tail
+          if s2 == s:
+              print('Queue Block script already has real newlines.')
           else:
-              p.write_text(s, encoding='utf-8')
-              print('Repaired admin.html escaped newlines.')
+              p.write_text(s2, encoding='utf-8')
+              print('Repaired all literal \\n sequences inside Queue Block script.')
           PY
 
       - name: Commit repair
@@ -42,6 +45,6 @@ jobs:
           if git diff --cached --quiet; then
             echo 'No changes to commit.'
           else
-            git commit -m 'fix: repair admin script markup'
+            git commit -m 'fix: repair queue block script syntax'
             git push
           fi
