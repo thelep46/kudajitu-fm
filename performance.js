@@ -8,11 +8,10 @@ function api(action,params,timeout,forceFresh){
   Object.keys(params||{}).forEach(function(k){if(params[k]!==undefined&&params[k]!==null)u.searchParams.set(k,String(params[k]))});
   if(forceFresh)u.searchParams.set('_refresh',Date.now().toString());
   var controller=new AbortController(),timer=setTimeout(function(){controller.abort()},timeout||K.timeout);
-  return fetch(u.toString(),{method:'GET',cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json'},signal:controller.signal})
+  return fetch(u.toString(),{method:'GET',cache:forceFresh?'no-store':'default',credentials:'same-origin',headers:{Accept:'application/json'},signal:controller.signal})
     .then(function(r){return r.text().then(function(t){var d;try{d=JSON.parse(t)}catch(e){throw new Error('Respons server tidak valid.')}if(!r.ok||d&&d.success===false)throw new Error(d&&d.message||'Server gagal');return d})})
     .finally(function(){clearTimeout(timer)});
 }
-/* Compatibility bridge for every legacy page, including admin.html. */
 function proxyLegacyJsonp(url,timeout){
   try{
     var src=new URL(url,location.href),params={};
@@ -28,14 +27,12 @@ function silentLoad(force){
   var now=Date.now();if(!force&&now-K.lastSync<K.minSyncGap)return Promise.resolve(false);
   K.syncing=true;K.lastSync=now;
   var local=readLocal(),had=local.length>0;
-  if(had&&location.pathname!=='/admin.html'){window.requests=local;if(typeof render==='function')render()}
+  if(had){window.requests=local;if(typeof render==='function')render()}
   if(typeof setSync==='function'&&(!had||force))setSync('online');
   return api('data',{range:'today'},K.timeout,!!force).then(function(j){
-    if(location.pathname!=='/admin.html'){
-      window.requests=(Array.isArray(j.data)?j.data:[]).map(normalizeP);
-      if(typeof saveCache==='function')saveCache();
-      if(typeof render==='function')render();
-    }
+    window.requests=(Array.isArray(j.data)?j.data:[]).map(normalizeP);
+    if(typeof saveCache==='function')saveCache();
+    if(typeof render==='function')render();
     if(typeof setSync==='function')setSync('online');
     return true;
   }).catch(function(e){
@@ -69,13 +66,16 @@ function addFast(e){
     .catch(function(err){console.warn('[Kudajitu] request save failed:',err&&err.message||err);if(typeof toast==='function')toast('Penyimpanan server belum terkonfirmasi.','error');return silentLoad(true)});
 }
 function install(){
-  /* This runs on both user and admin pages. It removes the split direct-GAS transport. */
   window.jsonp=proxyLegacyJsonp;
   if(location.pathname!=='/admin.html'){
     window.loadData=silentLoad;
     window.addSingle=addFast;
     if(typeof window.addBatch==='function'&&!window.addBatch.__kudaPerf){var oldBatch=window.addBatch;window.addBatch=async function(e){var result=await oldBatch(e);silentLoad(true);return result};window.addBatch.__kudaPerf=true}
     setTimeout(function(){silentLoad(false)},50);
+    if(!window.__kudaQueuePoll){
+      window.__kudaQueuePoll=setInterval(function(){if(document.visibilityState!=='hidden')silentLoad(false)},5000);
+      document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')silentLoad(true)},{passive:true});
+    }
   }
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
