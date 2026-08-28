@@ -1,6 +1,7 @@
 const GAS = 'https://script.google.com/macros/s/AKfycbyUB8drjL1dSJedYjKIKjVc5gzIE3Pe-QS0FF8o1_zU4NkAweGLFquhHLfy1Nt_eITA-Q/exec';
 const ALLOWED_ACTIONS = new Set(['data']);
-const EDGE_CACHE_SECONDS = 5;
+const EDGE_CACHE_SECONDS = 10;
+const STALE_WHILE_REVALIDATE_SECONDS = 30;
 
 function parseUpstream(text) {
   const raw = String(text || '').trim();
@@ -22,8 +23,8 @@ function makeCacheRequest(request) {
 
 function responseHeaders() {
   return {
-    'Cache-Control': `public, max-age=0, s-maxage=${EDGE_CACHE_SECONDS}, stale-while-revalidate=10`,
-    'X-Kuda-Data-Proxy': 'v2'
+    'Cache-Control': `public, max-age=0, s-maxage=${EDGE_CACHE_SECONDS}, stale-while-revalidate=${STALE_WHILE_REVALIDATE_SECONDS}`,
+    'X-Kuda-Data-Proxy': 'v3'
   };
 }
 
