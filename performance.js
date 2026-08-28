@@ -1,45 +1,46 @@
 (function(){
 'use strict';
-/* Performance layer: keep the UI responsive while API sync happens in background. */
-var K={lastSync:0,syncing:false,minSyncGap:15000,timeout:8000};
+/* Performance layer: keep UI responsive while keeping the queue authoritative. */
+var K={lastSync:0,syncing:false,pendingForce:false,minSyncGap:15000,timeout:8000};
 function normalizeP(x){x=x||{};return{id:String(x.id||''),requester:String(x.requester||''),title:String(x.title||''),artist:String(x.artist||''),note:String(x.note||''),timestamp:String(x.timestamp||''),playedAt:String(x.playedAt||''),status:String(x.status||'pending').toLowerCase()==='played'?'played':'pending',votes:Number(x.votes||1)}}
-function api(action,params,timeout){
+function api(action,params,timeout,forceFresh){
   var u=new URL('/api/gas',location.origin);u.searchParams.set('action',action||'data');
   Object.keys(params||{}).forEach(function(k){if(params[k]!==undefined&&params[k]!==null)u.searchParams.set(k,String(params[k]))});
+  /* Normal reads may use the edge cache. A forced read gets a cache-busting key after mutations. */
+  if(forceFresh)u.searchParams.set('_refresh',Date.now().toString());
   var controller=new AbortController(),timer=setTimeout(function(){controller.abort()},timeout||K.timeout);
-  return fetch(u.toString(),{method:'GET',cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json'},signal:controller.signal})
+  return fetch(u.toString(),{method:'GET',cache:'default',credentials:'same-origin',headers:{Accept:'application/json'},signal:controller.signal})
     .then(function(r){return r.text().then(function(t){var d;try{d=JSON.parse(t)}catch(e){throw new Error('Respons server tidak valid.')}if(!r.ok||d&&d.success===false)throw new Error(d&&d.message||'Server gagal');return d})})
     .finally(function(){clearTimeout(timer)});
 }
 function readLocal(){try{var c=JSON.parse(localStorage.getItem('kudajitu_user_today_v4')||'null');return c&&Array.isArray(c.data)?c.data.map(normalizeP):[]}catch(e){return []}}
-function hasLocalData(){return readLocal().length>0}
 function silentLoad(force){
-  if(K.syncing)return;
-  var now=Date.now();if(!force&&now-K.lastSync<K.minSyncGap)return;
+  if(K.syncing){if(force)K.pendingForce=true;return Promise.resolve(false)}
+  var now=Date.now();if(!force&&now-K.lastSync<K.minSyncGap)return Promise.resolve(false);
   K.syncing=true;K.lastSync=now;
   var local=readLocal(),had=local.length>0;
-  /* Never leave the header stuck on "Menghubungkan..." while a background sync is pending. */
-  if(had){
-    window.requests=local;
-    if(typeof render==='function')render();
-  }
+  if(had){window.requests=local;if(typeof render==='function')render()}
   if(typeof setSync==='function')setSync('online');
-  api('data',{range:'today'},K.timeout).then(function(j){
+  return api('data',{range:'today'},K.timeout,!!force).then(function(j){
     window.requests=(Array.isArray(j.data)?j.data:[]).map(normalizeP);
     if(typeof saveCache==='function')saveCache();
     if(typeof render==='function')render();
     if(typeof setSync==='function')setSync('online');
+    return true;
   }).catch(function(e){
-    /* A background refresh failure must not turn the whole page into a loading state. */
     if(typeof setSync==='function')setSync(had?'online':'offline');
     if(!had)console.warn('[Kudajitu] initial sync failed:',e&&e.message||e);
-  }).finally(function(){K.syncing=false});
+    return false;
+  }).finally(function(){
+    K.syncing=false;
+    if(K.pendingForce){K.pendingForce=false;setTimeout(function(){silentLoad(true)},0)}
+  });
 }
 function optimisticAdd(item,button){
   item=normalizeP(item);
   window.requests=Array.isArray(window.requests)?window.requests:[];
   var exists=window.requests.some(function(x){return x.id===item.id});
-  if(!exists)window.requests.unshift(item);
+  if(!exists)window.requests.push(item);
   if(typeof saveCache==='function')saveCache();
   if(typeof render==='function')render();
   if(typeof toast==='function')toast('Request sedang disimpan.');
@@ -57,17 +58,16 @@ function addFast(e){
   window.lastSubmit=Date.now();
   optimisticAdd(item,button);
   if(titleEl)titleEl.value='';if(artistEl)artistEl.value='';if(noteEl)noteEl.value='';
-  api('add',{id:item.id,requester:item.requester,title:item.title,artist:item.artist,note:item.note,timestamp:item.timestamp,status:'pending',votes:1},30000)
+  return api('add',{id:item.id,requester:item.requester,title:item.title,artist:item.artist,note:item.note,timestamp:item.timestamp,status:'pending',votes:1},30000,false)
     .then(function(j){
       if(j&&j.success===false)throw new Error(j.message||'Gagal');
-      silentLoad(true);
+      return silentLoad(true);
     })
     .catch(function(err){
       console.warn('[Kudajitu] request save failed:',err&&err.message||err);
       if(typeof toast==='function')toast('Penyimpanan server belum terkonfirmasi.','error');
-      silentLoad(true);
+      return silentLoad(true);
     });
-  return false;
 }
 function install(){
   window.loadData=silentLoad;
@@ -76,7 +76,6 @@ function install(){
     var oldBatch=window.addBatch;
     window.addBatch=async function(e){var result=await oldBatch(e);silentLoad(true);return result;};
   }
-  /* Start a silent refresh without ever showing the initial connecting state. */
   setTimeout(function(){silentLoad(false)},50);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
