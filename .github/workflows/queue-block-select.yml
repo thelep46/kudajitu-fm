@@ -17,13 +17,118 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
           p=Path('admin.html')
           s=p.read_text(encoding='utf-8')
-          marker='/* Queue Block Drag v1 */'
-          if marker in s:
-              print('already patched')
-              raise SystemExit
-          code=r'''\n<script>\n/* Queue Block Drag v1 */\n(function(){\n  const selected=new Set();\n  function decorate(){\n    document.querySelectorAll('#list .queue-row[data-id]').forEach(row=>{\n      if(row.dataset.blockReady==='1') return;\n      row.dataset.blockReady='1';\n      const id=row.dataset.id;\n      const head=row.querySelector('.flex.items-start');\n      if(!head) return;\n      const box=document.createElement('input');\n      box.type='checkbox'; box.className='queue-select shrink-0 mt-2 accent-teal-500';\n      box.title='Pilih request';\n      box.checked=selected.has(id);\n      box.addEventListener('click',e=>{e.stopPropagation(); if(box.checked) selected.add(id); else selected.delete(id); sync();});\n      head.insertBefore(box,head.firstChild);\n      row.draggable=true;\n      row.addEventListener('dragstart',e=>{\n        const ids=selected.size && selected.has(id)?[...selected]:[id];\n        e.dataTransfer.effectAllowed='move';\n        e.dataTransfer.setData('text/plain',JSON.stringify(ids));\n        row.classList.add('dragging');\n        document.querySelectorAll('#list .queue-row').forEach(r=>r.classList.toggle('block-drag-source',ids.includes(r.dataset.id)));\n      });\n      row.addEventListener('dragend',()=>{row.classList.remove('dragging');document.querySelectorAll('#list .queue-row').forEach(r=>r.classList.remove('block-drag-source','drop-target'));});\n      row.addEventListener('dragover',e=>{e.preventDefault();row.classList.add('drop-target');e.dataTransfer.dropEffect='move';});\n      row.addEventListener('dragleave',()=>row.classList.remove('drop-target'));\n      row.addEventListener('drop',async e=>{\n        e.preventDefault();row.classList.remove('drop-target');\n        let ids=[]; try{ids=JSON.parse(e.dataTransfer.getData('text/plain')||'[]')}catch(_){}\n        if(!ids.length)return;\n        const rows=[...document.querySelectorAll('#list .queue-row[data-status="pending"]')];\n        const ordered=typeof pendingRows==='function'?pendingRows().slice():[];\n        const moving=ordered.filter(x=>ids.includes(String(x.id)));\n        if(!moving.length)return;\n        const remaining=ordered.filter(x=>!ids.includes(String(x.id)));\n        const targetId=row.dataset.id;\n        let at=remaining.findIndex(x=>String(x.id)===targetId);\n        if(at<0) at=remaining.length;\n        remaining.splice(at,0,...moving);\n        const newIds=remaining.map(x=>String(x.id));\n        if(typeof saveQueueOrder==='function' && await saveQueueOrder(newIds)){\n          selected.clear();\n          await load(false);\n        }\n      });\n    });\n    sync();\n  }\n  function sync(){\n    document.querySelectorAll('#list .queue-row[data-id]').forEach(row=>{\n      const on=selected.has(row.dataset.id);\n      row.classList.toggle('block-selected',on);\n      const cb=row.querySelector('.queue-select'); if(cb) cb.checked=on;\n    });\n    let bar=document.getElementById('blockMoveBar');\n    if(!bar){\n      bar=document.createElement('div'); bar.id='blockMoveBar'; bar.className='glass rounded-xl px-3 py-2 mb-3 flex flex-wrap items-center gap-2 text-xs';\n      const list=document.getElementById('list'); if(list&&list.parentNode) list.parentNode.insertBefore(bar,list);\n    }\n    bar.innerHTML=selected.size?`<b>${selected.size} request dipilih</b><span class="text-gray-500">• Tarik salah satunya untuk memindahkan seluruh blok</span><button class="filter active" type="button" id="clearBlockSelection">Batal pilih</button>`:'';\n    const clear=document.getElementById('clearBlockSelection'); if(clear) clear.onclick=()=>{selected.clear();sync()};\n  }\n  const st=document.createElement('style');\n  st.textContent='.queue-row.block-selected{border-color:rgba(45,212,191,.65)!important;background:rgba(13,148,136,.08)}.queue-row.block-drag-source{opacity:.6}.queue-select{width:16px;height:16px;cursor:pointer}.queue-row{user-select:none}';\n  document.head.appendChild(st);\n  const oldRender=window.render;\n  window.render=function(){if(typeof oldRender==='function')oldRender();setTimeout(decorate,0)};\n  setTimeout(decorate,50);\n})();\n</script>\n'''
+          marker='/* Queue Block Drag v2 */'
+          # Remove the previous injected block, whether it was v1 or v2.
+          s=re.sub(r'\s*<script>\s*/\* Queue Block Drag v[12] \*/.*?</script>\s*', '\n', s, flags=re.S)
+          code=r'''
+<script>
+/* Queue Block Drag v2 */
+(function(){
+  const selected=new Set();
+  function getRows(){return [...document.querySelectorAll('#list .queue-row[data-id]')];}
+  function decorate(){
+    getRows().forEach(row=>{
+      const id=String(row.dataset.id||'');
+      if(!id)return;
+      row.draggable=true;
+      let box=row.querySelector(':scope > .queue-select, .queue-select');
+      if(!box){
+        box=document.createElement('input');
+        box.type='checkbox';
+        box.className='queue-select';
+        box.title='Pilih request untuk dipindahkan bersama';
+        box.setAttribute('aria-label','Pilih request');
+        box.addEventListener('click',e=>{
+          e.stopPropagation();
+          if(box.checked) selected.add(id); else selected.delete(id);
+          sync();
+        });
+        const handle=row.querySelector('.queue-drag');
+        const target=handle?.parentElement || row.firstElementChild || row;
+        target.insertBefore(box,target.firstChild);
+      }
+      box.checked=selected.has(id);
+      if(row.dataset.blockReady==='1')return;
+      row.dataset.blockReady='1';
+      row.addEventListener('dragstart',e=>{
+        const ids=selected.size && selected.has(id)?[...selected]:[id];
+        e.dataTransfer.effectAllowed='move';
+        e.dataTransfer.setData('text/plain',JSON.stringify(ids));
+        getRows().forEach(r=>r.classList.toggle('block-drag-source',ids.includes(String(r.dataset.id))));
+        row.classList.add('dragging');
+      });
+      row.addEventListener('dragend',()=>{
+        row.classList.remove('dragging');
+        getRows().forEach(r=>r.classList.remove('block-drag-source','drop-target'));
+      });
+      row.addEventListener('dragover',e=>{e.preventDefault();row.classList.add('drop-target');e.dataTransfer.dropEffect='move';});
+      row.addEventListener('dragleave',()=>row.classList.remove('drop-target'));
+      row.addEventListener('drop',async e=>{
+        e.preventDefault();
+        row.classList.remove('drop-target');
+        let ids=[];
+        try{ids=JSON.parse(e.dataTransfer.getData('text/plain')||'[]')}catch(_){return;}
+        if(!ids.length)return;
+        const ordered=typeof pendingRows==='function'?pendingRows().slice():[];
+        const moving=ordered.filter(x=>ids.includes(String(x.id)));
+        if(!moving.length)return;
+        const remaining=ordered.filter(x=>!ids.includes(String(x.id)));
+        let at=remaining.findIndex(x=>String(x.id)===id);
+        if(at<0)at=remaining.length;
+        remaining.splice(at,0,...moving);
+        const newIds=remaining.map(x=>String(x.id));
+        if(typeof saveQueueOrder==='function' && await saveQueueOrder(newIds)){
+          selected.clear();
+          await load(false);
+        }
+      });
+    });
+    sync();
+  }
+  function sync(){
+    getRows().forEach(row=>{
+      const on=selected.has(String(row.dataset.id));
+      row.classList.toggle('block-selected',on);
+      const cb=row.querySelector('.queue-select');
+      if(cb)cb.checked=on;
+    });
+    let bar=document.getElementById('blockMoveBar');
+    if(!bar){
+      bar=document.createElement('div');
+      bar.id='blockMoveBar';
+      bar.className='glass rounded-xl px-3 py-2 mb-3 flex flex-wrap items-center gap-2 text-xs';
+      const list=document.getElementById('list');
+      if(list&&list.parentNode)list.parentNode.insertBefore(bar,list);
+    }
+    bar.innerHTML=selected.size?`<b>${selected.size} request dipilih</b><span class="text-gray-500">• Tarik salah satunya untuk memindahkan seluruh blok</span><button class="filter active" type="button" id="clearBlockSelection">Batal pilih</button>`:'';
+    const clear=document.getElementById('clearBlockSelection');
+    if(clear)clear.onclick=()=>{selected.clear();sync()};
+  }
+  const st=document.createElement('style');
+  st.textContent=`
+    .queue-row{user-select:none}
+    .queue-row.block-selected{border-color:rgba(45,212,191,.75)!important;background:rgba(13,148,136,.08)}
+    .queue-row.block-drag-source{opacity:.6}
+    .queue-select{width:18px;height:18px;min-width:18px;margin-right:8px;accent-color:#14b8a6;cursor:pointer;position:relative;z-index:5}
+    .queue-row.drop-target{border-color:#2dd4bf!important;box-shadow:0 0 0 1px rgba(45,212,191,.18)}
+  `;
+  document.head.appendChild(st);
+  const oldRender=window.render;
+  if(typeof oldRender==='function'){
+    window.render=function(){oldRender.apply(this,arguments);setTimeout(decorate,0)};
+  }
+  const observer=new MutationObserver(()=>decorate());
+  const list=document.getElementById('list');
+  if(list)observer.observe(list,{childList:true,subtree:true});
+  setTimeout(decorate,50);
+  setTimeout(decorate,500);
+  setTimeout(decorate,1500);
+})();
+</script>
+'''
           s=s.replace('</body>',code+'</body>')
           p.write_text(s,encoding='utf-8')
           PY
@@ -33,5 +138,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add admin.html
           git diff --cached --quiet && exit 0
-          git commit -m "feat: support moving selected request blocks"
+          git commit -m "fix: show queue block selection checkboxes"
           git push
