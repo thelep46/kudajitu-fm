@@ -191,4 +191,8 @@ window.render = function(){
   enableQueueDrag();
 };
 
+
+/* Keep admin controls in the same manual order returned by Apps Script. */
+window.pendingRows=function(){return data.filter(function(x){return x.status==='pending'});};
+
 </script></body></html>
