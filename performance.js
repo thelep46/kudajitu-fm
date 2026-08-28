@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-/* Performance layer: fast UI with confirmed server persistence and silent background sync. */
+/* Performance layer: keep the UI responsive while API sync happens in background. */
 var K={lastSync:0,syncing:false,minSyncGap:15000,timeout:8000};
 function normalizeP(x){x=x||{};return{id:String(x.id||''),requester:String(x.requester||''),title:String(x.title||''),artist:String(x.artist||''),note:String(x.note||''),timestamp:String(x.timestamp||''),playedAt:String(x.playedAt||''),status:String(x.status||'pending').toLowerCase()==='played'?'played':'pending',votes:Number(x.votes||1)}}
 function api(action,params,timeout){
@@ -11,20 +11,27 @@ function api(action,params,timeout){
     .then(function(r){return r.text().then(function(t){var d;try{d=JSON.parse(t)}catch(e){throw new Error('Respons server tidak valid.')}if(!r.ok||d&&d.success===false)throw new Error(d&&d.message||'Server gagal');return d})})
     .finally(function(){clearTimeout(timer)});
 }
-function hasLocalData(){try{var c=JSON.parse(localStorage.getItem('kudajitu_user_today_v4')||'null');return !!(c&&Array.isArray(c.data)&&c.data.length)}catch(e){return false}}
+function readLocal(){try{var c=JSON.parse(localStorage.getItem('kudajitu_user_today_v4')||'null');return c&&Array.isArray(c.data)?c.data.map(normalizeP):[]}catch(e){return []}}
+function hasLocalData(){return readLocal().length>0}
 function silentLoad(force){
   if(K.syncing)return;
   var now=Date.now();if(!force&&now-K.lastSync<K.minSyncGap)return;
   K.syncing=true;K.lastSync=now;
-  var had=hasLocalData();
-  if(!had&&typeof setSync==='function')setSync('syncing');
+  var local=readLocal(),had=local.length>0;
+  /* Never leave the header stuck on "Menghubungkan..." while a background sync is pending. */
+  if(had){
+    window.requests=local;
+    if(typeof render==='function')render();
+  }
+  if(typeof setSync==='function')setSync('online');
   api('data',{range:'today'},K.timeout).then(function(j){
     window.requests=(Array.isArray(j.data)?j.data:[]).map(normalizeP);
     if(typeof saveCache==='function')saveCache();
     if(typeof render==='function')render();
     if(typeof setSync==='function')setSync('online');
   }).catch(function(e){
-    if(!had&&typeof setSync==='function')setSync('offline');
+    /* A background refresh failure must not turn the whole page into a loading state. */
+    if(typeof setSync==='function')setSync(had?'online':'offline');
     if(!had)console.warn('[Kudajitu] initial sync failed:',e&&e.message||e);
   }).finally(function(){K.syncing=false});
 }
@@ -35,7 +42,7 @@ function optimisticAdd(item,button){
   if(!exists)window.requests.unshift(item);
   if(typeof saveCache==='function')saveCache();
   if(typeof render==='function')render();
-  if(typeof toast==='function')toast('Request diterima dan sedang disimpan.');
+  if(typeof toast==='function')toast('Request sedang disimpan.');
   if(button&&typeof busy==='function')busy(button,false);
 }
 function addFast(e){
@@ -53,12 +60,11 @@ function addFast(e){
   api('add',{id:item.id,requester:item.requester,title:item.title,artist:item.artist,note:item.note,timestamp:item.timestamp,status:'pending',votes:1},30000)
     .then(function(j){
       if(j&&j.success===false)throw new Error(j.message||'Gagal');
-      /* The server has confirmed persistence; immediately reconcile with Sheet. */
       silentLoad(true);
     })
     .catch(function(err){
       console.warn('[Kudajitu] request save failed:',err&&err.message||err);
-      if(typeof toast==='function')toast('Penyimpanan server belum terkonfirmasi. Coba lagi jika belum muncul.','error');
+      if(typeof toast==='function')toast('Penyimpanan server belum terkonfirmasi.','error');
       silentLoad(true);
     });
   return false;
@@ -70,6 +76,7 @@ function install(){
     var oldBatch=window.addBatch;
     window.addBatch=async function(e){var result=await oldBatch(e);silentLoad(true);return result;};
   }
+  /* Start a silent refresh without ever showing the initial connecting state. */
   setTimeout(function(){silentLoad(false)},50);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
