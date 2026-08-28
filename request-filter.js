@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-/* Stable request helpers: unlimited batch + YouTube link fields for single and batch requests. */
+/* Stable request helpers: unlimited batch + REQUIRED YouTube links for single and batch requests. */
 let mode='all';
 let sectionObserver=null;
 let hooked=false;
@@ -100,9 +100,9 @@ function makeItems(lines,name){
       requester:name,
       title:item.title,
       artist:item.artist||'Unknown Artist',
-      note:item.youtube||'Batch Request',
-      youtubeUrl:item.youtube||'',
-      youtubeId:item.youtube?youtubeVideoId(item.youtube):'',
+      note:item.youtube,
+      youtubeUrl:item.youtube,
+      youtubeId:youtubeVideoId(item.youtube),
       timestamp:new Date(base+i).toISOString(),
       status:'pending',
       votes:1
@@ -139,6 +139,7 @@ function inputField(placeholder,cls){
   if(cls==='title')input.maxLength=100;
   if(cls==='artist')input.maxLength=80;
   if(cls==='youtube')input.maxLength=300;
+  if(cls==='youtube')input.required=true;
   input.dataset.batchField=cls;
   return input;
 }
@@ -155,9 +156,7 @@ function renderBatchRows(container){
     head.appendChild(label);
     if(batchRows.length>1){
       const remove=document.createElement('button');
-      remove.type='button';
-      remove.className='btn';
-      remove.textContent='✕ Hapus';
+      remove.type='button';remove.className='btn';remove.textContent='✕ Hapus';
       remove.style.cssText='font-size:10px;padding:5px 8px;border:1px solid rgba(127,29,29,.8);border-radius:8px;color:#fca5a5';
       remove.onclick=function(){batchRows.splice(index,1);renderBatchRows(container);};
       head.appendChild(remove);
@@ -165,7 +164,7 @@ function renderBatchRows(container){
     card.appendChild(head);
     const title=inputField('Judul Lagu','title');
     const artist=inputField('Penyanyi / Band','artist');
-    const youtube=inputField('Link YouTube (opsional)','youtube');
+    const youtube=inputField('Link YouTube (wajib)','youtube');
     title.value=row.title||'';artist.value=row.artist||'';youtube.value=row.youtube||'';
     [title,artist,youtube].forEach(function(el){el.addEventListener('input',function(){row[el.dataset.batchField]=el.value;});});
     card.appendChild(title);card.appendChild(artist);card.appendChild(youtube);
@@ -179,57 +178,42 @@ function installUnlimitedBatch(){
   const legacy=document.getElementById('batch');
   if(!form)return;
   if(legacy){
-    const holder=document.createElement('div');
-    holder.id='batchBuilder';
-    holder.style.cssText='display:grid;gap:10px';
-    legacy.replaceWith(holder);
+    const holder=document.createElement('div');holder.id='batchBuilder';holder.style.cssText='display:grid;gap:10px';legacy.replaceWith(holder);
   }
   const builder=document.getElementById('batchBuilder');
   if(!builder)return;
   batchRows=[{title:'',artist:'',youtube:''}];
-  const controls=document.createElement('div');
-  controls.style.cssText='display:flex;justify-content:space-between;align-items:center;gap:8px';
-  const add=document.createElement('button');
-  add.type='button';add.className='btn';add.textContent='＋ Tambah Lagu';
+  const controls=document.createElement('div');controls.style.cssText='display:flex;justify-content:space-between;align-items:center;gap:8px';
+  const add=document.createElement('button');add.type='button';add.className='btn';add.textContent='＋ Tambah Lagu';
   add.style.cssText='padding:8px 12px;border-radius:10px;border:1px solid rgba(17,94,89,.8);font-size:11px;font-weight:700;color:#99f6e4';
   add.onclick=function(){batchRows.push({title:'',artist:'',youtube:''});renderBatchRows(builder);const cards=builder.children;const last=cards[cards.length-1];if(last)last.scrollIntoView({behavior:'smooth',block:'nearest'});};
   const count=document.createElement('span');count.id='batchCount';count.style.cssText='font-size:10px;color:#64748b';
   controls.appendChild(add);controls.appendChild(count);form.insertBefore(controls,builder);
-  const hint=form.querySelector('p');
-  if(hint)hint.textContent='Tambahkan lagu sebanyak yang diperlukan. Link YouTube opsional; tanpa link, Player akan memakai mapping.';
+  const hint=form.querySelector('p');if(hint)hint.textContent='Setiap lagu wajib memiliki Judul, Penyanyi, dan Link YouTube yang valid.';
   renderBatchRows(builder);
-  const originalAddBatch=window.addBatch;
   window.addBatch=async function(event){
     if(event&&event.preventDefault)event.preventDefault();
-    const nameEl=document.getElementById('name');
-    const button=document.getElementById('batchBtn');
-    const name=nameEl?nameEl.value.trim():'';
+    const nameEl=document.getElementById('name');const button=document.getElementById('batchBtn');const name=nameEl?nameEl.value.trim():'';
     const itemsRaw=batchRows.map(function(r){return{title:String(r.title||'').trim(),artist:String(r.artist||'').trim(),youtube:String(r.youtube||'').trim()};}).filter(function(r){return r.title||r.artist||r.youtube;});
     if(!name){if(typeof window.toast==='function')window.toast('Nama wajib diisi.','error');return false;}
     if(!itemsRaw.length){if(typeof window.toast==='function')window.toast('Tambahkan minimal satu lagu.','error');return false;}
     for(let i=0;i<itemsRaw.length;i++){
       const r=itemsRaw[i];
-      if(!r.title||!r.artist){if(typeof window.toast==='function')window.toast('Lagu '+(i+1)+': judul dan penyanyi wajib diisi.','error');return false;}
-      if(r.youtube&&!youtubeVideoId(r.youtube)){if(typeof window.toast==='function')window.toast('Lagu '+(i+1)+': link YouTube tidak valid.','error');return false;}
+      if(!r.title||!r.artist||!r.youtube){if(typeof window.toast==='function')window.toast('Lagu '+(i+1)+': judul, penyanyi, dan link YouTube wajib diisi.','error');return false;}
+      if(!youtubeVideoId(r.youtube)){if(typeof window.toast==='function')window.toast('Lagu '+(i+1)+': link YouTube tidak valid.','error');return false;}
     }
     if(typeof window.canSubmit==='function'&&!window.canSubmit(itemsRaw.length))return false;
     if(button&&typeof window.busy==='function')window.busy(button,true,'Menyimpan '+itemsRaw.length+' lagu...');
     window.lastSubmit=Date.now();
     try{
       localStorage.setItem('kudajitu_name',name);
-      const items=makeItems(itemsRaw,name);
-      const result=await sendUnlimited(items);
-      batchRows=[{title:'',artist:'',youtube:''}];
-      renderBatchRows(builder);
+      const items=makeItems(itemsRaw,name);const result=await sendUnlimited(items);
+      batchRows=[{title:'',artist:'',youtube:''}];renderBatchRows(builder);
       if(typeof window.toast==='function')window.toast(result.added+' request berhasil disimpan.');
       if(typeof window.loadData==='function')await window.loadData(false);
     }catch(error){
-      console.error('Unlimited batch:',error);
-      if(typeof window.toast==='function')window.toast(error.message||'Request batch gagal disimpan.','error');
-      if(typeof window.loadData==='function')await window.loadData(false);
-    }finally{
-      if(button&&typeof window.busy==='function')window.busy(button,false);
-    }
+      console.error('Unlimited batch:',error);if(typeof window.toast==='function')window.toast(error.message||'Request batch gagal disimpan.','error');if(typeof window.loadData==='function')await window.loadData(false);
+    }finally{if(button&&typeof window.busy==='function')window.busy(button,false);}
     return false;
   };
   batchHooked=true;
@@ -239,15 +223,12 @@ function installYoutubeSingle(){
   if(typeof window.addSingle!=='function')return;
   const note=document.getElementById('note');
   if(note){
-    const input=document.createElement('input');
-    input.id='note';input.name='youtubeLink';input.type='url';input.required=true;input.maxLength=300;input.autocomplete='url';input.inputMode='url';input.className=note.className;input.placeholder='Link YouTube (wajib)';input.title='Masukkan link video YouTube yang ingin diputar';note.replaceWith(input);
+    const input=document.createElement('input');input.id='note';input.name='youtubeLink';input.type='url';input.required=true;input.maxLength=300;input.autocomplete='url';input.inputMode='url';input.className=note.className;input.placeholder='Link YouTube (wajib)';input.title='Masukkan link video YouTube yang ingin diputar';note.replaceWith(input);
   }
   const originalAddSingle=window.addSingle;
   window.addSingle=async function(event){
-    const field=document.getElementById('note');
-    const link=field?field.value.trim():'';
-    const videoId=youtubeVideoId(link);
-    if(!link||!videoId){if(event&&event.preventDefault)event.preventDefault();if(typeof window.toast==='function')window.toast('Masukkan link YouTube yang valid. Contoh: youtube.com/watch?v=...','error');if(field)field.focus();return false;}
+    const field=document.getElementById('note');const link=field?field.value.trim():'';const videoId=youtubeVideoId(link);
+    if(!link||!videoId){if(event&&event.preventDefault)event.preventDefault();if(typeof window.toast==='function')window.toast('Link YouTube wajib diisi dan harus valid.','error');if(field)field.focus();return false;}
     return originalAddSingle.call(this,event);
   };
   youtubeHooked=true;
