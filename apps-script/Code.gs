@@ -1,6 +1,7 @@
 var NAMA_TAB_ANDA='req lagu';
 var TIMEZONE='Asia/Jakarta';
-var CACHE_SECONDS=30;
+var CACHE_SECONDS=60;
+var BASE_CACHE_KEYS=['today_base','yesterday_base','all_base'];
 var API_VERSION='kudajitu-v14';
 var ANNOUNCEMENT_KEY='kudajitu_announcement_v1';
 var ANNOUNCEMENT_ADMIN_KEY='290979';
@@ -20,7 +21,7 @@ function rowToObject_(r){return{id:String(r[0]||''),requester:String(r[1]||''),t
 function cacheKey_(k){return'kudajitu_sync_v14_'+k}
 function cacheGet_(k){try{var v=CacheService.getScriptCache().get(cacheKey_(k));return v?JSON.parse(v):null}catch(e){return null}}
 function cachePut_(k,d){try{var raw=JSON.stringify(d);if(raw.length<95000)CacheService.getScriptCache().put(cacheKey_(k),raw,CACHE_SECONDS)}catch(e){}}
-function clearCaches_(){try{var c=CacheService.getScriptCache();c.removeAll(['today_all','yesterday_all','all_all','today_pending','today_played','yesterday_pending','yesterday_played','all_pending','all_played'].map(cacheKey_))}catch(e){}}
+function clearCaches_(){try{var c=CacheService.getScriptCache();c.removeAll(BASE_CACHE_KEYS.concat(['today_all','yesterday_all','all_all','today_pending','today_played','yesterday_pending','yesterday_played','all_pending','all_played']).map(cacheKey_))}catch(e){}}
 
 function getRecentRows_(sheet,targetKey){
   var last=sheet.getLastRow();
@@ -210,13 +211,13 @@ function doGet(e){
     }
     var range=String(p.range||'today').toLowerCase();if(range!=='today'&&range!=='yesterday'&&range!=='all')range='today';
     var status=String(p.status||'all').toLowerCase();if(status!=='all'&&status!=='pending'&&status!=='played')status='all';
-    var key=range+'_'+status,cached=cacheGet_(key),data;
-    if(cached!==null)data=cached;
-    else{
-      var rows=range==='today'?getRecentRows_(sheet,todayKey_()):range==='yesterday'?getRecentRows_(sheet,yesterdayKey_()):getAllRows_(sheet);
-      data=filterStatus_(rows,status);cachePut_(key,data);
+    var baseKey=range+'_base',rows=cacheGet_(baseKey),cacheHit=rows!==null,data;
+    if(rows===null){
+      rows=range==='today'?getRecentRows_(sheet,todayKey_()):range==='yesterday'?getRecentRows_(sheet,yesterdayKey_()):getAllRows_(sheet);
+      cachePut_(baseKey,rows);
     }
-    return respond_(cb,{success:true,action:'data',cached:cached!==null,cacheSeconds:CACHE_SECONDS,range:range,status:status,timezone:TIMEZONE,today:todayKey_(),yesterday:yesterdayKey_(),count:data.length,data:data});
+    data=filterStatus_(rows,status);
+    return respond_(cb,{success:true,action:'data',cached:cacheHit,cacheSeconds:CACHE_SECONDS,range:range,status:status,timezone:TIMEZONE,today:todayKey_(),yesterday:yesterdayKey_(),count:data.length,data:data});
   }catch(err){return respond_(cb,{success:false,action:String(p.action||'error'),message:String(err),data:[]})}
 }
 function filterStatus_(rows,status){return status==='all'?rows:rows.filter(function(r){return r.status===status})}
