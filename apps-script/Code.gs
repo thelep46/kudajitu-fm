@@ -5,6 +5,8 @@ var BASE_CACHE_KEYS=['today_base','yesterday_base','all_base'];
 var API_VERSION='kudajitu-v14';
 var ANNOUNCEMENT_KEY='kudajitu_announcement_v1';
 var ANNOUNCEMENT_ADMIN_KEY='290979';
+var USER_LOGIN_MODE_KEY_='kudajitu_user_login_mode_v1';
+var USER_LOGIN_MODE_CACHE_KEY_='user_login_mode_base';
 
 function getSheet_(){var s=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NAMA_TAB_ANDA);if(!s)throw new Error('Sheet "'+NAMA_TAB_ANDA+'" tidak ditemukan');return s;}
 function jsonResponse(d){return ContentService.createTextOutput(JSON.stringify(d)).setMimeType(ContentService.MimeType.JSON)}
@@ -23,7 +25,7 @@ function cachePut_(k,d){try{var raw=JSON.stringify(d);if(raw.length<95000)CacheS
 function clearCaches_(){
   try{
     var c=CacheService.getScriptCache();
-    c.removeAll(BASE_CACHE_KEYS.concat([ID_CACHE_KEY_,QUEUE_ORDER_CACHE_KEY_]).map(cacheKey_));
+    c.removeAll(BASE_CACHE_KEYS.concat([ID_CACHE_KEY_,QUEUE_ORDER_CACHE_KEY_,USER_LOGIN_MODE_CACHE_KEY_]).map(cacheKey_));
   }catch(e){}
 }
 function getBaseRowsCached_(sheet,range){
@@ -189,6 +191,25 @@ function mutate_(sheet,p){
 function getAnnouncement_(){var raw=PropertiesService.getScriptProperties().getProperty(ANNOUNCEMENT_KEY);if(!raw)return{enabled:false,type:'info',title:'',content:'',mode:'once',updatedAt:''};try{var a=JSON.parse(raw);return{enabled:a.enabled===true,type:String(a.type||'info'),title:String(a.title||''),content:String(a.content||''),mode:String(a.mode||'once'),updatedAt:String(a.updatedAt||'')}}catch(e){return{enabled:false,type:'info',title:'',content:'',mode:'once',updatedAt:''}}}
 function saveAnnouncement_(p){kudaRequireAdmin_(p);var enabled=String(p.enabled||'false')==='true',type=['info','warning','important'].indexOf(String(p.type||'info'))>=0?String(p.type||'info'):'info',mode=String(p.mode||'once')==='always'?'always':'once',title=String(p.title||'').trim().slice(0,120),content=String(p.content||'').trim().slice(0,5000),a={enabled:enabled,type:type,mode:mode,title:title,content:content,updatedAt:new Date().toISOString()};PropertiesService.getScriptProperties().setProperty(ANNOUNCEMENT_KEY,JSON.stringify(a));return{success:true,announcement:a}}
 
+function getUserLoginMode_(){
+  var cached=cacheGet_(USER_LOGIN_MODE_CACHE_KEY_);
+  if(cached!==null)return cached;
+  var mode='open';
+  try{
+    var raw=PropertiesService.getScriptProperties().getProperty(USER_LOGIN_MODE_KEY_);
+    mode=String(raw||'open').toLowerCase()==='required'?'required':'open';
+  }catch(e){mode='open'}
+  cachePut_(USER_LOGIN_MODE_CACHE_KEY_,mode);
+  return mode;
+}
+function setUserLoginMode_(p){
+  kudaRequireAdmin_(p);
+  var mode=String(p.mode||'open').toLowerCase()==='required'?'required':'open';
+  PropertiesService.getScriptProperties().setProperty(USER_LOGIN_MODE_KEY_,mode);
+  cachePut_(USER_LOGIN_MODE_CACHE_KEY_,mode);
+  return{success:true,action:'setuserloginmode',mode:mode,message:mode==='required'?'Login diperlukan sebelum request lagu.':'Request terbuka tanpa login.'};
+}
+
 var QUEUE_ORDER_KEY_='kudajitu_queue_order_v1';
 function getQueueOrder_(){
   var cached=cacheGet_(QUEUE_ORDER_CACHE_KEY_);
@@ -236,6 +257,8 @@ function route_(e,isPost){
     if(action==='data')return respond_(p.callback,getData_(p));
     if(action==='health')return respond_(p.callback,getHealth_());
     if(action==='announcement')return respond_(p.callback,{success:true,action:'announcement',announcement:getAnnouncement_()});
+    if(action==='userloginmode')return respond_(p.callback,{success:true,action:'userloginmode',mode:getUserLoginMode_()});
+    if(action==='setuserloginmode')return respond_(p.callback,setUserLoginMode_(p));
     if(action==='add'){var r=addViaParams_(getSheet_(),p);return respond_(p.callback,r)}
     if(action==='addBatch'){var rb=addBatchViaParams_(getSheet_(),p);return respond_(p.callback,rb)}
     if(action==='checkIds'){var ids=String(p.ids||'').split(',').map(function(x){return x.trim()}).filter(Boolean);return respond_(p.callback,{success:true,action:'checkIds',ids:checkIds_(getSheet_(),ids)})}
