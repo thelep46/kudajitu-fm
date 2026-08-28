@@ -21,23 +21,38 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re
+
           p = Path('announcement.js')
           s = p.read_text(encoding='utf-8')
 
           guard_pattern = r"function installRequestAuthGuard\(\)\{.*?window\.__kudaRequestAuthGuard=true;\}"
           guard_replacement = '''function installRequestAuthGuard(){if(window.__kudaRequestAuthGuard)return;if(typeof window.jsonp!=='function')return;var originalJsonp=window.jsonp;window.jsonp=function(url,timeout){var isMutation=/[?&]action=(?:add|addBatch)(?:&|$)/i.test(String(url||''));if(isMutation){var mode=String(window.KUDAJITUUserLoginMode||'open').toLowerCase();if(mode==='required'){var token=getToken();if(!token)return Promise.reject(new Error('LOGIN_REQUIRED'));if(!/[?&]token=/.test(String(url||'')))url+='&token='+encodeURIComponent(token);}}return originalJsonp(url,timeout);};if(typeof window.canSubmit==='function'){window.canSubmit=function(count){var now=Date.now();if(now-(window.lastSubmit||0)<5000){if(typeof window.toast==='function')window.toast('Tunggu beberapa detik sebelum request lagi.','error');return false;}var nameEl=document.getElementById('name'),name=nameEl?nameEl.value.trim():'';if(!name){if(typeof window.toast==='function')window.toast('Nama wajib diisi.','error');return false;}return true;};}window.__kudaRequestAuthGuard=true;}'''
           s, count = re.subn(guard_pattern, guard_replacement, s, count=1, flags=re.S)
-          if count != 1:
+          if count == 0 and 'function installRequestAuthGuard(){' not in s:
               raise SystemExit('Could not locate installRequestAuthGuard')
 
-          init_pattern = r"window\.addEventListener\('DOMContentLoaded',function\(\)\{installDataReliabilityGuard\(\);installRequestAuthGuard\(\);addStyle\(\);showLoginButton\(\);validateSession\(\);\}\);"
           init_replacement = "window.addEventListener('DOMContentLoaded',function(){installDataReliabilityGuard();installRequestAuthGuard();addStyle();var mode=String(window.KUDAJITUUserLoginMode||'open').toLowerCase();var hasToken=!!getToken();if(mode==='required'||hasToken){showLoginButton();if(hasToken)validateSession();}else{var loginButton=document.getElementById('loginBtn');if(loginButton)loginButton.remove();}});"
-          s, count = re.subn(init_pattern, init_replacement, s, count=1)
-          if count != 1:
-              raise SystemExit('Could not locate announcement startup handler')
+
+          # The startup handler has changed shape across earlier patches. Replace
+          # only the DOMContentLoaded handler that initializes auth; if the desired
+          # handler is already present, treat the workflow as idempotently complete.
+          if "if(mode==='required'||hasToken){showLoginButton();if(hasToken)validateSession();}" not in s:
+              patterns = [
+                  r"window\.addEventListener\('DOMContentLoaded',function\(\)\{.*?\}\);",
+                  r"window\.addEventListener\(\"DOMContentLoaded\",function\(\)\{.*?\}\);",
+              ]
+              replaced = False
+              for pattern in patterns:
+                  s2, n = re.subn(pattern, init_replacement, s, count=1, flags=re.S)
+                  if n:
+                      s = s2
+                      replaced = True
+                      break
+              if not replaced:
+                  raise SystemExit('Could not locate announcement startup handler')
 
           p.write_text(s, encoding='utf-8')
-          print('Patched announcement auth guard and conditional login startup')
+          print('Announcement auth patch completed (idempotent)')
           PY
 
       - name: Commit patch if changed
