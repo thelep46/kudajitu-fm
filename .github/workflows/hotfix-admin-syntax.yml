@@ -26,24 +26,18 @@ jobs:
           from pathlib import Path
           p = Path('admin.html')
           s = p.read_text(encoding='utf-8')
-          marker = '/* Queue Block Drag v1 */'
-          if marker not in s:
-              raise SystemExit('Queue Block marker not found')
 
-          head, tail = s.split(marker, 1)
+          # The broken queue patch placed a literal backslash+n between
+          # the opening script tag and the Queue Block comment.
+          broken = '</script>\n<script>\\n/* Queue Block Drag v1 */'
+          fixed = '</script>\n<script>\n/* Queue Block Drag v1 */'
 
-          # The broken patch inserted the two characters backslash+n
-          # immediately after the opening script tag. Replace those
-          # literal escape sequences with real line breaks.
-          tail = tail.replace('\\\\n', '\n')
-          tail = tail.replace('\\n', '\n')
-          out = head + marker + tail
-
-          if out != s:
-              p.write_text(out, encoding='utf-8')
-              print('Repaired literal \\n sequences in Queue Block script.')
+          if broken in s:
+              s = s.replace(broken, fixed, 1)
+              p.write_text(s, encoding='utf-8')
+              print('Repaired admin.html Queue Block script delimiter.')
           else:
-              print('No syntax repair needed.')
+              print('Broken delimiter not found; checking for any literal escape.')
           PY
 
       - name: Validate admin.html
@@ -55,10 +49,12 @@ jobs:
           marker = '/* Queue Block Drag v1 */'
           if marker not in s:
               raise SystemExit('Queue Block marker missing')
-          tail = s.split(marker, 1)[1]
-          if '\\n' in tail:
-              raise SystemExit('Literal backslash+n remains in Queue Block script')
-          print('admin.html syntax marker validation OK')
+          before, after = s.split(marker, 1)
+          if '\\n/* Queue Block Drag v1 */' in before + marker:
+              raise SystemExit('Literal backslash+n remains before Queue Block marker')
+          if '</script>\n<script>\\n' in s:
+              raise SystemExit('Broken script delimiter remains')
+          print('admin.html Queue Block syntax validation OK')
           PY
 
       - name: Commit repair if changed
@@ -70,6 +66,6 @@ jobs:
           if git diff --cached --quiet; then
             echo 'No admin.html change to commit.'
           else
-            git commit -m 'fix: repair admin queue script syntax'
+            git commit -m 'fix: repair admin queue script delimiter'
             git push
           fi
