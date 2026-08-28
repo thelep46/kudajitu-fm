@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-/* Shared performance/transport layer. All browser GAS traffic uses the same Cloudflare proxy. */
+/* Single transport + authoritative queue sync for user/admin pages. */
 var K={lastSync:0,syncing:false,pendingForce:false,minSyncGap:5000,timeout:12000};
 function normalizeP(x){x=x||{};return{id:String(x.id||''),requester:String(x.requester||''),title:String(x.title||''),artist:String(x.artist||''),note:String(x.note||''),timestamp:String(x.timestamp||''),playedAt:String(x.playedAt||''),status:String(x.status||'pending').toLowerCase()==='played'?'played':'pending',votes:Number(x.votes||1)}}
 function api(action,params,timeout,forceFresh){
@@ -8,7 +8,7 @@ function api(action,params,timeout,forceFresh){
   Object.keys(params||{}).forEach(function(k){if(params[k]!==undefined&&params[k]!==null)u.searchParams.set(k,String(params[k]))});
   if(forceFresh)u.searchParams.set('_refresh',Date.now().toString());
   var controller=new AbortController(),timer=setTimeout(function(){controller.abort()},timeout||K.timeout);
-  return fetch(u.toString(),{method:'GET',cache:forceFresh?'no-store':'default',credentials:'same-origin',headers:{Accept:'application/json'},signal:controller.signal})
+  return fetch(u.toString(),{method:'GET',cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json'},signal:controller.signal})
     .then(function(r){return r.text().then(function(t){var d;try{d=JSON.parse(t)}catch(e){throw new Error('Respons server tidak valid.')}if(!r.ok||d&&d.success===false)throw new Error(d&&d.message||'Server gagal');return d})})
     .finally(function(){clearTimeout(timer)});
 }
@@ -27,10 +27,12 @@ function silentLoad(force){
   var now=Date.now();if(!force&&now-K.lastSync<K.minSyncGap)return Promise.resolve(false);
   K.syncing=true;K.lastSync=now;
   var local=readLocal(),had=local.length>0;
-  if(had){window.requests=local;if(typeof render==='function')render()}
-  if(typeof setSync==='function'&&(!had||force))setSync('online');
-  return api('data',{range:'today'},K.timeout,!!force).then(function(j){
-    window.requests=(Array.isArray(j.data)?j.data:[]).map(normalizeP);
+  if(had&&!force){window.requests=local;if(typeof render==='function')render()}
+  if(typeof setSync==='function')setSync('online');
+  /* Queue truth is always fetched fresh. This is intentional: admin/player writes must be visible to users immediately and must not depend on an old browser/edge snapshot. */
+  return api('data',{range:'today'},K.timeout,true).then(function(j){
+    var fresh=(Array.isArray(j.data)?j.data:[]).map(normalizeP);
+    window.requests=fresh;
     if(typeof saveCache==='function')saveCache();
     if(typeof render==='function')render();
     if(typeof setSync==='function')setSync('online');
@@ -73,7 +75,7 @@ function install(){
     if(typeof window.addBatch==='function'&&!window.addBatch.__kudaPerf){var oldBatch=window.addBatch;window.addBatch=async function(e){var result=await oldBatch(e);silentLoad(true);return result};window.addBatch.__kudaPerf=true}
     setTimeout(function(){silentLoad(false)},50);
     if(!window.__kudaQueuePoll){
-      window.__kudaQueuePoll=setInterval(function(){if(document.visibilityState!=='hidden')silentLoad(false)},5000);
+      window.__kudaQueuePoll=setInterval(function(){if(document.visibilityState!=='hidden')silentLoad(true)},5000);
       document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')silentLoad(true)},{passive:true});
     }
   }
