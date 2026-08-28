@@ -1,17 +1,26 @@
 (function(){
 'use strict';
-/* Performance layer: keep UI responsive while keeping the queue authoritative. */
+/* User performance layer: ALL user-side GAS traffic goes through the Cloudflare proxy. */
 var K={lastSync:0,syncing:false,pendingForce:false,minSyncGap:15000,timeout:8000};
 function normalizeP(x){x=x||{};return{id:String(x.id||''),requester:String(x.requester||''),title:String(x.title||''),artist:String(x.artist||''),note:String(x.note||''),timestamp:String(x.timestamp||''),playedAt:String(x.playedAt||''),status:String(x.status||'pending').toLowerCase()==='played'?'played':'pending',votes:Number(x.votes||1)}}
 function api(action,params,timeout,forceFresh){
   var u=new URL('/api/gas',location.origin);u.searchParams.set('action',action||'data');
   Object.keys(params||{}).forEach(function(k){if(params[k]!==undefined&&params[k]!==null)u.searchParams.set(k,String(params[k]))});
-  /* Normal reads may use the edge cache. A forced read gets a cache-busting key after mutations. */
   if(forceFresh)u.searchParams.set('_refresh',Date.now().toString());
   var controller=new AbortController(),timer=setTimeout(function(){controller.abort()},timeout||K.timeout);
   return fetch(u.toString(),{method:'GET',cache:'default',credentials:'same-origin',headers:{Accept:'application/json'},signal:controller.signal})
     .then(function(r){return r.text().then(function(t){var d;try{d=JSON.parse(t)}catch(e){throw new Error('Respons server tidak valid.')}if(!r.ok||d&&d.success===false)throw new Error(d&&d.message||'Server gagal');return d})})
     .finally(function(){clearTimeout(timer)});
+}
+/* Compatibility bridge: legacy index.html still has a direct-GAS jsonp() function.
+   Replace it so old loadData/update calls also use /api/gas instead of script.google.com. */
+function proxyLegacyJsonp(url,timeout){
+  try{
+    var src=new URL(url,location.href),params={};
+    src.searchParams.forEach(function(v,k){if(k!=='callback'&&k!=='prefix'&&k!=='_')params[k]=v});
+    var action=String(params.action||'data').toLowerCase();
+    return api(action,params,timeout||30000,false);
+  }catch(e){return Promise.reject(e)}
 }
 function readLocal(){try{var c=JSON.parse(localStorage.getItem('kudajitu_user_today_v4')||'null');return c&&Array.isArray(c.data)?c.data.map(normalizeP):[]}catch(e){return []}}
 function silentLoad(force){
@@ -37,12 +46,9 @@ function silentLoad(force){
   });
 }
 function optimisticAdd(item,button){
-  item=normalizeP(item);
-  window.requests=Array.isArray(window.requests)?window.requests:[];
-  var exists=window.requests.some(function(x){return x.id===item.id});
-  if(!exists)window.requests.push(item);
-  if(typeof saveCache==='function')saveCache();
-  if(typeof render==='function')render();
+  item=normalizeP(item);window.requests=Array.isArray(window.requests)?window.requests:[];
+  if(!window.requests.some(function(x){return x.id===item.id}))window.requests.push(item);
+  if(typeof saveCache==='function')saveCache();if(typeof render==='function')render();
   if(typeof toast==='function')toast('Request sedang disimpan.');
   if(button&&typeof busy==='function')busy(button,false);
 }
@@ -54,29 +60,20 @@ function addFast(e){
   if(typeof canSubmit==='function'&&!canSubmit(1))return false;
   var item=normalizeP({id:'req_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),requester:name,title:title,artist:artist,note:note,timestamp:new Date().toISOString(),status:'pending',votes:1});
   try{localStorage.setItem('kudajitu_name',name)}catch(_){}
-  if(typeof busy==='function')busy(button,true,'Menyimpan...');
-  window.lastSubmit=Date.now();
-  optimisticAdd(item,button);
+  if(typeof busy==='function')busy(button,true,'Menyimpan...');window.lastSubmit=Date.now();optimisticAdd(item,button);
   if(titleEl)titleEl.value='';if(artistEl)artistEl.value='';if(noteEl)noteEl.value='';
   return api('add',{id:item.id,requester:item.requester,title:item.title,artist:item.artist,note:item.note,timestamp:item.timestamp,status:'pending',votes:1},30000,false)
-    .then(function(j){
-      if(j&&j.success===false)throw new Error(j.message||'Gagal');
-      return silentLoad(true);
-    })
-    .catch(function(err){
-      console.warn('[Kudajitu] request save failed:',err&&err.message||err);
-      if(typeof toast==='function')toast('Penyimpanan server belum terkonfirmasi.','error');
-      return silentLoad(true);
-    });
+    .then(function(j){if(j&&j.success===false)throw new Error(j.message||'Gagal');return silentLoad(true)})
+    .catch(function(err){console.warn('[Kudajitu] request save failed:',err&&err.message||err);if(typeof toast==='function')toast('Penyimpanan server belum terkonfirmasi.','error');return silentLoad(true)});
 }
 function install(){
+  /* Replace the legacy global JSONP transport before any later polling tick runs. */
+  window.jsonp=proxyLegacyJsonp;
   window.loadData=silentLoad;
   window.addSingle=addFast;
-  if(typeof window.addBatch==='function'){
-    var oldBatch=window.addBatch;
-    window.addBatch=async function(e){var result=await oldBatch(e);silentLoad(true);return result;};
-  }
+  if(typeof window.addBatch==='function'&&!window.addBatch.__kudaPerf){var oldBatch=window.addBatch;window.addBatch=async function(e){var result=await oldBatch(e);silentLoad(true);return result};window.addBatch.__kudaPerf=true}
   setTimeout(function(){silentLoad(false)},50);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
+setTimeout(install,0);
 })();
