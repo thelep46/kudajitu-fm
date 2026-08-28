@@ -30,8 +30,8 @@ jobs:
               print('Queue Block marker not found; nothing to repair.')
               raise SystemExit(0)
           head, tail = s.split(marker, 1)
-          # Only repair literal backslash-n sequences after the Queue Block marker.
-          repaired = tail.replace('\\\\n', '\n')
+          # Convert the literal two-character sequence backslash+n to a real newline.
+          repaired = tail.replace('\\n', '\n')
           s2 = head + marker + repaired
           if s2 == s:
               print('No escaped-newline corruption found.')
@@ -45,10 +45,12 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           s = Path('admin.html').read_text(encoding='utf-8')
-          if '\\n/* Queue Block Drag v1 */' in s or '\\n</script>' in s:
-              raise SystemExit('Escaped newline corruption remains in admin.html')
-          if '/* Queue Block Drag v1 */' not in s:
+          marker = '/* Queue Block Drag v1 */'
+          if marker not in s:
               raise SystemExit('Queue Block marker missing')
+          tail = s.split(marker, 1)[1]
+          if '\\n' in tail:
+              raise SystemExit('Escaped newline corruption remains in Queue Block script')
           print('admin.html validation passed.')
           PY
 
