@@ -1,7 +1,9 @@
 var NAMA_TAB_ANDA='req lagu';
 var TIMEZONE='Asia/Jakarta';
 var CACHE_SECONDS=60;
-var BASE_CACHE_KEYS=['today_base','yesterday_base','all_base'];
+var BASE_CACHE_KEYS=['today_base','yesterday_base','all_base','ids_base','queue_order'];
+var IDS_CACHE_KEY='ids_base';
+var QUEUE_CACHE_KEY='queue_order';
 var API_VERSION='kudajitu-v14';
 var ANNOUNCEMENT_KEY='kudajitu_announcement_v1';
 var ANNOUNCEMENT_ADMIN_KEY='290979';
@@ -21,7 +23,11 @@ function rowToObject_(r){return{id:String(r[0]||''),requester:String(r[1]||''),t
 function cacheKey_(k){return'kudajitu_sync_v14_'+k}
 function cacheGet_(k){try{var v=CacheService.getScriptCache().get(cacheKey_(k));return v?JSON.parse(v):null}catch(e){return null}}
 function cachePut_(k,d){try{var raw=JSON.stringify(d);if(raw.length<95000)CacheService.getScriptCache().put(cacheKey_(k),raw,CACHE_SECONDS)}catch(e){}}
-function clearCaches_(){try{var c=CacheService.getScriptCache();c.removeAll(BASE_CACHE_KEYS.map(cacheKey_))}catch(e){}}
+function clearCaches_(){
+  try{
+    CacheService.getScriptCache().removeAll(BASE_CACHE_KEYS.map(cacheKey_));
+  }catch(e){}
+}
 function getBaseRowsCached_(sheet,range){
   var baseKey=range+'_base',rows=cacheGet_(baseKey);
   if(rows!==null)return{rows:rows,cached:true};
@@ -49,16 +55,55 @@ function getRecentRows_(sheet,targetKey){
     if(row[0]&&dateKey_(row[5])===targetKey)out.push(rowToObject_(row));
   }
   out.sort(function(a,b){
-    if(a.status==='played'&&b.status==='played')return(toDate_(b.playedAt||b.timestamp)||0)-(toDate_(a.playedAt||a.timestamp)||0);
-    return(toDate_(a.timestamp)||0)-(toDate_(b.timestamp)||0)
+    if(a.status==='played'&&b.status==='played'){
+      return(toDate_(b.playedAt||b.timestamp)||0)-(toDate_(a.playedAt||a.timestamp)||0);
+    }
+    return(toDate_(a.timestamp)||0)-(toDate_(b.timestamp)||0);
   });
   return applyQueueOrder_(out);
 }
-function getAllRows_(sheet){var last=sheet.getLastRow();if(last<2)return[];var vals=sheet.getRange(2,1,last-1,9).getValues(),out=[];for(var i=0;i<vals.length;i++)if(vals[i][0])out.push(rowToObject_(vals[i]));out.reverse();return applyQueueOrder_(out)}
-function getIds_(sheet){var last=sheet.getLastRow();if(last<2)return[];return sheet.getRange(2,1,last-1,1).getValues().map(function(r){return String(r[0]||'')})}
-function findRowById_(sheet,id){var n=Math.max(1,sheet.getLastRow()-1),hit=sheet.getRange(2,1,n,1).createTextFinder(String(id)).matchEntireCell(true).findNext();return hit?hit.getRow():-1}
-function buildIdRowIndex_(sheet){var ids=getIds_(sheet),index={};for(var i=0;i<ids.length;i++){var id=ids[i];if(id)index[id]=i+2}return index}
-function checkIds_(sheet,ids){var index=buildIdRowIndex_(sheet),found=[];ids.forEach(function(id){if(index[String(id)])found.push(String(id))});return found}
+function getAllRows_(sheet){
+  var last=sheet.getLastRow();
+  if(last<2)return[];
+  var vals=sheet.getRange(2,1,last-1,9).getValues(),out=[];
+  for(var i=0;i<vals.length;i++)if(vals[i][0])out.push(rowToObject_(vals[i]));
+  out.reverse();
+  return applyQueueOrder_(out);
+}
+function getIdsCached_(sheet){
+  var ids=cacheGet_(IDS_CACHE_KEY);
+  if(ids!==null)return{ids:ids,cached:true};
+  var lock=LockService.getScriptLock(),locked=false;
+  try{
+    locked=lock.tryLock(3000);
+    if(locked){
+      ids=cacheGet_(IDS_CACHE_KEY);
+      if(ids!==null)return{ids:ids,cached:true};
+    }
+    var last=sheet.getLastRow();
+    ids=last<2?[]:sheet.getRange(2,1,last-1,1).getValues().map(function(r){return String(r[0]||'')});
+    cachePut_(IDS_CACHE_KEY,ids);
+    return{ids:ids,cached:false};
+  }finally{
+    if(locked){try{lock.releaseLock()}catch(e){}}
+  }
+}
+function getIds_(sheet){return getIdsCached_(sheet).ids}
+function findRowById_(sheet,id){
+  var hit=sheet.getRange(2,1,Math.max(1,sheet.getLastRow()-1),1)
+    .createTextFinder(String(id)).matchEntireCell(true).findNext();
+  return hit?hit.getRow():-1;
+}
+function buildIdRowIndex_(sheet){
+  var ids=getIds_(sheet),index={};
+  for(var i=0;i<ids.length;i++){var id=ids[i];if(id)index[id]=i+2}
+  return index;
+}
+function checkIds_(sheet,ids){
+  var index=buildIdRowIndex_(sheet),found=[];
+  ids.forEach(function(id){if(index[String(id)])found.push(String(id))});
+  return found;
+}
 function generateId_(){return'req_'+Date.now()+'_'+Math.random().toString(36).substring(2,8)}
 
 function extractYouTubeId_(value){
@@ -150,15 +195,20 @@ function saveAnnouncement_(p){kudaRequireAdmin_(p);var enabled=String(p.enabled|
 
 var QUEUE_ORDER_KEY_='kudajitu_queue_order_v1';
 function getQueueOrder_(){
+  var cached=cacheGet_(QUEUE_CACHE_KEY);
+  if(cached!==null)return cached;
   try{
     var raw=PropertiesService.getScriptProperties().getProperty(QUEUE_ORDER_KEY_);
     var a=raw?JSON.parse(raw):[];
-    return Array.isArray(a)?a.map(String):[];
+    a=Array.isArray(a)?a.map(String):[];
+    cachePut_(QUEUE_CACHE_KEY,a);
+    return a;
   }catch(e){return[]}
 }
 function setQueueOrder_(ids){
   var clean=(ids||[]).map(String).filter(Boolean);
   PropertiesService.getScriptProperties().setProperty(QUEUE_ORDER_KEY_,JSON.stringify(clean));
+  cachePut_(QUEUE_CACHE_KEY,clean);
   return clean;
 }
 function applyQueueOrder_(rows){
