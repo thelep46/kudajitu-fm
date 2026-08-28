@@ -31,14 +31,33 @@ jobs:
               print('Patched adminUrl to use Apps Script GAS endpoint')
           PY
 
+      - name: Add user login mode controller to index.html
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          tag = '<script src="./user-login-mode.js"></script>'
+          if tag in s:
+              print('user-login-mode.js already loaded')
+          else:
+              marker = '<script src="request-filter.js"></script>'
+              if marker in s:
+                  s = s.replace(marker, tag + marker, 1)
+              else:
+                  s = s.replace('</body>', tag + '</body>', 1)
+              p.write_text(s, encoding='utf-8')
+              print('Added user-login-mode.js to index.html')
+          PY
+
       - name: Commit patch if changed
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          if git diff --quiet -- admin.html; then
+          if git diff --quiet -- admin.html index.html; then
             echo 'No changes to commit.'
           else
-            git add admin.html
-            git commit -m 'fix: route admin API calls to Apps Script'
+            git add admin.html index.html
+            git commit -m 'feat: connect user login mode to request page'
             git push
           fi
