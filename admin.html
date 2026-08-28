@@ -7,6 +7,18 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 body{font-family:'Plus Jakarta Sans',sans-serif;background:#061114;color:#f3f4f6}.glass{background:rgba(10,24,27,.94);backdrop-filter:blur(14px);border:1px solid rgba(45,212,191,.15)}.btn{padding:.62rem .9rem;border-radius:.7rem;font-size:.72rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:.35rem;transition:.18s}.btn:hover{transform:translateY(-1px)}.filter{padding:.45rem .7rem;border-radius:.6rem;font-size:.68rem;font-weight:800;color:#9ca3af;white-space:nowrap}.filter.active{background:#0d9488;color:white}.field{width:100%;background:#030a0c;border:1px solid #115e59;border-radius:.75rem;padding:.7rem 1rem;color:white;outline:0}.queue-row{transition:.18s}.queue-row:hover{border-color:rgba(45,212,191,.4)}details>summary{list-style:none;cursor:pointer}details>summary::-webkit-details-marker{display:none}.menu-panel{position:absolute;right:0;top:calc(100% + .5rem);min-width:220px;padding:.5rem;border-radius:1rem}.menu-link{display:flex;align-items:center;gap:.55rem;padding:.65rem .75rem;border-radius:.65rem;font-size:.72rem;font-weight:800}.menu-link:hover{background:rgba(13,148,136,.12)}
+
+.queue-row.dragging{opacity:.45;transform:scale(.995)}
+.queue-row.drop-target{border-color:#2dd4bf!important;box-shadow:0 0 0 1px rgba(45,212,191,.18)}
+.queue-actions{display:flex;align-items:center;justify-content:flex-end;gap:.35rem;flex-wrap:wrap}
+.queue-action{min-width:2.15rem;padding:.42rem .55rem;border-radius:.6rem;font-size:.68rem;font-weight:800;border:1px solid rgba(20,184,166,.25);background:#030a0c;color:#d1d5db}
+.queue-action:hover{background:rgba(13,148,136,.14);border-color:rgba(45,212,191,.5)}
+.queue-action.danger{border-color:rgba(185,28,28,.55);color:#fca5a5}
+.queue-action.primary{background:#0d9488;border-color:#0d9488;color:#fff}
+.queue-drag{cursor:grab;color:#64748b;user-select:none;padding:.25rem}
+.queue-drag:active{cursor:grabbing}
+@media(max-width:640px){.queue-actions{justify-content:flex-start;width:100%;padding-top:.35rem;border-top:1px solid rgba(20,184,166,.08)}.queue-action{flex:1;min-width:0}.queue-drag{display:none}}
+
 </style>
 </head>
 <body class="min-h-screen">
@@ -64,4 +76,119 @@ async function loadUserLoginMode(){try{const r=await jsonp(adminUrl('userloginmo
 function applyMode(mode){const required=mode==='required';$('modeRequiredBtn').classList.toggle('active',required);$('modeOpenBtn').classList.toggle('active',!required);$('userLoginModeHint').textContent=required?'User wajib login sebelum request.':'User dapat request tanpa login.'}
 async function setUserLoginMode(mode){try{const r=await retry(()=>jsonp(adminUrl('setuserloginmode')+'&mode='+encodeURIComponent(mode),10000),2);if(!r.success)throw Error(r.message||'Gagal mengubah mode');applyMode(r.mode);toast(r.message||'Mode diperbarui.')}catch(e){if(e.message==='LOGIN_REQUIRED'){sessionStorage.removeItem(ADMIN_TOKEN_KEY);location.reload()}else toast('Gagal mengubah mode: '+e.message,true)}}
 (async()=>{if(await verifySession()){show();await Promise.all([load(true),loadUserLoginMode()])}})();
+
+
+/* Admin Queue Controls v1: per-request actions + manual queue order. */
+async function queueMutate(action, id, status){
+  const q = new URLSearchParams();
+  q.set('id', String(id || ''));
+  if(status) q.set('status', status);
+  try{
+    const r = await retry(() => jsonp(adminUrl(action) + '&' + q.toString(), 15000), 2);
+    if(!r || r.success === false) throw Error(r?.message || 'Operasi gagal');
+    toast(action === 'delete' ? 'Request dihapus dari antrean.' : (status === 'played' ? 'Request ditandai sudah diputar.' : 'Request dikembalikan ke antrean.'));
+    await load(false);
+  }catch(e){ toast(e.message || 'Operasi gagal.', true); }
+}
+
+async function queueDelete(id){
+  if(!id) return;
+  if(!confirm('Hapus request ini dari antrean?')) return;
+  await queueMutate('delete', id);
+}
+
+async function queueMark(id, current){
+  if(!id) return;
+  await queueMutate('updateStatus', id, current === 'played' ? 'pending' : 'played');
+}
+
+async function saveQueueOrder(ids){
+  const list = ids.filter(Boolean);
+  if(!list.length) return true;
+  try{
+    const r = await retry(() => jsonp(adminUrl('reorder') + '&ids=' + encodeURIComponent(list.join(',')), 15000), 2);
+    if(!r || r.success === false) throw Error(r?.message || 'Gagal menyimpan urutan');
+    return true;
+  }catch(e){ toast(e.message || 'Gagal menyimpan urutan.', true); return false; }
+}
+
+async function moveQueue(id, direction){
+  const rows = pendingRows();
+  const i = rows.findIndex(x => String(x.id) === String(id));
+  const j = i + direction;
+  if(i < 0 || j < 0 || j >= rows.length) return;
+  [rows[i], rows[j]] = [rows[j], rows[i]];
+  const ids = rows.map(x => String(x.id));
+  if(await saveQueueOrder(ids)){
+    data = data.map(x => x);
+    await load(false);
+  }
+}
+
+function enableQueueDrag(){
+  document.querySelectorAll('#list .queue-row[data-id]').forEach(row => {
+    if(row.dataset.status !== 'pending') return;
+    row.draggable = true;
+    row.addEventListener('dragstart', e => { row.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain', row.dataset.id); });
+    row.addEventListener('dragend', () => row.classList.remove('dragging'));
+    row.addEventListener('dragover', e => { e.preventDefault(); row.classList.add('drop-target'); e.dataTransfer.dropEffect='move'; });
+    row.addEventListener('dragleave', () => row.classList.remove('drop-target'));
+    row.addEventListener('drop', async e => {
+      e.preventDefault(); row.classList.remove('drop-target');
+      const from = e.dataTransfer.getData('text/plain');
+      const to = row.dataset.id;
+      if(!from || !to || from === to) return;
+      const rows = pendingRows();
+      const a = rows.findIndex(x => String(x.id) === String(from));
+      const b = rows.findIndex(x => String(x.id) === String(to));
+      if(a < 0 || b < 0) return;
+      const [item] = rows.splice(a,1); rows.splice(b,0,item);
+      if(await saveQueueOrder(rows.map(x => String(x.id)))) await load(false);
+    });
+  });
+}
+
+/* Override only the list renderer; existing data/auth/API functions remain intact. */
+const __originalRenderNext = window.renderNext;
+window.render = function(){
+  const rows = visible();
+  const pendingCount = data.filter(x => x.status === 'pending').length;
+  const playedCount = data.filter(x => x.status === 'played').length;
+  $('pending').textContent = pendingCount;
+  $('played').textContent = playedCount;
+  $('total').textContent = rows.length;
+  if(typeof renderNext === 'function') renderNext();
+
+  if(!rows.length){
+    $('list').innerHTML = '<div class="rounded-xl border border-dashed border-teal-900 p-8 text-center"><div class="text-2xl mb-2">📭</div><p class="font-bold">Tidak ada request</p><p class="text-xs text-gray-500 mt-1">Tidak ada data sesuai filter saat ini.</p></div>';
+    return;
+  }
+
+  $('list').innerHTML = rows.map((r,i) => {
+    const played = r.status === 'played';
+    const badge = played ? '<span class="text-[9px] px-2 py-1 rounded-full bg-teal-950 text-teal-300 border border-teal-900">SUDAH DIPUTAR</span>' : '<span class="text-[9px] px-2 py-1 rounded-full bg-amber-950 text-amber-300 border border-amber-900">MENUNGGU</span>';
+    const action = played ? '↩ Kembalikan' : '✓ Tandai';
+    const arrows = played ? '' : `<button class="queue-action" title="Naikkan" onclick="event.stopPropagation();moveQueue('${esc(r.id)}',-1)">↑</button><button class="queue-action" title="Turunkan" onclick="event.stopPropagation();moveQueue('${esc(r.id)}',1)">↓</button>`;
+    return `<article class="queue-row glass rounded-xl p-3 sm:p-4 border border-teal-900/70" data-id="${esc(r.id)}" data-status="${esc(r.status)}">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div class="flex items-start gap-3 min-w-0 flex-1">
+          ${played ? '<span class="w-5 shrink-0"></span>' : '<span class="queue-drag" title="Tarik untuk mengatur urutan">☰</span>'}
+          <div class="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-lg bg-gray-950 border border-teal-900 flex items-center justify-center text-amber-300 font-extrabold text-xs">#${i+1}</div>
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-2"><h4 class="font-extrabold text-sm truncate">${esc(r.title || '(Tanpa judul)')}</h4>${badge}</div>
+            <p class="text-[10px] text-gray-400 mt-1 truncate">${esc(r.artist || 'Unknown Artist')} • ${esc(r.requester || 'Anonymous')}</p>
+            <p class="text-[9px] text-gray-600 mt-1">${esc(ago(r.timestamp))}</p>
+          </div>
+        </div>
+        <div class="queue-actions shrink-0">
+          ${arrows}
+          <button class="queue-action primary" onclick="event.stopPropagation();queueMark('${esc(r.id)}','${esc(r.status)}')">${action}</button>
+          <button class="queue-action danger" onclick="event.stopPropagation();queueDelete('${esc(r.id)}')">🗑 Hapus</button>
+        </div>
+      </div>
+    </article>`;
+  }).join('');
+  enableQueueDrag();
+};
+
 </script></body></html>

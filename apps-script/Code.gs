@@ -44,9 +44,9 @@ function getRecentRows_(sheet,targetKey){
     if(a.status==='played'&&b.status==='played')return(toDate_(b.playedAt||b.timestamp)||0)-(toDate_(a.playedAt||a.timestamp)||0);
     return(toDate_(a.timestamp)||0)-(toDate_(b.timestamp)||0)
   });
-  return out;
+  return applyQueueOrder_(out);
 }
-function getAllRows_(sheet){var last=sheet.getLastRow();if(last<2)return[];var vals=sheet.getRange(2,1,last-1,9).getValues(),out=[];for(var i=0;i<vals.length;i++)if(vals[i][0])out.push(rowToObject_(vals[i]));out.reverse();return out}
+function getAllRows_(sheet){var last=sheet.getLastRow();if(last<2)return[];var vals=sheet.getRange(2,1,last-1,9).getValues(),out=[];for(var i=0;i<vals.length;i++)if(vals[i][0])out.push(rowToObject_(vals[i]));out.reverse();return applyQueueOrder_(out)}
 function getIds_(sheet){var last=sheet.getLastRow();if(last<2)return[];return sheet.getRange(2,1,last-1,1).getValues().map(function(r){return String(r[0]||'')})}
 function findRowById_(sheet,id){var n=Math.max(1,sheet.getLastRow()-1),hit=sheet.getRange(2,1,n,1).createTextFinder(String(id)).matchEntireCell(true).findNext();return hit?hit.getRow():-1}
 function buildIdRowIndex_(sheet){var ids=getIds_(sheet),index={};for(var i=0;i<ids.length;i++){var id=ids[i];if(id)index[id]=i+2}return index}
@@ -121,7 +121,7 @@ function mutate_(sheet,p){
   }
   if(action==='delete'){
     var did=String(p.id||''),dr=findRowById_(sheet,did);if(dr<0)return{success:false,action:'delete',message:'ID request tidak ditemukan'};
-    sheet.deleteRow(dr);clearCaches_();return{success:true,action:'delete',id:did};
+    sheet.deleteRow(dr);pruneQueueOrder_();clearCaches_();return{success:true,action:'delete',id:did};
   }
   if(action==='deleteBatch'){
     var dels=String(p.ids||'').split(',').map(function(x){return x.trim()}).filter(Boolean),index=buildIdRowIndex_(sheet),rows=[];
@@ -130,13 +130,59 @@ function mutate_(sheet,p){
     var blocks=[];
     for(var i=0;i<rows.length;i++){var r=rows[i],block=blocks[blocks.length-1];if(!block||r!==block.start-1)blocks.push({start:r,count:1});else{block.start=r;block.count++}}
     blocks.forEach(function(b){sheet.deleteRows(b.start,b.count)});
-    clearCaches_();return{success:true,action:'deleteBatch',deleted:rows.length};
+    pruneQueueOrder_();clearCaches_();return{success:true,action:'deleteBatch',deleted:rows.length};
   }
   return{success:false,action:action,message:'Action tidak dikenal: '+action};
 }
 
 function getAnnouncement_(){var raw=PropertiesService.getScriptProperties().getProperty(ANNOUNCEMENT_KEY);if(!raw)return{enabled:false,type:'info',title:'',content:'',mode:'once',updatedAt:''};try{var a=JSON.parse(raw);return{enabled:a.enabled===true,type:String(a.type||'info'),title:String(a.title||''),content:String(a.content||''),mode:String(a.mode||'once'),updatedAt:String(a.updatedAt||'')}}catch(e){return{enabled:false,type:'info',title:'',content:'',mode:'once',updatedAt:''}}}
 function saveAnnouncement_(p){kudaRequireAdmin_(p);var enabled=String(p.enabled||'false')==='true',type=['info','warning','important'].indexOf(String(p.type||'info'))>=0?String(p.type||'info'):'info',mode=String(p.mode||'once')==='always'?'always':'once',title=String(p.title||'').trim().slice(0,120),content=String(p.content||'').trim().slice(0,5000),a={enabled:enabled,type:type,mode:mode,title:title,content:content,updatedAt:new Date().toISOString()};PropertiesService.getScriptProperties().setProperty(ANNOUNCEMENT_KEY,JSON.stringify(a));return{success:true,announcement:a}}
+
+
+
+var QUEUE_ORDER_KEY_='kudajitu_queue_order_v1';
+function getQueueOrder_(){
+  try{
+    var raw=PropertiesService.getScriptProperties().getProperty(QUEUE_ORDER_KEY_);
+    var a=raw?JSON.parse(raw):[];
+    return Array.isArray(a)?a.map(String):[];
+  }catch(e){return[]}
+}
+function setQueueOrder_(ids){
+  var clean=(ids||[]).map(String).filter(Boolean);
+  PropertiesService.getScriptProperties().setProperty(QUEUE_ORDER_KEY_,JSON.stringify(clean));
+  return clean;
+}
+function applyQueueOrder_(rows){
+  var order=getQueueOrder_(),rank={};
+  order.forEach(function(id,i){rank[String(id)]=i});
+  rows.sort(function(a,b){
+    if(a.status==='played'&&b.status!=='played')return 1;
+    if(a.status!=='played'&&b.status==='played')return -1;
+    if(a.status==='pending'&&b.status==='pending'){
+      var ar=Object.prototype.hasOwnProperty.call(rank,String(a.id))?rank[String(a.id)]:999999999;
+      var br=Object.prototype.hasOwnProperty.call(rank,String(b.id))?rank[String(b.id)]:999999999;
+      if(ar!==br)return ar-br;
+      return(toDate_(a.timestamp)||0)-(toDate_(b.timestamp)||0);
+    }
+    return(toDate_(b.playedAt||b.timestamp)||0)-(toDate_(a.playedAt||a.timestamp)||0);
+  });
+  return rows;
+}
+function pruneQueueOrder_(){
+  try{
+    var sheet=getSheet_(),ids={};getIds_(sheet).forEach(function(id){if(id)ids[String(id)]=true});
+    setQueueOrder_(getQueueOrder_().filter(function(id){return ids[String(id)]}));
+  }catch(e){}
+}
+function reorderQueue_(p){
+  kudaRequireAdmin_(p);
+  var ids=String(p.ids||'').split(',').map(function(x){return x.trim()}).filter(Boolean).slice(0,1000);
+  var found=checkIds_(getSheet_(),ids);
+  setQueueOrder_(found);
+  clearCaches_();
+  return{success:true,action:'reorder',count:found.length,ids:found};
+}
 
 function doGet(e){
   var p=e&&e.parameter?e.parameter:{},cb=p.callback||p.prefix||'';
@@ -152,6 +198,7 @@ function doGet(e){
       try{lock.waitLock(5000);return respond_(cb,action==='add'?addViaParams_(sheet,p):addBatchViaParams_(sheet,p))}
       finally{try{lock.releaseLock()}catch(x){}}
     }
+    if(action==='reorder')return respond_(cb,reorderQueue_(p));
     if(action==='updateStatus'||action==='markPlayed'||action==='updateStatuses'||action==='delete'||action==='deleteBatch'){
       var lock2=LockService.getScriptLock();
       try{lock2.waitLock(5000);return respond_(cb,mutate_(sheet,p))}
