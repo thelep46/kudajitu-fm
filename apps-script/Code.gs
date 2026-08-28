@@ -26,21 +26,11 @@ function clearCaches_(){try{var c=CacheService.getScriptCache();c.removeAll(BASE
 function getRecentRows_(sheet,targetKey){
   var last=sheet.getLastRow();
   if(last<2)return[];
-  var end=last,start=-1,done=false;
-  while(end>=2&&!done){
-    var from=Math.max(2,end-REQUEST_SCAN_CHUNK+1);
-    var ts=sheet.getRange(from,6,end-from+1,1).getValues();
-    for(var i=ts.length-1;i>=0;i--){
-      var k=dateKey_(ts[i][0]);
-      if(k===targetKey){start=from+i}
-      else if(start>=0&&k&&k<targetKey){done=true;break}
-    }
-    if(start>=0&&done)break;
-    end=from-1;
+  var vals=sheet.getRange(2,1,last-1,9).getValues(),out=[];
+  for(var i=0;i<vals.length;i++){
+    var row=vals[i];
+    if(row[0]&&dateKey_(row[5])===targetKey)out.push(rowToObject_(row));
   }
-  if(start<0)return[];
-  var all=sheet.getRange(start,1,last-start+1,9).getValues(),out=[];
-  for(var j=0;j<all.length;j++)if(all[j][0]&&dateKey_(all[j][5])===targetKey)out.push(rowToObject_(all[j]));
   out.sort(function(a,b){
     if(a.status==='played'&&b.status==='played')return(toDate_(b.playedAt||b.timestamp)||0)-(toDate_(a.playedAt||a.timestamp)||0);
     return(toDate_(a.timestamp)||0)-(toDate_(b.timestamp)||0)
