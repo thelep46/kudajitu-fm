@@ -5,7 +5,6 @@ var BASE_CACHE_KEYS=['today_base','yesterday_base','all_base'];
 var API_VERSION='kudajitu-v14';
 var ANNOUNCEMENT_KEY='kudajitu_announcement_v1';
 var ANNOUNCEMENT_ADMIN_KEY='290979';
-var REQUEST_SCAN_CHUNK=1000;
 
 function getSheet_(){var s=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NAMA_TAB_ANDA);if(!s)throw new Error('Sheet "'+NAMA_TAB_ANDA+'" tidak ditemukan');return s;}
 function jsonResponse(d){return ContentService.createTextOutput(JSON.stringify(d)).setMimeType(ContentService.MimeType.JSON)}
@@ -51,25 +50,14 @@ var QUEUE_ORDER_CACHE_KEY_='queue_order_base';
 function getRecentRows_(sheet,targetKey){
   var last=sheet.getLastRow();
   if(last<2)return[];
-  var out=[],endRow=last,oldestNeeded=true;
-  // Data is appended chronologically. Scan from the bottom in chunks so
-  // today's/yesterday's requests do not require reading the entire sheet.
-  while(endRow>=2&&oldestNeeded){
-    var startRow=Math.max(2,endRow-REQUEST_SCAN_CHUNK+1);
-    var vals=sheet.getRange(startRow,1,endRow-startRow+1,9).getValues();
-    for(var i=vals.length-1;i>=0;i--){
-      var row=vals[i],stamp=row[5],dk=stamp?dateKey_(stamp):'';
-      if(row[0]&&dk===targetKey)out.push(rowToObject_(row));
-      if(stamp){
-        var d=toDate_(stamp);
-        if(d&&dateKey_(d)<targetKey){oldestNeeded=false;break}
-      }
-    }
-    endRow=startRow-1;
+  var vals=sheet.getRange(2,1,last-1,9).getValues(),out=[];
+  for(var i=0;i<vals.length;i++){
+    var row=vals[i];
+    if(row[0]&&dateKey_(row[5])===targetKey)out.push(rowToObject_(row));
   }
   out.sort(function(a,b){
     if(a.status==='played'&&b.status==='played')return(toDate_(b.playedAt||b.timestamp)||0)-(toDate_(a.playedAt||a.timestamp)||0);
-    return(toDate_(a.timestamp)||0)-(toDate_(b.timestamp)||0)
+    return(toDate_(a.timestamp)||0)-(toDate_(b.timestamp)||0);
   });
   return applyQueueOrder_(out);
 }
@@ -201,8 +189,6 @@ function mutate_(sheet,p){
 function getAnnouncement_(){var raw=PropertiesService.getScriptProperties().getProperty(ANNOUNCEMENT_KEY);if(!raw)return{enabled:false,type:'info',title:'',content:'',mode:'once',updatedAt:''};try{var a=JSON.parse(raw);return{enabled:a.enabled===true,type:String(a.type||'info'),title:String(a.title||''),content:String(a.content||''),mode:String(a.mode||'once'),updatedAt:String(a.updatedAt||'')}}catch(e){return{enabled:false,type:'info',title:'',content:'',mode:'once',updatedAt:''}}}
 function saveAnnouncement_(p){kudaRequireAdmin_(p);var enabled=String(p.enabled||'false')==='true',type=['info','warning','important'].indexOf(String(p.type||'info'))>=0?String(p.type||'info'):'info',mode=String(p.mode||'once')==='always'?'always':'once',title=String(p.title||'').trim().slice(0,120),content=String(p.content||'').trim().slice(0,5000),a={enabled:enabled,type:type,mode:mode,title:title,content:content,updatedAt:new Date().toISOString()};PropertiesService.getScriptProperties().setProperty(ANNOUNCEMENT_KEY,JSON.stringify(a));return{success:true,announcement:a}}
 
-
-
 var QUEUE_ORDER_KEY_='kudajitu_queue_order_v1';
 function getQueueOrder_(){
   var cached=cacheGet_(QUEUE_ORDER_CACHE_KEY_);
@@ -223,66 +209,40 @@ function setQueueOrder_(ids){
 }
 function applyQueueOrder_(rows){
   var order=getQueueOrder_(),rank={};
-  order.forEach(function(id,i){rank[String(id)]=i});
-  rows.sort(function(a,b){
-    if(a.status==='played'&&b.status!=='played')return 1;
-    if(a.status!=='played'&&b.status==='played')return -1;
-    if(a.status==='pending'&&b.status==='pending'){
-      var ar=Object.prototype.hasOwnProperty.call(rank,String(a.id))?rank[String(a.id)]:999999999;
-      var br=Object.prototype.hasOwnProperty.call(rank,String(b.id))?rank[String(b.id)]:999999999;
-      if(ar!==br)return ar-br;
-      return(toDate_(a.timestamp)||0)-(toDate_(b.timestamp)||0);
-    }
-    return(toDate_(b.playedAt||b.timestamp)||0)-(toDate_(a.playedAt||a.timestamp)||0);
+  for(var i=0;i<order.length;i++)rank[String(order[i])]=i;
+  return rows.slice().sort(function(a,b){
+    var ar=rank.hasOwnProperty(String(a.id))?rank[String(a.id)]:999999;
+    var br=rank.hasOwnProperty(String(b.id))?rank[String(b.id)]:999999;
+    if(ar!==br)return ar-br;
+    return 0;
   });
-  return rows;
 }
 function pruneQueueOrder_(){
+  var order=getQueueOrder_(),sheet=getSheet_(),ids=getIds_(sheet),set={};
+  ids.forEach(function(id){if(id)set[String(id)]=true});
+  setQueueOrder_(order.filter(function(id){return set[String(id)]}));
+}
+function getData_(p){
+  var range=['today','yesterday','all'].indexOf(String(p.range||'today'))>=0?String(p.range||'today'):'today',sheet=getSheet_(),base=getBaseRowsCached_(sheet,range),rows=base.rows||[],status=String(p.status||'').trim().toLowerCase();
+  if(status&&status!=='all')rows=rows.filter(function(r){return r.status===status});
+  return{success:true,action:'data',range:range,status:status||'all',cached:base.cached,data:rows,count:rows.length};
+}
+function getHealth_(){return{success:true,action:'health',apiVersion:API_VERSION,time:new Date().toISOString()}}
+function doGet(e){return route_(e||{},false)}
+function doPost(e){return route_(e||{},true)}
+function route_(e,isPost){
+  var p=isPost&&e.postData&&e.postData.contents?JSON.parse(e.postData.contents):(e.parameter||{}),action=String(p.action||'').trim();
   try{
-    var sheet=getSheet_(),ids={};getIds_(sheet).forEach(function(id){if(id)ids[String(id)]=true});
-    setQueueOrder_(getQueueOrder_().filter(function(id){return ids[String(id)]}));
-  }catch(e){}
+    if(action==='data')return respond_(p.callback,getData_(p));
+    if(action==='health')return respond_(p.callback,getHealth_());
+    if(action==='announcement')return respond_(p.callback,{success:true,action:'announcement',announcement:getAnnouncement_()});
+    if(action==='add'){var r=addViaParams_(getSheet_(),p);return respond_(p.callback,r)}
+    if(action==='addBatch'){var rb=addBatchViaParams_(getSheet_(),p);return respond_(p.callback,rb)}
+    if(action==='checkIds'){var ids=String(p.ids||'').split(',').map(function(x){return x.trim()}).filter(Boolean);return respond_(p.callback,{success:true,action:'checkIds',ids:checkIds_(getSheet_(),ids)})}
+    if(['updateStatus','markPlayed','updateStatuses','delete','deleteBatch'].indexOf(action)>=0)return respond_(p.callback,mutate_(getSheet_(),p));
+    if(action==='getQueueOrder'){return respond_(p.callback,{success:true,action:'getQueueOrder',order:getQueueOrder_()})}
+    if(action==='setQueueOrder'){kudaRequireAdmin_(p);return respond_(p.callback,{success:true,action:'setQueueOrder',order:setQueueOrder_(JSON.parse(p.order||'[]'))})}
+    if(action==='saveAnnouncement'){return respond_(p.callback,saveAnnouncement_(p))}
+    return respond_(p.callback,{success:false,message:'Action tidak dikenal: '+action});
+  }catch(err){return respond_(p.callback,{success:false,message:String(err&&err.message||err)})}
 }
-function reorderQueue_(p){
-  kudaRequireAdmin_(p);
-  var ids=String(p.ids||'').split(',').map(function(x){return x.trim()}).filter(Boolean).slice(0,1000);
-  var found=checkIds_(getSheet_(),ids);
-  setQueueOrder_(found);
-  clearCaches_();
-  return{success:true,action:'reorder',count:found.length,ids:found};
-}
-
-function doGet(e){
-  var p=e&&e.parameter?e.parameter:{},cb=p.callback||p.prefix||'';
-  try{
-    var action=String(p.action||'data').trim().toLowerCase();
-    if(action==='health')return respond_(cb,{success:true,action:'health',status:'ok',serverTime:new Date().toISOString(),apiVersion:API_VERSION});
-    if(action==='announcement')return respond_(cb,{success:true,action:'announcement',announcement:getAnnouncement_()});
-    if(action==='saveannouncement')return respond_(cb,saveAnnouncement_(p));
-    if(action==='clearannouncement'){p.enabled='false';return respond_(cb,saveAnnouncement_(p))}
-    var sheet=getSheet_();
-    if(action==='add'||action==='addbatch'){
-      var lock=LockService.getScriptLock();
-      try{lock.waitLock(5000);return respond_(cb,action==='add'?addViaParams_(sheet,p):addBatchViaParams_(sheet,p))}
-      finally{try{lock.releaseLock()}catch(x){}}
-    }
-    if(action==='reorder')return respond_(cb,reorderQueue_(p));
-    if(action==='updateStatus'||action==='markPlayed'||action==='updateStatuses'||action==='delete'||action==='deleteBatch'){
-      var lock2=LockService.getScriptLock();
-      try{lock2.waitLock(5000);return respond_(cb,mutate_(sheet,p))}
-      finally{try{lock2.releaseLock()}catch(x){}}
-    }
-    if(action==='check'){
-      var ids=String(p.ids||'').split(',').map(function(x){return x.trim()}).filter(Boolean).slice(0,50),found=checkIds_(sheet,ids);
-      return respond_(cb,{success:true,action:'check',found:found,missing:ids.filter(function(id){return found.indexOf(id)===-1})});
-    }
-    var range=String(p.range||'today').toLowerCase();if(range!=='today'&&range!=='yesterday'&&range!=='all')range='today';
-    var status=String(p.status||'all').toLowerCase();if(status!=='all'&&status!=='pending'&&status!=='played')status='all';
-    var base=getBaseRowsCached_(sheet,range),rows=base.rows,cacheHit=base.cached,data;
-    data=filterStatus_(rows,status);
-    return respond_(cb,{success:true,action:'data',cached:cacheHit,cacheSeconds:CACHE_SECONDS,range:range,status:status,timezone:TIMEZONE,today:todayKey_(),yesterday:yesterdayKey_(),count:data.length,data:data});
-  }catch(err){return respond_(cb,{success:false,action:String(p.action||'error'),message:String(err),data:[]})}
-}
-function filterStatus_(rows,status){return status==='all'?rows:rows.filter(function(r){return r.status===status})}
-function parsePost_(e){if(e&&e.parameter&&e.parameter.payload)return JSON.parse(e.parameter.payload);if(e&&e.postData&&e.postData.contents)return JSON.parse(e.postData.contents);throw new Error('Data POST kosong')}
-function doPost(e){var lock=LockService.getScriptLock();try{lock.waitLock(5000);var sheet=getSheet_(),data=parsePost_(e),action=String(data.action||'');if(action==='add')return jsonResponse(addViaParams_(sheet,data));if(action==='addBatch')return jsonResponse(addBatchViaParams_(sheet,{items:JSON.stringify(data.items||[]),requester:String(data.requester||'')}));if(action==='updateStatus'||action==='markPlayed'||action==='delete')return jsonResponse(mutate_(sheet,data));if(action==='updateStatuses')return jsonResponse(mutate_(sheet,{action:action,ids:(data.items||[]).map(function(x){return x.id}).join(','),status:'played'}));if(action==='deleteBatch')return jsonResponse(mutate_(sheet,{action:action,ids:(data.ids||[]).join(',')}));return jsonResponse({success:false,action:action,message:'Action tidak dikenal: '+action})}catch(err){return jsonResponse({success:false,action:'error',message:String(err)})}finally{try{lock.releaseLock()}catch(e){}}}
