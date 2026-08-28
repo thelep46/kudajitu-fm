@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '.github/workflows/repair-admin-syntax.yml'
+      - 'admin.html'
   workflow_dispatch:
 
 permissions:
@@ -18,7 +19,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Repair Queue Block script
+      - name: Repair literal escaped newlines in Queue Block script
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -26,18 +27,32 @@ jobs:
           s = p.read_text(encoding='utf-8')
           marker = '/* Queue Block Drag v1 */'
           if marker not in s:
-              raise SystemExit('Queue Block script marker not found')
+              print('Queue Block marker not found; nothing to repair.')
+              raise SystemExit(0)
           head, tail = s.split(marker, 1)
-          tail = tail.replace('\\n', '\n')
-          s2 = head + marker + tail
+          # Only repair literal backslash-n sequences after the Queue Block marker.
+          repaired = tail.replace('\\\\n', '\n')
+          s2 = head + marker + repaired
           if s2 == s:
-              print('Queue Block script already has real newlines.')
+              print('No escaped-newline corruption found.')
           else:
               p.write_text(s2, encoding='utf-8')
-              print('Repaired all literal \\n sequences inside Queue Block script.')
+              print('Repaired Queue Block escaped newlines.')
           PY
 
-      - name: Commit repair
+      - name: Validate admin JavaScript markup
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s = Path('admin.html').read_text(encoding='utf-8')
+          if '\\n/* Queue Block Drag v1 */' in s or '\\n</script>' in s:
+              raise SystemExit('Escaped newline corruption remains in admin.html')
+          if '/* Queue Block Drag v1 */' not in s:
+              raise SystemExit('Queue Block marker missing')
+          print('admin.html validation passed.')
+          PY
+
+      - name: Commit repair if changed
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -45,6 +60,6 @@ jobs:
           if git diff --cached --quiet; then
             echo 'No changes to commit.'
           else
-            git commit -m 'fix: repair queue block script syntax'
+            git commit -m 'fix: repair admin queue block script syntax'
             git push
           fi
