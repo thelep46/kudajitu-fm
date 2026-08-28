@@ -15,5 +15,5 @@ function scheduleRetry(){if(retryTimer)return;retryTimer=setTimeout(function(){r
 window.addEventListener('DOMContentLoaded',function(){try{$('name').value=localStorage.getItem('kudajitu_name')||''}catch(e){}var cached=loadCache();render();loadData(!cached);setInterval(function(){if(document.visibilityState==='visible')loadData(false)},SYNC_MS);window.addEventListener('online',scheduleRetry);window.addEventListener('offline',function(){setSync('offline')})});
 </script>
 <script src="user-dashboard.js"></script>
-  <script src="request-filter.js"></script>
+  <script src="./user-login-mode.js"></script><script src="request-filter.js"></script>
 </body></html>
