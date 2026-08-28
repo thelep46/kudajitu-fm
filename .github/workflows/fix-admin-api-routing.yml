@@ -1,0 +1,44 @@
+name: Fix Admin API Routing
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch-admin:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch admin.html API URL helper
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('admin.html')
+          s = p.read_text(encoding='utf-8')
+          old = "function adminUrl(url){return url+(url.includes('?')?'&':'?')+'adminToken='+encodeURIComponent(token())}"
+          new = "function adminUrl(action){return GAS+'?action='+encodeURIComponent(action)+'&adminToken='+encodeURIComponent(token())}"
+          if old not in s:
+              print('adminUrl already patched or source changed; no update needed')
+          else:
+              p.write_text(s.replace(old,new,1),encoding='utf-8')
+              print('Patched adminUrl to use Apps Script GAS endpoint')
+          PY
+
+      - name: Commit patch if changed
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --quiet -- admin.html; then
+            echo 'No changes to commit.'
+          else
+            git add admin.html
+            git commit -m 'fix: route admin API calls to Apps Script'
+            git push
+          fi
