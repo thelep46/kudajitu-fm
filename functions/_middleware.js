@@ -8,11 +8,11 @@ export async function onRequest(context){
   const text=await response.text();
   let body=text.split(GAS).join('/api/gas');
   if(/\/player(?:-[^/]+)?\.html$/.test(url.pathname)){
-    const injection='<script src="/api-router.js"></script>';
+    const injection='<script src="/api-router.js?v=20260828-1650"></script>';
     body=body.includes('</body>')?body.replace('</body>',injection+'</body>'):body+injection;
   }
   if(url.pathname==='/'||url.pathname.endsWith('.html')){
-    const injection='<script src="/performance.js"></script>';
+    const injection='<script src="/performance.js?v=20260828-1650"></script>';
     body=body.includes('</body>')?body.replace('</body>',injection+'</body>'):body+injection;
   }
   const headers=new Headers(response.headers);
