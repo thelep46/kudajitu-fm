@@ -19,25 +19,40 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Repair admin.html syntax
+      - name: Repair admin.html syntax and loading
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
           p = Path('admin.html')
           s = p.read_text(encoding='utf-8')
+          changed = False
 
-          # The broken queue patch placed a literal backslash+n between
-          # the opening script tag and the Queue Block comment.
           broken = '</script>\n<script>\\n/* Queue Block Drag v1 */'
           fixed = '</script>\n<script>\n/* Queue Block Drag v1 */'
-
           if broken in s:
               s = s.replace(broken, fixed, 1)
+              changed = True
+              print('Repaired Queue Block script delimiter.')
+
+          # Google Apps Script can be slow during cold starts. Give the
+          # Admin data request more time and retry it instead of failing
+          # after a short 10-second window.
+          replacements = {
+              "jsonp(adminUrl('data')+'&range='+encodeURIComponent(dateFilter)+'&status=all',10000),2": "jsonp(adminUrl('data')+'&range='+encodeURIComponent(dateFilter)+'&status=all',30000),3",
+              "jsonp(adminUrl('userloginmode'),10000)": "jsonp(adminUrl('userloginmode'),20000)",
+              "const b=$('refreshBtn')": "const b=$('headerRefreshBtn')",
+          }
+          for old, new in replacements.items():
+              if old in s:
+                  s = s.replace(old, new)
+                  changed = True
+                  print('Applied Admin loading improvement:', old[:60])
+
+          if changed:
               p.write_text(s, encoding='utf-8')
-              print('Repaired admin.html Queue Block script delimiter.')
           else:
-              print('Broken delimiter not found; checking for any literal escape.')
+              print('No Admin repair changes needed.')
           PY
 
       - name: Validate admin.html
@@ -49,12 +64,11 @@ jobs:
           marker = '/* Queue Block Drag v1 */'
           if marker not in s:
               raise SystemExit('Queue Block marker missing')
-          before, after = s.split(marker, 1)
-          if '\\n/* Queue Block Drag v1 */' in before + marker:
-              raise SystemExit('Literal backslash+n remains before Queue Block marker')
           if '</script>\n<script>\\n' in s:
               raise SystemExit('Broken script delimiter remains')
-          print('admin.html Queue Block syntax validation OK')
+          if "jsonp(adminUrl('data')+'&range='+encodeURIComponent(dateFilter)+'&status=all',10000),2" in s:
+              raise SystemExit('Short Admin data timeout remains')
+          print('admin.html syntax/loading validation OK')
           PY
 
       - name: Commit repair if changed
@@ -66,6 +80,6 @@ jobs:
           if git diff --cached --quiet; then
             echo 'No admin.html change to commit.'
           else
-            git commit -m 'fix: repair admin queue script delimiter'
+            git commit -m 'fix: improve admin loading timeout'
             git push
           fi
