@@ -1,9 +1,7 @@
 (function(){
 'use strict';
-/* Performance layer: same-origin JSON API, optimistic request UI, silent background sync. */
+/* Performance layer: fast UI with confirmed server persistence and silent background sync. */
 var K={lastSync:0,syncing:false,minSyncGap:15000,timeout:8000};
-function escP(v){return String(v==null?'':v).replace(/[&<>\"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c]})}
-function encP(v){return encodeURIComponent(String(v==null?'':v))}
 function normalizeP(x){x=x||{};return{id:String(x.id||''),requester:String(x.requester||''),title:String(x.title||''),artist:String(x.artist||''),note:String(x.note||''),timestamp:String(x.timestamp||''),playedAt:String(x.playedAt||''),status:String(x.status||'pending').toLowerCase()==='played'?'played':'pending',votes:Number(x.votes||1)}}
 function api(action,params,timeout){
   var u=new URL('/api/gas',location.origin);u.searchParams.set('action',action||'data');
@@ -14,9 +12,9 @@ function api(action,params,timeout){
     .finally(function(){clearTimeout(timer)});
 }
 function hasLocalData(){try{var c=JSON.parse(localStorage.getItem('kudajitu_user_today_v4')||'null');return !!(c&&Array.isArray(c.data)&&c.data.length)}catch(e){return false}}
-function silentLoad(){
+function silentLoad(force){
   if(K.syncing)return;
-  var now=Date.now();if(now-K.lastSync<K.minSyncGap)return;
+  var now=Date.now();if(!force&&now-K.lastSync<K.minSyncGap)return;
   K.syncing=true;K.lastSync=now;
   var had=hasLocalData();
   if(!had&&typeof setSync==='function')setSync('syncing');
@@ -52,9 +50,17 @@ function addFast(e){
   window.lastSubmit=Date.now();
   optimisticAdd(item,button);
   if(titleEl)titleEl.value='';if(artistEl)artistEl.value='';if(noteEl)noteEl.value='';
-  api('add',{id:item.id,requester:item.requester,title:item.title,artist:item.artist,note:item.note,timestamp:item.timestamp,status:'pending',votes:1},15000)
-    .then(function(j){if(j&&j.success===false)throw new Error(j.message||'Gagal');})
-    .catch(function(err){console.warn('[Kudajitu] request background save failed:',err&&err.message||err);if(typeof toast==='function')toast('Request sedang diproses server. Silakan cek antrean sebentar lagi.','error');silentLoad()});
+  api('add',{id:item.id,requester:item.requester,title:item.title,artist:item.artist,note:item.note,timestamp:item.timestamp,status:'pending',votes:1},30000)
+    .then(function(j){
+      if(j&&j.success===false)throw new Error(j.message||'Gagal');
+      /* The server has confirmed persistence; immediately reconcile with Sheet. */
+      silentLoad(true);
+    })
+    .catch(function(err){
+      console.warn('[Kudajitu] request save failed:',err&&err.message||err);
+      if(typeof toast==='function')toast('Penyimpanan server belum terkonfirmasi. Coba lagi jika belum muncul.','error');
+      silentLoad(true);
+    });
   return false;
 }
 function install(){
@@ -62,12 +68,9 @@ function install(){
   window.addSingle=addFast;
   if(typeof window.addBatch==='function'){
     var oldBatch=window.addBatch;
-    window.addBatch=async function(e){
-      /* Keep the existing batch validator/builder; only make its final refresh silent. */
-      var result=await oldBatch(e);silentLoad();return result;
-    };
+    window.addBatch=async function(e){var result=await oldBatch(e);silentLoad(true);return result;};
   }
-  setTimeout(silentLoad,50);
+  setTimeout(function(){silentLoad(false)},50);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 })();
