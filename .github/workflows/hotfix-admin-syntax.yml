@@ -19,7 +19,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Repair admin.html
+      - name: Repair admin.html syntax
         shell: bash
         run: |
           python - <<'PY'
@@ -29,36 +29,47 @@ jobs:
           marker = '/* Queue Block Drag v1 */'
           if marker not in s:
               raise SystemExit('Queue Block marker not found')
+
           head, tail = s.split(marker, 1)
-          repaired = tail.replace('\\n', '\n')
-          out = head + marker + repaired
+
+          # The broken patch inserted the two characters backslash+n
+          # immediately after the opening script tag. Replace those
+          # literal escape sequences with real line breaks.
+          tail = tail.replace('\\\\n', '\n')
+          tail = tail.replace('\\n', '\n')
+          out = head + marker + tail
+
           if out != s:
               p.write_text(out, encoding='utf-8')
-              print('Admin syntax repaired.')
+              print('Repaired literal \\n sequences in Queue Block script.')
           else:
-              print('Admin syntax already clean.')
+              print('No syntax repair needed.')
           PY
 
-      - name: Validate
+      - name: Validate admin.html
+        shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
           s = Path('admin.html').read_text(encoding='utf-8')
           marker = '/* Queue Block Drag v1 */'
+          if marker not in s:
+              raise SystemExit('Queue Block marker missing')
           tail = s.split(marker, 1)[1]
           if '\\n' in tail:
-              raise SystemExit('Literal \\n remains after repair')
-          print('Validation OK')
+              raise SystemExit('Literal backslash+n remains in Queue Block script')
+          print('admin.html syntax marker validation OK')
           PY
 
-      - name: Commit repair
+      - name: Commit repair if changed
+        shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add admin.html
           if git diff --cached --quiet; then
-            echo 'No admin.html change needed.'
+            echo 'No admin.html change to commit.'
           else
-            git commit -m 'fix: remove admin queue syntax corruption'
+            git commit -m 'fix: repair admin queue script syntax'
             git push
           fi
