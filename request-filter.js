@@ -111,7 +111,7 @@ function makeItems(lines,name){
 }
 function sendChunk(items){
   if(typeof window.jsonp!=='function')return Promise.reject(new Error('API belum siap.'));
-  return window.jsonp((window.GAS||'https://script.google.com/macros/s/AKfycbyUB8drjL1dSJedYjKIKjVc5gzIE3Pe-QS0FF8o1_zU4NkAweGLFquhHLfy1Nt_eITA-Q/exec')+'?action=addBatch&items='+enc(JSON.stringify(items)),25000);
+  return window.jsonp((window.GAS||'/api/gas')+'?action=addBatch&items='+enc(JSON.stringify(items)),25000);
 }
 async function sendUnlimited(items){
   const chunkSize=10;
@@ -126,6 +126,33 @@ async function sendUnlimited(items){
     existing+=Number(result.existing||0);
   }
   return {success:true,added:added,existing:existing,count:items.length};
+}
+function installAuthoritativeQueueSync(){
+  if(typeof window.jsonp!=='function'||typeof window.render!=='function')return false;
+  window.loadData=async function(showError){
+    if(window.__kudaAuthoritativeLoading)return;
+    window.__kudaAuthoritativeLoading=true;
+    try{
+      if(typeof window.setSync==='function')window.setSync('syncing');
+      const url='/api/gas?action=data&range=today&_refresh=1';
+      const j=await window.jsonp(url,15000);
+      if(!j||j.success===false||!Array.isArray(j.data))throw new Error(j&&j.message||'Data server tidak valid.');
+      window.requests=j.data.map(typeof window.normalize==='function'?window.normalize:function(x){return x||{};});
+      if(typeof window.saveCache==='function')window.saveCache();
+      window.render();
+      if(typeof window.setSync==='function')window.setSync('online');
+    }catch(e){
+      console.error('[Kudajitu] authoritative queue sync failed',e);
+      if(typeof window.setSync==='function')window.setSync('offline');
+      if(showError&&typeof window.toast==='function')window.toast('Data antrean belum dapat disinkronkan.','error');
+    }finally{window.__kudaAuthoritativeLoading=false;}
+  };
+  window.loadData(false);
+  if(window.__kudaAuthoritativeTimer)clearInterval(window.__kudaAuthoritativeTimer);
+  window.__kudaAuthoritativeTimer=setInterval(function(){
+    if(document.visibilityState==='visible')window.loadData(false);
+  },5000);
+  return true;
 }
 function styleBatch(){
   return 'display:grid;gap:10px;padding:12px;border:1px solid rgba(17,94,89,.7);border-radius:12px;background:rgba(3,10,12,.55)';
@@ -234,8 +261,8 @@ function installYoutubeSingle(){
   youtubeHooked=true;
 }
 function init(){
-  hookMainFilter();observeSection();installUnlimitedBatch();installYoutubeSingle();
-  setTimeout(function(){hookMainFilter();observeSection();installUnlimitedBatch();installYoutubeSingle();apply();},1200);
+  hookMainFilter();observeSection();installUnlimitedBatch();installYoutubeSingle();installAuthoritativeQueueSync();
+  setTimeout(function(){hookMainFilter();observeSection();installUnlimitedBatch();installYoutubeSingle();installAuthoritativeQueueSync();apply();},1200);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
