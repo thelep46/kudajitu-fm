@@ -2,6 +2,35 @@ const GAS='https://script.google.com/macros/s/AKfycbyUB8drjL1dSJedYjKIKjVc5gzIE3
 const READ_ACTIONS=new Set(['data','announcement','userloginmode','getqueueorder','checkids','youtubemappings']);
 const QUEUE_WRITE_ACTIONS=new Set(['add','addbatch','updatestatus','markplayed','updatestatuses','delete','deletebatch','reorder','setqueueorder']);
 const ALLOWED_ACTIONS=new Set(['data','announcement','health','add','addbatch','check','checkids','updatestatus','markplayed','updatestatuses','delete','deletebatch','reorder','getqueueorder','setqueueorder','youtubemappings','saveyoutubemapping','deleteyoutubemapping','userloginmode','setuserloginmode','users','saveuser','deleteuser','adminresetpassword','saveannouncement','clearannouncement','login','session','logout','adminlogin','adminsession','adminlogout','forgotpassword','changepassword']);
+const CANONICAL_ACTIONS={
+  add:'add',
+  addbatch:'addBatch',
+  check:'check',
+  checkids:'checkIds',
+  updatestatus:'updateStatus',
+  markplayed:'markPlayed',
+  updatestatuses:'updateStatuses',
+  delete:'delete',
+  deletebatch:'deleteBatch',
+  reorder:'setQueueOrder',
+  getqueueorder:'getQueueOrder',
+  setqueueorder:'setQueueOrder',
+  userloginmode:'userloginmode',
+  setuserloginmode:'setuserloginmode',
+  youtubemappings:'youtubemappings',
+  saveyoutubemapping:'saveyoutubemapping',
+  deleteyoutubemapping:'deleteyoutubemapping',
+  adminlogin:'adminlogin',
+  adminsession:'adminsession',
+  adminlogout:'adminlogout',
+  adminresetpassword:'adminresetpassword',
+  saveuser:'saveuser',
+  deleteuser:'deleteuser',
+  saveannouncement:'saveannouncement',
+  clearannouncement:'clearannouncement',
+  forgotpassword:'forgotpassword',
+  changepassword:'changepassword'
+};
 function parseUpstream(text){const raw=String(text||'').trim();try{return JSON.parse(raw)}catch(_){}const m=raw.match(/^[^(]+\((.*)\)\s*;?\s*$/s);if(m)try{return JSON.parse(m[1])}catch(_){}return null}
 function cacheKey(request){const u=new URL(request.url);['callback','prefix','_','_refresh'].forEach(k=>u.searchParams.delete(k));return new Request(u.toString(),{method:'GET'})}
 function jsonp(cb,data,cacheable,cacheState){const safe=String(cb||'').replace(/[^a-zA-Z0-9_.$]/g,'')||'__kudajituCallback';const h={'Content-Type':'application/javascript; charset=utf-8','Cache-Control':cacheable?'public, max-age=0, s-maxage=5, stale-while-revalidate=15':'no-store, no-cache, must-revalidate'};if(cacheState)h['X-Kuda-Cache']=cacheState;return new Response(safe+'('+JSON.stringify(data)+');',{headers:h})}
@@ -14,7 +43,7 @@ async function purgeQueueCache(request){
  await Promise.all(keys.map(key=>cache.delete(key)));
 }
 function normalizeAction(incoming){const action=String(incoming.searchParams.get('action')||'data').trim().toLowerCase();if(action==='reorder')return'setqueueorder';return action}
-function normalizeTargetParams(incoming,action){const params=new URLSearchParams();incoming.searchParams.forEach((v,k)=>{if(!['callback','prefix','_'].includes(k))params.append(k,v)});if(action==='setqueueorder'&&incoming.searchParams.has('ids')&&!incoming.searchParams.has('order')){const ids=String(incoming.searchParams.get('ids')||'').split(',').map(x=>x.trim()).filter(Boolean);params.delete('ids');params.set('order',JSON.stringify(ids));}params.set('action',action);return params}
+function normalizeTargetParams(incoming,action){const params=new URLSearchParams();incoming.searchParams.forEach((v,k)=>{if(!['callback','prefix','_'].includes(k))params.append(k,v)});if(action==='setqueueorder'&&incoming.searchParams.has('ids')&&!incoming.searchParams.has('order')){const ids=String(incoming.searchParams.get('ids')||'').split(',').map(x=>x.trim()).filter(Boolean);params.delete('ids');params.set('order',JSON.stringify(ids));}params.set('action',CANONICAL_ACTIONS[action]||action);return params}
 export async function onRequestGet({request}){
  const started=Date.now(),incoming=new URL(request.url),requestedAction=String(incoming.searchParams.get('action')||'data').trim().toLowerCase(),action=normalizeAction(incoming),cb=incoming.searchParams.get('callback')||incoming.searchParams.get('prefix')||'',isHealth=action==='health';
  if(!ALLOWED_ACTIONS.has(requestedAction))return cb?jsonp(cb,{success:false,message:'Action tidak diizinkan.'},false,'BYPASS'):Response.json({success:false,message:'Action tidak diizinkan.'},{status:400,headers:headers(false,{'X-Kuda-Cache':'BYPASS'})});
