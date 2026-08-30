@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-/* Queue sync helper. Keep the page's original loadData/addSingle because index.html owns the lexical `requests` state. */
+/* Queue sync helper: keep one lightweight polling path and let /api/gas cache absorb repeats. */
 var K={lastSync:0,syncing:false,minSyncGap:5000,timeout:30000,originalLoad:null,originalAdd:null};
 function install(){
   if(location.pathname==='/admin.html')return;
@@ -26,10 +26,10 @@ function install(){
   }
   if(!window.__kudaQueuePoll){
     window.__kudaQueuePoll=setInterval(function(){
-      if(document.visibilityState!=='hidden'&&typeof window.loadData==='function')window.loadData(true);
+      if(document.visibilityState!=='hidden'&&typeof window.loadData==='function')window.loadData(false);
     },5000);
     document.addEventListener('visibilitychange',function(){
-      if(document.visibilityState==='visible'&&typeof window.loadData==='function')window.loadData(true);
+      if(document.visibilityState==='visible'&&typeof window.loadData==='function')window.loadData(false);
     },{passive:true});
   }
 }
