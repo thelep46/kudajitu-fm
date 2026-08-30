@@ -134,7 +134,7 @@ function installAuthoritativeQueueSync(){
     window.__kudaAuthoritativeLoading=true;
     try{
       if(typeof window.setSync==='function')window.setSync('syncing');
-      const url='/api/gas?action=data&range=today&_refresh=1';
+      const url='/api/gas?action=data&range=today';
       const j=await window.jsonp(url,15000);
       if(!j||j.success===false||!Array.isArray(j.data))throw new Error(j&&j.message||'Data server tidak valid.');
       window.requests=j.data.map(typeof window.normalize==='function'?window.normalize:function(x){return x||{};});
