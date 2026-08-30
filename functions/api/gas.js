@@ -6,7 +6,13 @@ function parseUpstream(text){const raw=String(text||'').trim();try{return JSON.p
 function cacheKey(request){const u=new URL(request.url);['callback','prefix','_','_refresh'].forEach(k=>u.searchParams.delete(k));return new Request(u.toString(),{method:'GET'})}
 function jsonp(cb,data){const safe=String(cb||'').replace(/[^a-zA-Z0-9_.$]/g,'')||'__kudajituCallback';return new Response(safe+'('+JSON.stringify(data)+');',{headers:{'Content-Type':'application/javascript; charset=utf-8','Cache-Control':'no-store'}})}
 function headers(cache,extra){return Object.assign({'Cache-Control':cache?'public, max-age=0, s-maxage=5, stale-while-revalidate=15':'no-store, no-cache, must-revalidate','X-Kuda-API':'v5'},extra||{})}
-async function purgeQueueCache(request){const cache=caches.default;const base=new URL(request.url);for(const path of ['/api/gas?action=data&range=today','/api/gas?action=data&range=today&status=pending'])await cache.delete(new Request(new URL(path,base).toString()))}
+async function purgeQueueCache(request){
+ const cache=caches.default,base=new URL(request.url);
+ const ranges=['today','yesterday','all'],statuses=['','pending','played'];
+ const keys=[];
+ for(const range of ranges){for(const status of statuses){let path='/api/gas?action=data&range='+encodeURIComponent(range);if(status)path+='&status='+encodeURIComponent(status);keys.push(new Request(new URL(path,base).toString()));}}
+ await Promise.all(keys.map(key=>cache.delete(key)));
+}
 function normalizeAction(incoming){const action=String(incoming.searchParams.get('action')||'data').trim().toLowerCase();if(action==='reorder')return'setqueueorder';return action}
 function normalizeTargetParams(incoming,action){const params=new URLSearchParams();incoming.searchParams.forEach((v,k)=>{if(!['callback','prefix','_'].includes(k))params.append(k,v)});if(action==='setqueueorder'&&incoming.searchParams.has('ids')&&!incoming.searchParams.has('order')){const ids=String(incoming.searchParams.get('ids')||'').split(',').map(x=>x.trim()).filter(Boolean);params.delete('ids');params.set('order',JSON.stringify(ids));}params.set('action',action);return params}
 export async function onRequestGet({request}){
