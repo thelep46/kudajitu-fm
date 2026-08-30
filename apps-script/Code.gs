@@ -99,7 +99,7 @@ function findRowById_(sheet,id){
 function buildIdRowIndex_(sheet){var ids=getIds_(sheet),index={};for(var i=0;i<ids.length;i++){var id=ids[i];if(id)index[id]=i+2}return index;}
 function checkIds_(sheet,ids){var index=buildIdRowIndex_(sheet),found=[];ids.forEach(function(id){if(index[String(id)])found.push(String(id))});return found;}
 function generateId_(){return'req_'+Date.now()+'_'+Math.random().toString(36).substring(2,8)}
-function extractYouTubeId_(value){var raw=String(value||'').trim();if(!raw)return'';var m=raw.match(/(?:youtube\\.com\\/(?:watch\\?v=|shorts\\/|embed\\/|live\\/)|youtu\\.be\\/)([A-Za-z0-9_-]{11})/i);return m?m[1]:'';}
+function extractYouTubeId_(value){var raw=String(value||'').trim();if(!raw)return'';var m=raw.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i);return m?m[1]:'';}
 function autoMapRequestsYouTube_(items){
   if(typeof kudaYoutubeMapSheet_!=='function'||typeof kudaYoutubeKey_!=='function')return 0;
   var pending=[],seen={};
