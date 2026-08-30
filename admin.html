@@ -53,8 +53,61 @@ async function markAll(){const rows=visible().filter(x=>x.status==='pending');if
 async function clearVisible(){const rows=visible();if(!rows.length||!confirm('Hapus '+rows.length+' request yang sedang tampil?'))return;const ids=rows.map(x=>encodeURIComponent(x.id)).join(',');try{const r=await retry(()=>jsonp(adminUrl('deleteBatch')+'&ids='+ids,15000),2);toast((r.deleted||0)+' request dihapus.');await load(false)}catch(e){toast('Gagal: '+e.message,true)}}
 async function load(force){if(loading)return;loading=true;busy($('headerRefreshBtn'),true,'Memuat...');try{const r=await retry(()=>jsonp(adminUrl('data')+'&range='+encodeURIComponent(dateFilter)+'&status=all',30000),3);data=(Array.isArray(r.data)?r.data:Array.isArray(r.rows)?r.rows:Array.isArray(r.requests)?r.requests:[]).map(norm);$('sourceInfo').textContent='Google Sheet • '+data.length+' data';const valid=new Set(data.map(x=>x.id));[...selected].forEach(id=>{if(!valid.has(id))selected.delete(id)});render()}catch(e){if(e.message==='LOGIN_REQUIRED'){sessionStorage.removeItem(ADMIN_TOKEN_KEY);location.reload()}else toast('Gagal memuat data: '+e.message,true)}finally{loading=false;busy($('headerRefreshBtn'),false)}}
 async function loadUserLoginMode(){try{const r=await jsonp(adminUrl('userloginmode'),20000);applyMode(r.mode||'open')}catch(e){applyMode('open');toast('Mode Login User tidak dapat dibaca. Default: terbuka.',true)}}function applyMode(mode){const required=mode==='required';$('modeRequiredBtn').classList.toggle('active',required);$('modeOpenBtn').classList.toggle('active',!required);$('userLoginModeHint').textContent=required?'User wajib login sebelum request.':'User dapat request tanpa login'}
-async function setUserLoginMode(mode){try{const r=await retry(()=>jsonp(adminUrl('setuserloginmode')+'&mode='+encodeURIComponent(mode),15000),2);if(!r.success)throw Error(r.message||'Gagal mengubah mode');applyMode(r.mode);toast(r.message||'Mode diperbarui.')}catch(e){if(e.message==='LOGIN_REQUIRED'){sessionStorage.removeItem(ADMIN_TOKEN_KEY);location.reload()}else toast('Gagal mengubah mode: '+e.message,true)}}
-(async()=>{if(await verifySession()){show();await Promise.all([load(true),loadUserLoginMode()])}})();
+async function setUserLoginMode(mode){
+  try{
+    const r=await retry(
+      ()=>jsonp(
+        adminUrl('setuserloginmode')+'&mode='+encodeURIComponent(mode),
+        15000
+      ),
+      2
+    );
+
+    if(!r.success)throw Error(r.message||'Gagal mengubah mode');
+
+    applyMode(r.mode);
+
+    // Sinkronkan perubahan mode ke semua tab User yang sedang terbuka.
+    const payload={
+      mode:String(r.mode||mode).toLowerCase()==='required'?'required':'open',
+      ts:Date.now(),
+      source:'admin'
+    };
+
+    try{
+      localStorage.setItem(
+        'kudajitu_login_mode_v1',
+        JSON.stringify(payload)
+      );
+    }catch(e){}
+
+    try{
+      if(typeof BroadcastChannel!=='undefined'){
+        const channel=new BroadcastChannel('kudajitu-login-mode');
+        channel.postMessage(payload);
+        channel.close();
+      }
+    }catch(e){}
+
+    toast(r.message||'Mode diperbarui.');
+  }catch(e){
+    if(e.message==='LOGIN_REQUIRED'){
+      sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+      location.reload();
+    }else{
+      toast('Gagal mengubah mode: '+e.message,true);
+    }
+  }
+}
+(async()=>{
+  if(await verifySession()){
+    show();
+    await Promise.all([
+      load(true),
+      loadUserLoginMode()
+    ]);
+  }
+})();
 </script>
 </body>
 </html>
