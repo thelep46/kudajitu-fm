@@ -12,6 +12,7 @@ function kudaYoutubeCachePut_(map){try{var raw=JSON.stringify(map||{});if(raw.le
 function kudaYoutubeCacheClear_(){try{CacheService.getScriptCache().remove(KUDA_YT_CACHE_KEY_)}catch(e){}}
 function kudaYoutubeReadAll_(){var cached=kudaYoutubeCacheGet_();if(cached!==null)return cached;var s=kudaYoutubeMapSheet_(),last=s.getLastRow(),out={};if(last>=2)s.getRange(2,1,last-1,4).getValues().forEach(function(r){var key=String(r[0]||'').trim(),video=String(r[3]||'').trim();if(key&&video)out[key]=video});kudaYoutubeCachePut_(out);return out}
 function kudaYoutubeMappings_(p){kudaRequireAdmin_(p);return{success:true,mappings:kudaYoutubeReadAll_()}}
+function kudaYoutubeLookup_(p){var title=String(p.title||'').trim(),artist=String(p.artist||'').trim();if(!title)return{success:false,action:'youtubeCheck',message:'Judul lagu wajib diisi.'};var key=kudaYoutubeKey_(title,artist),maps=kudaYoutubeReadAll_(),videoId=String(maps[key]||'').trim();return{success:true,action:'youtubeCheck',found:!!videoId,videoId:videoId,key:key}}
 function kudaSaveYoutubeMapping_(p){
   kudaRequireAdmin_(p);
   var title=String(p.title||'').trim(),artist=String(p.artist||'').trim(),video=String(p.videoId||'').trim(),oldKey=String(p.oldKey||'').trim();
