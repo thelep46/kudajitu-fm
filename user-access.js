@@ -1,4 +1,6 @@
 (function(){'use strict';
+if(window.__KUDAJITU_USER_ACCESS_LOADED)return;
+window.__KUDAJITU_USER_ACCESS_LOADED=true;
 const GAS='/api/gas';
 const TOKEN_KEYS=['kudajitu_member_token_v1','kudajitu_user_token'];
 let loginMode='open',authUser=null;
