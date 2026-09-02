@@ -111,7 +111,7 @@ function makeItems(lines,name){
 }
 function sendChunk(items){
   if(typeof window.jsonp!=='function')return Promise.reject(new Error('API belum siap.'));
-  return window.jsonp((window.GAS||'/api/gas')+'?action=addBatch&items='+enc(JSON.stringify(items)),25000);
+  return window.jsonp((window.GAS||'/api/gas')+'?action=addBatch&items='+enc(JSON.stringify(items)),15000);
 }
 async function sendUnlimited(items){
   const chunkSize=10;
@@ -119,8 +119,8 @@ async function sendUnlimited(items){
   for(let i=0;i<items.length;i+=chunkSize){
     const chunk=items.slice(i,i+chunkSize);
     let result;
-    if(typeof window.withRetry==='function')result=await window.withRetry(function(){return sendChunk(chunk);},3);
-    else result=await sendChunk(chunk);
+    // A timed-out write may already have reached Apps Script; IDs make a later user retry safe.
+    result=await sendChunk(chunk);
     if(!result||result.success===false)throw new Error(result&&result.message||'Batch gagal disimpan.');
     added+=Number(result.added||0);
     existing+=Number(result.existing||0);
@@ -135,7 +135,7 @@ function installAuthoritativeQueueSync(){
     try{
       if(typeof window.setSync==='function')window.setSync('syncing');
       const url='/api/gas?action=data&range=today';
-      const j=await window.jsonp(url,15000);
+      const j=await window.jsonp(url,12000);
       if(!j||j.success===false||!Array.isArray(j.data))throw new Error(j&&j.message||'Data server tidak valid.');
       window.requests=j.data.map(typeof window.normalize==='function'?window.normalize:function(x){return x||{};});
       if(typeof window.saveCache==='function')window.saveCache();
@@ -151,7 +151,7 @@ function installAuthoritativeQueueSync(){
   if(window.__kudaAuthoritativeTimer)clearInterval(window.__kudaAuthoritativeTimer);
   window.__kudaAuthoritativeTimer=setInterval(function(){
     if(document.visibilityState==='visible')window.loadData(false);
-  },5000);
+  },60000);
   return true;
 }
 function styleBatch(){

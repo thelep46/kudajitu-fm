@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 /* Queue sync helper: keep one lightweight polling path and let /api/gas cache absorb repeats. */
-var K={lastSync:0,syncing:false,minSyncGap:5000,timeout:30000,originalLoad:null,originalAdd:null,originalJsonp:null,forceFresh:false};
+var K={lastSync:0,syncing:false,minSyncGap:45000,timeout:12000,originalLoad:null,originalAdd:null,originalJsonp:null,forceFresh:false};
 function install(){
   if(location.pathname==='/admin.html')return;
   if(!K.originalLoad&&typeof window.loadData==='function')K.originalLoad=window.loadData;
@@ -44,7 +44,7 @@ function install(){
   if(!window.__kudaQueuePoll){
     window.__kudaQueuePoll=setInterval(function(){
       if(document.visibilityState!=='hidden'&&typeof window.loadData==='function')window.loadData(false);
-    },5000);
+    },60000);
     document.addEventListener('visibilitychange',function(){
       if(document.visibilityState==='visible'&&typeof window.loadData==='function')window.loadData(false);
     },{passive:true});
