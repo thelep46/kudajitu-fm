@@ -1,6 +1,7 @@
 var NAMA_TAB_ANDA='req lagu';
 var TIMEZONE='Asia/Jakarta';
-var CACHE_SECONDS=15;
+var CACHE_SECONDS=30;
+var RECENT_SCAN_BLOCK_ROWS_=250;
 var BASE_CACHE_KEYS=['today_base','yesterday_base','all_base'];
 var API_VERSION='kudajitu-v14';
 var ANNOUNCEMENT_KEY='kudajitu_announcement_v1';
@@ -55,11 +56,22 @@ var QUEUE_ORDER_CACHE_KEY_='queue_order_base';
 function getRecentRows_(sheet,targetKey){
   var last=sheet.getLastRow();
   if(last<2)return[];
-  var vals=sheet.getRange(2,1,last-1,9).getValues(),out=[];
-  for(var i=0;i<vals.length;i++){
-    var row=vals[i];
-    if(row[0]&&dateKey_(row[5])===targetKey)out.push(rowToObject_(row));
+  // Requests are appended chronologically. Scan only timestamp cells from the tail,
+  // then read the nine-column payload once for the matching date range.
+  var first=0,lastMatch=0,seenTarget=false,end=last;
+  while(end>=2){
+    var start=Math.max(2,end-RECENT_SCAN_BLOCK_ROWS_+1),dates=sheet.getRange(start,6,end-start+1,1).getValues();
+    for(var i=dates.length-1;i>=0;i--){
+      var key=dateKey_(dates[i][0]),row=start+i;
+      if(key===targetKey){seenTarget=true;first=row; if(!lastMatch)lastMatch=row;}
+      else if(seenTarget&&key&&key<targetKey){end=1;break;}
+    }
+    if(end===1)break;
+    end=start-1;
   }
+  if(!first||!lastMatch)return[];
+  var vals=sheet.getRange(first,1,lastMatch-first+1,9).getValues(),out=[];
+  for(var j=0;j<vals.length;j++)if(vals[j][0]&&dateKey_(vals[j][5])===targetKey)out.push(rowToObject_(vals[j]));
   out.sort(function(a,b){
     if(a.status==='played'&&b.status==='played')return(toDate_(b.playedAt||b.timestamp)||0)-(toDate_(a.playedAt||a.timestamp)||0);
     return(toDate_(a.timestamp)||0)-(toDate_(b.timestamp)||0);
