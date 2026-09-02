@@ -1,0 +1,57 @@
+name: fix player mark timeout
+on:
+  push:
+    branches: [main]
+
+# Temporary one-shot repair workflow.
+# It removes itself after applying the cache/auth optimization.
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Apps Script mutation/auth path
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('apps-script/Code.gs')
+          s = p.read_text()
+          old = "function clearCaches_(){\n  try{\n    var c=CacheService.getScriptCache();\n    c.removeAll(BASE_CACHE_KEYS.concat([ID_CACHE_KEY_,QUEUE_ORDER_CACHE_KEY_,USER_LOGIN_MODE_CACHE_KEY_]).map(cacheKey_));\n  }catch(e){}\n}"
+          new = "function clearCaches_(keepIdCache){\n  try{\n    var c=CacheService.getScriptCache(),keys=BASE_CACHE_KEYS.concat([QUEUE_ORDER_CACHE_KEY_,USER_LOGIN_MODE_CACHE_KEY_]);\n    if(!keepIdCache)keys.push(ID_CACHE_KEY_);\n    c.removeAll(keys.map(cacheKey_));\n  }catch(e){}\n}"
+          if old not in s: raise SystemExit('clearCaches_ pattern not found')
+          s = s.replace(old, new, 1)
+          old2 = "sheet.getRange(row,7,1,3).setValues([[st,sheet.getRange(row,8).getValue(),playedAt]]);clearCaches_();return{success:true,action:'updateStatus'"
+          new2 = "sheet.getRange(row,7,1,3).setValues([[st,sheet.getRange(row,8).getValue(),playedAt]]);clearCaches_(true);return{success:true,action:'updateStatus'"
+          if old2 not in s: raise SystemExit('updateStatus pattern not found')
+          s = s.replace(old2, new2, 1)
+          old3 = "if(changed)sheet.getRange(2,7,last-1,3).setValues(values);clearCaches_();return{success:true,action:'updateStatuses'"
+          new3 = "if(changed)sheet.getRange(2,7,last-1,3).setValues(values);clearCaches_(true);return{success:true,action:'updateStatuses'"
+          if old3 not in s: raise SystemExit('updateStatuses pattern not found')
+          s = s.replace(old3, new3, 1)
+          p.write_text(s)
+          p = Path('apps-script/AuthRouter.gs')
+          s = p.read_text()
+          old = "function kudaAdminToken_(token){if(!token)return false;var t=String(token),now=Date.now();try{var raw=PropertiesService.getScriptProperties().getProperty(kudaAdminPropKey_(t));if(raw){var x=JSON.parse(raw);if(x&&Number(x.expiresAt||0)>now){try{CacheService.getScriptCache().put(kudaAdminTokenKey_(t),raw,KUDA_ADMIN_TOKEN_CACHE_SECONDS);}catch(e){}return true;}try{PropertiesService.getScriptProperties().deleteProperty(kudaAdminPropKey_(t));}catch(e){}}}catch(e){}try{return!!CacheService.getScriptCache().get(kudaAdminTokenKey_(t));}catch(e){return false;}}"
+          new = "function kudaAdminToken_(token){if(!token)return false;var t=String(token),now=Date.now();try{if(CacheService.getScriptCache().get(kudaAdminTokenKey_(t)))return true;}catch(e){}try{var raw=PropertiesService.getScriptProperties().getProperty(kudaAdminPropKey_(t));if(raw){var x=JSON.parse(raw);if(x&&Number(x.expiresAt||0)>now){try{CacheService.getScriptCache().put(kudaAdminTokenKey_(t),raw,KUDA_ADMIN_TOKEN_CACHE_SECONDS);}catch(e){}return true;}try{PropertiesService.getScriptProperties().deleteProperty(kudaAdminPropKey_(t));}catch(e){}}}catch(e){}return false;}"
+          if old not in s: raise SystemExit('kudaAdminToken_ pattern not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Validate patches
+        run: |
+          grep -n "function clearCaches_(keepIdCache)" apps-script/Code.gs
+          grep -n "clearCaches_(true)" apps-script/Code.gs
+          grep -n "function kudaAdminToken_(token)" apps-script/AuthRouter.gs
+      - name: Commit fixes and remove workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps-script/Code.gs apps-script/AuthRouter.gs
+          if git diff --cached --quiet; then echo "No changes needed"; else git commit -m "fix player mark status timeout"; git push; fi
+          git rm .github/workflows/fix-player-mark-timeout.yml
+          git commit -m "remove temporary player timeout workflow"
+          git push
