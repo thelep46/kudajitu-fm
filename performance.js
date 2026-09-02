@@ -41,14 +41,7 @@ function install(){
     };
     window.__kudaLoadWrapped=true;
   }
-  if(!window.__kudaQueuePoll){
-    window.__kudaQueuePoll=setInterval(function(){
-      if(document.visibilityState!=='hidden'&&typeof window.loadData==='function')window.loadData(false);
-    },60000);
-    document.addEventListener('visibilitychange',function(){
-      if(document.visibilityState==='visible'&&typeof window.loadData==='function')window.loadData(false);
-    },{passive:true});
-  }
+
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 setTimeout(install,0);
