@@ -1,18 +1,22 @@
 (function(){
 'use strict';
-/* Supabase transition bridge: User reads/realtime come from Supabase; GAS remains the write fallback until fully migrated. */
+/* Supabase User bridge: reads/realtime and request writes use Supabase; GAS stays as a safe fallback. */
 const SUPABASE_URL='https://jdqcvfqysmjreibcaduk.supabase.co';
 const SUPABASE_KEY='sb_publishable_QDcyGfH-3dBNmUYE9pKIkg_uFmRsmOa';
 const LIMIT=1000;
-let client=null,channel=null,booted=false;
+const MAX_ACTIVE_PER_NAME=3;
+const SUBMIT_GUARD_MS=700;
+let client=null,channel=null,booted=false,directBound=false,lastSubmitAt=0;
 window.KUDAJITU_SUPABASE_MODE=false;
-function mapRow(r){r=r||{};return{id:String(r.id||''),legacyId:String(r.legacy_id||''),requester:String(r.requester||''),title:String(r.title||''),artist:String(r.artist||''),note:String(r.note||''),timestamp:String(r.timestamp||''),playedAt:String(r.played_at||''),status:String(r.status||'pending').toLowerCase()==='played'?'played':'pending'};}
+
+function $(id){return document.getElementById(id)}
+function mapRow(r){r=r||{};return{id:String(r.id||''),legacyId:String(r.legacy_id||''),requester:String(r.requester||''),title:String(r.title||''),artist:String(r.artist||''),note:String(r.note||''),timestamp:String(r.timestamp||''),playedAt:String(r.played_at||''),status:String(r.status||'pending').toLowerCase()==='played'?'played':'pending'}}
 function apply(rows){
-  const list=(rows||[]).map(mapRow).sort(function(a,b){return new Date(a.timestamp)-new Date(b.timestamp)});
+  const list=(rows||[]).map(mapRow).filter(function(x){return x.id}).sort(function(a,b){return new Date(a.timestamp)-new Date(b.timestamp)});
   window.requests=list;
   const p=list.filter(function(x){return x.status==='pending'}).length;
   const d=list.filter(function(x){return x.status==='played'}).length;
-  const set=function(id,v){const e=document.getElementById(id);if(e)e.textContent=String(v)};
+  const set=function(id,v){const e=$(id);if(e)e.textContent=String(v)};
   set('statPending',p);set('statPlayed',d);set('statTotal',list.length);
   if(typeof window.saveCache==='function')window.saveCache();
   if(typeof window.render==='function')window.render();
@@ -29,9 +33,9 @@ function upsertLocal(row){
   const next=mapRow(row),list=Array.isArray(window.requests)?window.requests.slice():[];
   const i=list.findIndex(function(x){return x.id===next.id||((next.legacyId)&&x.legacyId===next.legacyId)});
   if(i>=0)list[i]=next;else list.push(next);
-  apply(list.sort(function(a,b){return new Date(a.timestamp)-new Date(b.timestamp)}));
+  apply(list);
 }
-function removeLocal(row){if(!row||!row.id)return;apply((window.requests||[]).filter(function(x){return x.id!==String(row.id)}));}
+function removeLocal(row){if(!row||!row.id)return;apply((window.requests||[]).filter(function(x){return x.id!==String(row.id)}))}
 function subscribe(){
   if(!client||channel)return;
   channel=client.channel('kudajitu-requests-realtime')
@@ -43,29 +47,98 @@ function subscribe(){
       else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){if(typeof window.setSync==='function')window.setSync('offline')}
     });
 }
-function mirrorAdd(name,batch){
-  if(typeof window[name]!=='function')return;
-  const original=window[name];
-  if(original.__kudaSupabaseWrapped)return;
-  const wrapped=function(){
-    const before=Array.isArray(window.requests)?window.requests.map(function(x){return x&&x.id}):[];
-    return Promise.resolve(original.apply(this,arguments)).then(async function(result){
-      try{
-        const current=Array.isArray(window.requests)?window.requests:[];
-        let fresh=batch?current.filter(function(x){return x&&x.id&&!before.includes(x.id)}):[];
-        if(!batch){const one=current.find(function(x){return x&&x.id&&!before.includes(x.id)});if(one)fresh=[one];}
-        if(fresh.length){
-          const rows=fresh.map(function(p){return{legacy_id:String(p.id||''),requester:String(p.requester||''),title:String(p.title||''),artist:String(p.artist||''),note:String(p.note||''),status:'pending',timestamp:p.timestamp||new Date().toISOString(),played_at:null,created_by:null}}).filter(function(p){return p.legacy_id&&p.requester&&p.title&&p.artist});
-          if(rows.length){const r=await client.from('requests').upsert(rows,{onConflict:'legacy_id'});if(r.error)throw r.error;}
-        }
-      }catch(e){console.warn('[Kudajitu] Supabase mirror request failed:',e&&e.message||e)}
-      return result;
-    });
-  };
-  wrapped.__kudaSupabaseWrapped=true;
-  window[name]=wrapped;
+function showToast(msg,type){if(typeof window.toast==='function')window.toast(msg,type||'success');else console.log('[Kudajitu]',msg)}
+function setBusy(id,on,label){const b=$(id);if(!b)return; if(typeof window.busy==='function'){window.busy(b,on,label||'Mengirim...');return} if(on){b.disabled=true;b.dataset.sbOld=b.innerHTML;b.textContent=label||'Mengirim...'}else{b.disabled=false;b.innerHTML=b.dataset.sbOld||b.innerHTML}}
+function activeCount(name){
+  const n=String(name||'').trim().toLowerCase();
+  return (Array.isArray(window.requests)?window.requests:[]).filter(function(r){return String(r&&r.requester||'').trim().toLowerCase()===n&&String(r&&r.status||'').toLowerCase()!=='played'}).length;
 }
-function bindMutations(){mirrorAdd('addSingle',false);mirrorAdd('addBatch',true);}
+function parseBatch(raw){
+  return String(raw||'').split(/\r?\n/).map(function(s){return s.trim()}).filter(Boolean).map(function(line){
+    const m=line.match(/^(.+?)\s+-\s+(.+)$/);
+    return m?{title:m[1].trim(),artist:m[2].trim()}:null;
+  }).filter(Boolean).filter(function(r){return r.title&&r.artist});
+}
+function validateCommon(name){
+  const requester=String(name||'').trim();
+  if(!requester)return{ok:false,message:'Nama Kamu wajib diisi.'};
+  if(requester.length>50)return{ok:false,message:'Nama maksimal 50 karakter.'};
+  if(activeCount(requester)>=MAX_ACTIVE_PER_NAME)return{ok:false,message:'Maksimal 3 lagu aktif per nama.'};
+  if(Date.now()-lastSubmitAt<SUBMIT_GUARD_MS)return{ok:false,message:'Tunggu sebentar sebelum mengirim lagi.'};
+  return{ok:true,name:requester};
+}
+async function insertRows(rows){
+  const {data,error}=await client.from('requests').insert(rows).select('id,legacy_id,requester,title,artist,note,status,timestamp,played_at');
+  if(error)throw error;
+  (data||[]).forEach(upsertLocal);
+  return data||[];
+}
+async function directSingle(event){
+  if(event){event.preventDefault();event.stopImmediatePropagation()}
+  const name=$('name')&&$('name').value.trim();
+  const title=$('title')&&$('title').value.trim();
+  const artist=$('artist')&&$('artist').value.trim();
+  const note=$('note')&&$('note').value.trim();
+  const v=validateCommon(name);
+  if(!v.ok){showToast(v.message,'error');return}
+  if(!title||!artist){showToast('Judul dan Penyanyi wajib diisi.','error');return}
+  if(title.length>100||artist.length>80||note.length>200){showToast('Data request melebihi batas karakter.','error');return}
+  if(!note){showToast('Link YouTube wajib diisi atau mapping harus ditemukan terlebih dahulu.','error');return}
+  setBusy('sendBtn',true,'Mengirim...');
+  try{
+    lastSubmitAt=Date.now();
+    await insertRows([{requester:v.name,title:title,artist:artist,note:note,status:'pending',created_by:null}]);
+    $('title').value='';$('artist').value='';$('note').value='';
+    const st=$('youtubeMapState');if(st)st.textContent='Isi Judul dan Penyanyi untuk mengecek mapping otomatis.';
+    showToast('Request berhasil dikirim.');
+  }catch(e){
+    console.warn('[Kudajitu] Direct Supabase submit failed; using GAS fallback.',e&&e.message||e);
+    showToast('Supabase gagal, mencoba jalur cadangan...','error');
+    try{
+      if(typeof window.addSingleOriginal==='function')return window.addSingleOriginal(event);
+      if(typeof window.addSingleFallback==='function')return window.addSingleFallback(event);
+    }catch(f){console.warn('[Kudajitu] GAS fallback failed:',f)}
+  }finally{setBusy('sendBtn',false)}
+}
+async function directBatch(event){
+  if(event){event.preventDefault();event.stopImmediatePropagation()}
+  const name=$('name')&&$('name').value.trim();
+  const raw=$('batch')&&$('batch').value||'';
+  const v=validateCommon(name);
+  if(!v.ok){showToast(v.message,'error');return}
+  const rows=parseBatch(raw);
+  if(!rows.length){showToast('Isi minimal 1 lagu dengan format Judul - Penyanyi.','error');return}
+  if(rows.length>MAX_ACTIVE_PER_NAME||activeCount(v.name)+rows.length>MAX_ACTIVE_PER_NAME){showToast('Maksimal 3 lagu aktif per nama.','error');return}
+  if(rows.some(function(r){return r.title.length>100||r.artist.length>80})){showToast('Ada judul atau penyanyi yang melebihi batas karakter.','error');return}
+  setBusy('batchBtn',true,'Mengirim...');
+  try{
+    lastSubmitAt=Date.now();
+    await insertRows(rows.map(function(r){return{requester:v.name,title:r.title,artist:r.artist,note:'',status:'pending',created_by:null}}));
+    $('batch').value='';
+    showToast(rows.length===1?'Request berhasil dikirim.':rows.length+' request berhasil dikirim.');
+  }catch(e){
+    console.warn('[Kudajitu] Direct Supabase batch submit failed; using GAS fallback.',e&&e.message||e);
+    showToast('Supabase gagal, mencoba jalur cadangan...','error');
+    try{
+      if(typeof window.addBatchOriginal==='function')return window.addBatchOriginal(event);
+      if(typeof window.addBatchFallback==='function')return window.addBatchFallback(event);
+    }catch(f){console.warn('[Kudajitu] GAS batch fallback failed:',f)}
+  }finally{setBusy('batchBtn',false)}
+}
+function bindDirectSubmit(){
+  if(directBound)return;
+  const sf=$('singleForm'),bf=$('batchForm');
+  if(!sf||!bf)return false;
+  /* Capture original GAS handlers before blocking event propagation. */
+  const oldSingle=window.addSingle;
+  const oldBatch=window.addBatch;
+  if(typeof oldSingle==='function'&&!window.addSingleOriginal)window.addSingleOriginal=oldSingle;
+  if(typeof oldBatch==='function'&&!window.addBatchOriginal)window.addBatchOriginal=oldBatch;
+  sf.addEventListener('submit',function(e){if(window.KUDAJITU_SUPABASE_MODE)directSingle(e)},true);
+  bf.addEventListener('submit',function(e){if(window.KUDAJITU_SUPABASE_MODE)directBatch(e)},true);
+  directBound=true;
+  return true;
+}
 async function boot(){
   if(booted||!window.supabase||typeof window.supabase.createClient!=='function')return;
   booted=true;
@@ -73,8 +146,8 @@ async function boot(){
   try{
     await load();
     subscribe();
-    bindMutations();
     window.KUDAJITU_SUPABASE_MODE=true;
+    bindDirectSubmit();
     if(window.KUDAJITURealtimeQueue&&typeof window.KUDAJITURealtimeQueue.stop==='function')window.KUDAJITURealtimeQueue.stop();
   }catch(e){
     console.warn('[Kudajitu] Supabase bridge:',e&&e.message||e);
