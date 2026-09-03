@@ -1,8 +1,9 @@
 (function(){
 'use strict';
+/* Supabase transition bridge: User reads/realtime come from Supabase; GAS remains the write fallback until fully migrated. */
 const SUPABASE_URL='https://jdqcvfqysmjreibcaduk.supabase.co';
 const SUPABASE_KEY='sb_publishable_QDcyGfH-3dBNmUYE9pKIkg_uFmRsmOa';
-const LIMIT=200;
+const LIMIT=1000;
 let client=null,channel=null,booted=false;
 window.KUDAJITU_SUPABASE_MODE=false;
 function mapRow(r){r=r||{};return{id:String(r.id||''),legacyId:String(r.legacy_id||''),requester:String(r.requester||''),title:String(r.title||''),artist:String(r.artist||''),note:String(r.note||''),timestamp:String(r.timestamp||''),playedAt:String(r.played_at||''),status:String(r.status||'pending').toLowerCase()==='played'?'played':'pending'};}
@@ -74,6 +75,7 @@ async function boot(){
     subscribe();
     bindMutations();
     window.KUDAJITU_SUPABASE_MODE=true;
+    if(window.KUDAJITURealtimeQueue&&typeof window.KUDAJITURealtimeQueue.stop==='function')window.KUDAJITURealtimeQueue.stop();
   }catch(e){
     console.warn('[Kudajitu] Supabase bridge:',e&&e.message||e);
     window.KUDAJITU_SUPABASE_MODE=false;
