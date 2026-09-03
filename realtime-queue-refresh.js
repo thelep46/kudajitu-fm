@@ -27,7 +27,7 @@ function install(){
   const batch=document.getElementById('batchForm');
   if(!single&&!batch)return false;
   [single,batch].filter(Boolean).forEach(function(form){
-    form.addEventListener('submit',function(){setTimeout(schedule,0),{once:false};});
+    form.addEventListener('submit',function(){schedule();});
   });
   installed=true;
   return true;
