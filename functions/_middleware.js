@@ -12,17 +12,15 @@ export async function onRequest(context){
     body=body.replace(/https:\/\/script\.google\.com\/macros\/s\/[^'\"`\s]+/g,'/api/gas');
   }
   if(isHome){
-    /* The Supabase client is the new user queue source. Keep legacy GAS bridge loaded only as a guarded fallback. */
     const supabaseTag='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>';
-    const bridgeTag='<script src="/supabase-user-bridge.js?v=20260903-1"></script>';
+    const bridgeTag='<script src="/supabase-user-bridge.js?v=20260903-2"></script>';
     body=body.replace(/<script[^>]+src=[\"']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^\"']*[\"'][^>]*><\/script>/gi,'');
     body=body.includes('</head>')?body.replace('</head>',supabaseTag+'</head>'):body;
     body=body.replace(/<script[^>]+src=[\"'](?:\.\/)?supabase-user-bridge\.js(?:\?[^\"']*)?[\"'][^>]*><\/script>/gi,'');
     body=body.includes('</body>')?body.replace('</body>',bridgeTag+'</body>'):body+bridgeTag;
-    /* Prevent the old direct GAS bootstrap from racing the Supabase bridge. */
     body=body.replace(/loadCache\(\);loadData\(true\);/g,'loadCache();');
     body=body.replace(/loadCache\(\);\s*loadData\(true\);/g,'loadCache();');
-    body=body.replace(/src=[\"'](?:\.\/)?realtime-queue-refresh\.js(?:\?[^\"']*)?[\"']/g,'src="/realtime-queue-refresh.js?v=20260903-10"');
+    body=body.replace(/src=[\"'](?:\.\/)?realtime-queue-refresh\.js(?:\?[^\"']*)?[\"']/g,'src="/realtime-queue-refresh.js?v=20260903-11"');
     body=body.replace(/src=[\"'](?:\.\/)?user-login-mode\.js(?:\?[^\"']*)?[\"']/g,'src="/user-login-mode.js?v=20260903-5"');
     body=body.replace(/src=[\"'](?:\.\/)?youtube-request-mapping\.js(?:\?[^\"']*)?[\"']/g,'src="/youtube-request-mapping.js?v=20260903-5"');
   }
