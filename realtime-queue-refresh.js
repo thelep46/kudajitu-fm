@@ -1,5 +1,9 @@
 (function(){'use strict';
-/* Single authoritative User queue synchronizer. Normal reads use Cloudflare cache; writes invalidate it. */
+/* Legacy GAS synchronizer. Disabled when the Supabase user bridge is active. */
+if(window.KUDAJITU_SUPABASE_MODE){
+  window.KUDAJITURealtimeQueue={refresh:function(){return Promise.resolve(false)},refreshFresh:function(){return Promise.resolve(false)},refreshNowPlaying:function(){return false}};
+  return;
+}
 let installed=false,installing=false,lastNowId='',nowTimer=0,queueTimer=0,queueInFlight=null,backoffUntil=0;
 const POLL_MS=3000,ERROR_BACKOFF_MS=5000;
 function applyQueue(d){
@@ -18,7 +22,7 @@ function refreshQueue(forceFresh){
   if(!forceFresh&&Date.now()<backoffUntil)return Promise.resolve(false);
   const url='/api/gas?action=data&range=today&compact=1'+(forceFresh?'&_refresh=1':'');
   queueInFlight=fetch(url,{method:'GET',cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json'}})
-    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
     .then(applyQueue)
     .catch(function(e){backoffUntil=Date.now()+ERROR_BACKOFF_MS;throw e})
     .finally(function(){queueInFlight=null});
