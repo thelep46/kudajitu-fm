@@ -1,5 +1,5 @@
 (function(){'use strict';
-/* Single authoritative User queue synchronizer. Normal reads use Cloudflare cache; mutations invalidate it. */
+/* Single authoritative User queue synchronizer. Normal reads use Cloudflare cache; writes invalidate it. */
 let installed=false,installing=false,lastNowId='',nowTimer=0,queueTimer=0,queueInFlight=null,backoffUntil=0;
 const POLL_MS=3000,ERROR_BACKOFF_MS=5000;
 function applyQueue(d){
@@ -39,14 +39,14 @@ function poll(){if(document.visibilityState!=='visible')return;refreshQueue(fals
 function startQueuePolling(){if(queueTimer)clearInterval(queueTimer);poll();queueTimer=setInterval(poll,POLL_MS)}
 function install(){
   if(installed||installing)return installed;installing=true;
-  const wrap=function(name){if(typeof window[name]!=='function')return false;const fn=window[name];if(fn.__kudaRealtimeWrapped)return true;const wrapped=function(){let result;try{result=fn.apply(this,arguments)}catch(e){throw e}return Promise.resolve(result).then(function(value){if(value!==false)return refreshQueue(true).catch(function(e){console.warn('[Kudajitu] post-submit fresh sync failed:',e&&e.message||e)}).then(function(){return value});return value})};wrapped.__kudaRealtimeWrapped=true;window[name]=wrapped;return true};
+  const wrap=function(name){if(typeof window[name]!=='function')return false;const fn=window[name];if(fn.__kudaRealtimeWrapped)return true;const wrapped=function(){let result;try{result=fn.apply(this,arguments)}catch(e){throw e}return Promise.resolve(result).then(function(value){if(value!==false)return refreshQueue(false).catch(function(e){console.warn('[Kudajitu] post-submit cache sync failed:',e&&e.message||e)}).then(function(){return value});return value})};wrapped.__kudaRealtimeWrapped=true;window[name]=wrapped;return true};
   installed=wrap('addSingle')||wrap('addBatch');installing=false;return installed;
 }
 function boot(){
   install();
   startNowPlaying();
   poll();
-  startQueuePolling();
+  queueTimer=setInterval(poll,POLL_MS);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 window.KUDAJITURealtimeQueue={refresh:function(){return refreshQueue(false)},refreshFresh:function(){return refreshQueue(true)},refreshNowPlaying:renderNowPlayingFromQueue};
