@@ -13,7 +13,7 @@ export async function onRequest(context){
   }
   if(isHome){
     const supabaseTag='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>';
-    const bridgeTag='<script src="/supabase-user-bridge.js?v=20260903-5"></script>';
+    const bridgeTag='<script src="/supabase-user-bridge.js?v=20260903-6"></script>';
     body=body.replace(/<script[^>]+src=[\"']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^\"']*[\"'][^>]*><\/script>/gi,'');
     body=body.includes('</head>')?body.replace('</head>',supabaseTag+'</head>'):body;
     body=body.replace(/<script[^>]+src=[\"'](?:\.\/)?supabase-user-bridge\.js(?:\?[^\"']*)?[\"'][^>]*><\/script>/gi,'');
@@ -22,7 +22,8 @@ export async function onRequest(context){
     body=body.replace(/loadCache\(\);\s*loadData\(true\);/g,'loadCache();');
     body=body.replace(/src=[\"'](?:\.\/)?realtime-queue-refresh\.js(?:\?[^\"']*)?[\"']/g,'src="/realtime-queue-refresh.js?v=20260903-11"');
     body=body.replace(/src=[\"'](?:\.\/)?user-login-mode\.js(?:\?[^\"']*)?[\"']/g,'src="/user-login-mode.js?v=20260903-5"');
-    body=body.replace(/src=[\"'](?:\.\/)?youtube-request-mapping\.js(?:\?[^\"']*)?[\"']/g,'src="/youtube-request-mapping.js?v=20260903-5"');
+    body=body.replace(/src=[\"'](?:\.\/)?youtube-request-mapping\.js(?:\?[^\"']*)?[\"']/g,'src="/youtube-request-mapping.js?v=20260903-6"');
+    body=body.replace(/src=[\"'](?:\.\/)?announcement\.js(?:\?[^\"']*)?[\"']/g,'src="/announcement.js?v=20260903-2"');
   }
   if(isAdminPage){
     const loginFast='<script src="/admin-login-fast.js?v=20260903-3"></script>';
@@ -32,7 +33,7 @@ export async function onRequest(context){
   }
   if(url.pathname==='/'||url.pathname.endsWith('.html')){
     const hasYtMapping=/src=[\"'](?:\.\/)?youtube-request-mapping\.js(?:\?[^\"']*)?[\"']/.test(body);
-    const injection=hasYtMapping?'<script src="/youtube-request-mapping-batch-v2.js?v=20260903-7"></script>':'<script src="/youtube-request-mapping.js?v=20260903-5"></script><script src="/youtube-request-mapping-batch-v2.js?v=20260903-7"></script>';
+    const injection=hasYtMapping?'<script src="/youtube-request-mapping-batch-v2.js?v=20260903-7"></script>':'<script src="/youtube-request-mapping.js?v=20260903-6"></script><script src="/youtube-request-mapping-batch-v2.js?v=20260903-7"></script>';
     body=body.includes('/youtube-request-mapping-batch-v2.js')?body:(body.includes('</body>')?body.replace('</body>',injection+'</body>'):body+injection);
   }
   if(/\/player(?:-[^/]+)?\.html$/.test(url.pathname)){
