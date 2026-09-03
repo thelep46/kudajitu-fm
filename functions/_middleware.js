@@ -12,14 +12,12 @@ export async function onRequest(context){
   }
   if(url.pathname==='/'||url.pathname==='/index.html'){
     body=body.replace(/src=[\"'](?:\.\/)?user-login-mode\.js(?:\?[^\"']*)?[\"']/g,'src="/user-login-mode.js?v=20260903-5"');
-    body=body.replace(/src=[\"'](?:\.\/)?realtime-queue-refresh\.js(?:\?[^\"']*)?[\"']/g,'src="/realtime-queue-refresh.js?v=20260903-8"');
+    body=body.replace(/src=[\"'](?:\.\/)?realtime-queue-refresh\.js(?:\?[^\"']*)?[\"']/g,'src="/realtime-queue-refresh.js?v=20260903-9"');
     body=body.replace(/src=[\"'](?:\.\/)?youtube-request-mapping\.js(?:\?[^\"']*)?[\"']/g,'src="/youtube-request-mapping.js?v=20260903-5"');
   }
   if(isAdminPage){
-    const tag='<script src="/admin-cache-bridge.js?v=20260903-5"></script>';
+    const loginFast='<script src="/admin-login-fast.js?v=20260903-3"></script>';
     body=body.replace(/<script[^>]+src=[\"'][^\"']*\/admin-cache-bridge\.js(?:\?[^\"']*)?[\"'][^>]*><\/script>/gi,'');
-    body=body.includes('</head>')?body.replace('</head>',tag+'</head>'):(body.includes('</body>')?body.replace('</body>',tag+'</body>'):body+tag);
-    const loginFast='<script src="/admin-login-fast.js?v=20260903-2"></script>';
     body=body.replace(/<script[^>]+src=[\"'][^\"']*\/admin-login-fast\.js(?:\?[^\"']*)?[\"'][^>]*><\/script>/gi,'');
     body=body.includes('</head>')?body.replace('</head>',loginFast+'</head>'):(body.includes('</body>')?body.replace('</body>',loginFast+'</body>'):body+loginFast);
   }
