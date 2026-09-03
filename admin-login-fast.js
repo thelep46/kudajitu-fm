@@ -2,6 +2,7 @@
 'use strict';
 const FAST_AUTH='/api/auth';
 const FAST_TIMEOUT=12000;
+const READ_ACTIONS=new Set(['data','nowplaying','announcement','userloginmode','getqueueorder','checkids','youtubemappings','youtubecheck']);
 function fetchJson(url,options){
   options=options||{};
   const controller=new AbortController();
@@ -24,7 +25,7 @@ window.login=async function(){
     if(msg)msg.textContent='';
     if(typeof show==='function')show();
     Promise.allSettled([
-      typeof load==='function'?load(true):Promise.resolve(),
+      typeof load==='function'?load(false):Promise.resolve(),
       typeof loadUserLoginMode==='function'?loadUserLoginMode():Promise.resolve()
     ]);
   }catch(e){
@@ -43,7 +44,14 @@ window.jsonp=function(url,timeout){
       const qs='?action='+encodeURIComponent(action);
       return fetchJson(FAST_AUTH+qs,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({action:action},payload))});
     }
-    u.searchParams.delete('callback');u.searchParams.delete('prefix');u.searchParams.delete('_');
+    u.searchParams.delete('callback');
+    u.searchParams.delete('prefix');
+    u.searchParams.delete('_');
+    if(READ_ACTIONS.has(action)){
+      u.searchParams.delete('adminToken');
+      u.searchParams.delete('token');
+      u.searchParams.delete('_refresh');
+    }
     return fetchJson(u.toString(),{method:'GET'});
   }catch(e){return Promise.reject(e)}
 };
