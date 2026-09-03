@@ -48,7 +48,7 @@ function startNowPlaying(){
   refreshNowPlaying();
   nowTimer=setInterval(function(){
     if(document.visibilityState==='visible')refreshNowPlaying();
-  },5000);
+  },10000);
 }
 function startQueuePolling(){
   if(queueTimer)clearInterval(queueTimer);
