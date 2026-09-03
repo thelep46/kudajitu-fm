@@ -16,7 +16,7 @@ function refreshQueue(forceFresh){
   if(document.visibilityState==='hidden'||typeof window.fetch!=='function')return Promise.resolve(false);
   if(queueInFlight)return queueInFlight;
   if(!forceFresh&&Date.now()<backoffUntil)return Promise.resolve(false);
-  const url='/api/gas?action=data&range=today&compact=1'+(forceFresh?'&_refresh='+Date.now():'');
+  const url='/api/gas?action=data&range=today&compact=1'+(forceFresh?'&_refresh=1':'');
   queueInFlight=fetch(url,{method:'GET',cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json'}})
     .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
     .then(applyQueue)
