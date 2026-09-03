@@ -1,37 +1,37 @@
 (function(){
 'use strict';
-/* Single queue sync owner: initial page load remains in index.html, this helper owns post-submit refresh + periodic authoritative refresh. NOW PLAYING is derived locally from the same queue payload to avoid a second upstream read path. */
+/* Single queue sync owner: initial page load remains in index.html, this helper owns post-submit refresh + periodic authoritative refresh + NOW PLAYING polling. */
 let installed=false;
 let installing=false;
 let lastNowId='';
+let nowTimer=0;
 let queueTimer=0;
-let localTimer=0;
-function latestPlayed(rows){
-  const list=Array.isArray(rows)?rows:[];
-  let best=null,bestTime=-1;
-  list.forEach(function(row){
-    if(String(row&&row.status||'').toLowerCase()!=='played')return;
-    const t=Date.parse(String(row&&row.playedAt||row&&row.timestamp||''))||0;
-    if(t>=bestTime){bestTime=t;best=row;}
-  });
-  return best;
-}
-function renderNowPlaying(p){
-  const title=document.getElementById('npTitle'),artist=document.getElementById('npArtist'),requester=document.getElementById('npRequester'),stage=document.getElementById('npStage');
-  if(!title||!artist||!requester||!stage)return;
-  if(!p){title.textContent='Belum ada lagu diputar';artist.textContent='Request lagu dan tunggu giliranmu';requester.textContent='-';stage.classList.remove('playing');return;}
-  title.textContent=String(p.title||'Belum ada lagu diputar');
-  artist.textContent=String(p.artist||'Request lagu dan tunggu giliranmu');
-  requester.textContent=p.requester?'Direquest oleh '+String(p.requester):'-';
-  stage.classList.add('playing');
-}
-function syncNowPlayingFromQueue(){
-  const p=latestPlayed(window.requests);
-  const id=p?String(p.id||p.playedAt||p.timestamp||''):'';
-  if(id===lastNowId)return false;
-  lastNowId=id;
-  renderNowPlaying(p);
-  return true;
+function patchGlobalJsonp(){
+  if(window.__KUDAJITU_FETCH_JSONP_PATCHED)return;
+  const install=function(){
+    if(window.__KUDAJITU_FETCH_JSONP_PATCHED)return true;
+    if(typeof window.jsonp!=='function')return false;
+    window.jsonp=function(url,timeout){
+      const controller=new AbortController();
+      const timer=setTimeout(function(){try{controller.abort()}catch(e){}},Number(timeout||15000));
+      try{
+        const u=new URL(String(url||''),location.href);
+        ['callback','prefix','_'].forEach(function(k){u.searchParams.delete(k)});
+        return fetch(u.toString(),{method:'GET',cache:'no-store',credentials:'same-origin',signal:controller.signal,headers:{Accept:'application/json'}})
+          .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text();})
+          .then(function(text){
+            const raw=String(text||'').trim();
+            try{return JSON.parse(raw)}catch(e){}
+            const m=raw.match(/^[^(]+\((.*)\)\s*;?\s*$/s);
+            if(m){try{return JSON.parse(m[1])}catch(e){}}
+            throw new Error('Respons API tidak valid.');
+          });
+      }finally{clearTimeout(timer)}
+    };
+    window.__KUDAJITU_FETCH_JSONP_PATCHED=true;
+    return true;
+  };
+  if(!install()) [0,50,150,300,750,1500].forEach(function(ms){setTimeout(install,ms)});
 }
 function refreshQueue(forceFresh){
   if(document.visibilityState==='hidden'||typeof window.fetch!=='function')return Promise.resolve(false);
@@ -42,24 +42,45 @@ function refreshQueue(forceFresh){
     .then(function(d){
       if(!d||d.success===false||!Array.isArray(d.data))throw new Error(d&&d.message||'Data antrean tidak valid.');
       window.requests=d.data.map(typeof window.normalize==='function'?window.normalize:function(x){return x||{};});
-      syncNowPlayingFromQueue();
       if(typeof window.saveCache==='function')window.saveCache();
       if(typeof window.render==='function')window.render();
       if(typeof window.setSync==='function')window.setSync('online');
       return true;
     });
 }
-function startLocalNowPlaying(){
-  if(localTimer)clearInterval(localTimer);
-  syncNowPlayingFromQueue();
-  localTimer=setInterval(function(){
-    if(document.visibilityState==='visible')syncNowPlayingFromQueue();
+function renderNowPlayingFromQueue(){
+  const rows=Array.isArray(window.requests)?window.requests:[];
+  let best=null,bestTime=-1;
+  rows.forEach(function(row){
+    if(String(row&&row.status||'').toLowerCase()!=='played')return;
+    const t=Date.parse(String(row&&row.playedAt||row&&row.timestamp||''))||0;
+    if(t>=bestTime){bestTime=t;best=row;}
+  });
+  const id=best?String(best.id||best.playedAt||best.timestamp||''):'';
+  if(id===lastNowId)return false;
+  lastNowId=id;
+  const title=document.getElementById('npTitle'),artist=document.getElementById('npArtist'),requester=document.getElementById('npRequester'),stage=document.getElementById('npStage');
+  if(!title||!artist||!requester||!stage)return true;
+  if(!best){title.textContent='Belum ada lagu diputar';artist.textContent='Request lagu dan tunggu giliranmu';requester.textContent='-';stage.classList.remove('playing');return true;}
+  title.textContent=String(best.title||'Belum ada lagu diputar');
+  artist.textContent=String(best.artist||'Request lagu dan tunggu giliranmu');
+  requester.textContent=best.requester?'Direquest oleh '+String(best.requester):'-';
+  stage.classList.add('playing');
+  return true;
+}
+function startNowPlaying(){
+  if(nowTimer)clearInterval(nowTimer);
+  renderNowPlayingFromQueue();
+  nowTimer=setInterval(function(){
+    if(document.visibilityState==='visible')renderNowPlayingFromQueue();
   },5000);
 }
 function startQueuePolling(){
   if(queueTimer)clearInterval(queueTimer);
   queueTimer=setInterval(function(){
-    if(document.visibilityState==='visible')refreshQueue(false).catch(function(e){console.warn('[Kudajitu] periodic queue refresh failed:',e&&e.message||e);});
+    if(document.visibilityState==='visible'){
+      refreshQueue(false).catch(function(e){console.warn('[Kudajitu] periodic queue refresh failed:',e&&e.message||e);});
+    }
   },30000);
 }
 function wrap(name){
@@ -70,7 +91,9 @@ function wrap(name){
     let result;
     try{result=fn.apply(this,arguments);}catch(e){throw e;}
     return Promise.resolve(result).then(function(value){
-      if(value!==false)return refreshQueue(true).catch(function(e){console.warn('[Kudajitu] post-submit refresh failed:',e&&e.message||e);}).then(function(){return value;});
+      if(value!==false){
+        return refreshQueue(true).catch(function(e){console.warn('[Kudajitu] post-submit refresh failed:',e&&e.message||e);}).then(function(){return value;});
+      }
       return value;
     });
   };
@@ -79,6 +102,7 @@ function wrap(name){
   return true;
 }
 function install(){
+  patchGlobalJsonp();
   if(installed||installing)return installed;
   installing=true;
   const single=wrap('addSingle');
@@ -88,11 +112,12 @@ function install(){
   return installed;
 }
 function boot(){
+  patchGlobalJsonp();
   install();
-  startLocalNowPlaying();
+  startNowPlaying();
   startQueuePolling();
   if(!installed)[250,750,1500,3000,5000].forEach(function(ms){setTimeout(install,ms);});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
-window.KUDAJITURealtimeQueue={refresh:function(){return refreshQueue(true);},refreshNowPlaying:syncNowPlayingFromQueue,install:install};
+window.KUDAJITURealtimeQueue={refresh:function(){return refreshQueue(true);},refreshNowPlaying:renderNowPlayingFromQueue,install:install};
 })();
