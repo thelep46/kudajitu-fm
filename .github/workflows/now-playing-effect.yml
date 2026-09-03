@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Stabilize NOW PLAYING and integrate announcements
+      - name: Stabilize NOW PLAYING and realtime queue refresh
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -18,6 +18,8 @@ jobs:
           old="var now=q[0];$('npTitle').textContent=now?now.title:'Belum ada lagu diputar';$('npArtist').textContent=now?now.artist:'Request lagu dan tunggu giliranmu';$('npRequester').textContent=now?'Direquest oleh '+(now.requester||'-'):'-';$('npStage').classList.toggle('playing',!!now);"
           new="var now=null;if(q.length){now=q.reduce(function(best,item){if(!best)return item;var bt=Date.parse(best.playedAt)||Date.parse(best.timestamp)||0,it=Date.parse(item.playedAt)||Date.parse(item.timestamp)||0;if(it>bt)return item;if(it===bt){var bi=String(best.id||''),ii=String(item.id||'');return ii>bi?item:best}return best},null)}$('npTitle').textContent=now?now.title:'Belum ada lagu diputar';$('npArtist').textContent=now?now.artist:'Request lagu dan tunggu giliranmu';$('npRequester').textContent=now?'Direquest oleh '+(now.requester||'-'):'-';$('npStage').classList.toggle('playing',!!now);"
           if old in s:s=s.replace(old,new,1)
+          tag='<script src="./realtime-queue-refresh.js"></script>'
+          if tag not in s:s=s.replace('<script src="./youtube-request-mapping.js"></script>','<script src="./youtube-request-mapping.js"></script>'+tag,1)
           if '<script src="./announcement.js"></script>' not in s:s=s.replace('</head>','<script src="./announcement.js"></script></head>',1)
           p.write_text(s,encoding='utf-8')
           p=Path('admin.html');s=p.read_text(encoding='utf-8')
@@ -29,18 +31,20 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import re
-          for fn in ['index.html','admin.html','announcement.html']:
-              s=Path(fn).read_text(encoding='utf-8')
-              scripts=re.findall(r'<script(?:[^>]*)>(.*?)</script>',s,re.S)
-              Path('/tmp/'+fn+'.js').write_text('\n'.join(scripts),encoding='utf-8')
+          for fn in ['index.html','admin.html','announcement.html','realtime-queue-refresh.js']:
+              if fn.endswith('.html'):
+                  s=Path(fn).read_text(encoding='utf-8')
+                  scripts=re.findall(r'<script(?:[^>]*)>(.*?)</script>',s,re.S)
+                  Path('/tmp/'+fn+'.js').write_text('\n'.join(scripts),encoding='utf-8')
           PY
           node --check /tmp/index.html.js
           node --check /tmp/admin.html.js
           node --check /tmp/announcement.html.js
+          node --check realtime-queue-refresh.js
       - name: Commit integration
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html admin.html announcement.js announcement.html
+          git add index.html admin.html announcement.js announcement.html realtime-queue-refresh.js
           git diff --cached --quiet || git commit -m "chore: NOW PLAYING visual effect"
           git push
