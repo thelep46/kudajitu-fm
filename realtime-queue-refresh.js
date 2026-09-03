@@ -11,8 +11,12 @@ function applyQueue(d){
   if(typeof window.setSync==='function')window.setSync('online');
   return true;
 }
+function stopLegacyTimers(){
+  if(queueTimer){clearInterval(queueTimer);queueTimer=0;}
+  if(nowTimer){clearInterval(nowTimer);nowTimer=0;}
+}
 function refreshQueue(forceFresh){
-  if(window.KUDAJITU_SUPABASE_MODE)return Promise.resolve(false);
+  if(window.KUDAJITU_SUPABASE_MODE){stopLegacyTimers();return Promise.resolve(false);}
   if(document.visibilityState==='hidden'||typeof window.fetch!=='function')return Promise.resolve(false);
   if(queueInFlight)return queueInFlight;
   if(!forceFresh&&Date.now()<backoffUntil)return Promise.resolve(false);
@@ -31,9 +35,29 @@ function renderNowPlayingFromQueue(){
   if(!best){title.textContent='Belum ada lagu diputar';artist.textContent='Request lagu dan tunggu giliranmu';requester.textContent='-';stage.classList.remove('playing');return true;}
   title.textContent=String(best.title||'Belum ada lagu diputar');artist.textContent=String(best.artist||'Request lagu dan tunggu giliranmu');requester.textContent=best.requester?'Direquest oleh '+String(best.requester):'-';stage.classList.add('playing');return true;
 }
-function startNowPlaying(){if(nowTimer)clearInterval(nowTimer);renderNowPlayingFromQueue();nowTimer=setInterval(function(){if(document.visibilityState==='visible')renderNowPlayingFromQueue()},1000)}
-function poll(){if(window.KUDAJITU_SUPABASE_MODE||document.visibilityState!=='visible')return;refreshQueue(false).catch(function(e){console.warn('[Kudajitu] legacy queue sync:',e&&e.message||e)})}
-function startQueuePolling(){if(queueTimer)clearInterval(queueTimer);poll();queueTimer=setInterval(poll,POLL_MS)}
+function startNowPlaying(){
+  if(nowTimer)clearInterval(nowTimer);
+  if(window.KUDAJITU_SUPABASE_MODE)return;
+  renderNowPlayingFromQueue();
+  nowTimer=setInterval(function(){
+    if(window.KUDAJITU_SUPABASE_MODE){stopLegacyTimers();return;}
+    if(document.visibilityState==='visible')renderNowPlayingFromQueue();
+  },1000);
+}
+function poll(){
+  if(window.KUDAJITU_SUPABASE_MODE){stopLegacyTimers();return;}
+  if(document.visibilityState!=='visible')return;
+  refreshQueue(false).catch(function(e){console.warn('[Kudajitu] legacy queue sync:',e&&e.message||e)})
+}
+function startQueuePolling(){
+  if(window.KUDAJITU_SUPABASE_MODE){stopLegacyTimers();return;}
+  if(queueTimer)clearInterval(queueTimer);
+  poll();
+  queueTimer=setInterval(function(){
+    if(window.KUDAJITU_SUPABASE_MODE){stopLegacyTimers();return;}
+    poll();
+  },POLL_MS);
+}
 function install(){
   if(installed||installing)return installed;installing=true;
   const wrap=function(name){if(typeof window[name]!=='function')return false;const fn=window[name];if(fn.__kudaRealtimeWrapped)return true;const wrapped=function(){let result;try{result=fn.apply(this,arguments)}catch(e){throw e}return Promise.resolve(result).then(function(value){if(value!==false&&!window.KUDAJITU_SUPABASE_MODE)return refreshQueue(false).catch(function(e){console.warn('[Kudajitu] legacy post-submit sync failed:',e&&e.message||e)}).then(function(){return value});return value})};wrapped.__kudaRealtimeWrapped=true;window[name]=wrapped;return true};
@@ -41,5 +65,5 @@ function install(){
 }
 function boot(){install();startNowPlaying();startQueuePolling()}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
-window.KUDAJITURealtimeQueue={refresh:function(){return refreshQueue(false)},refreshFresh:function(){return refreshQueue(true)},refreshNowPlaying:renderNowPlayingFromQueue};
+window.KUDAJITURealtimeQueue={refresh:function(){return refreshQueue(false)},refreshFresh:function(){return refreshQueue(true)},refreshNowPlaying:renderNowPlayingFromQueue,stop:function(){stopLegacyTimers()}};
 })();
