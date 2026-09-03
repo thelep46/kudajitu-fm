@@ -1,7 +1,7 @@
 (function(){'use strict';
 /* Single authoritative User queue synchronizer. Initial bootstrap comes from index.html; all later queue state comes from here. */
 let installed=false,installing=false,lastNowId='',nowTimer=0,queueTimer=0,queueInFlight=null,lastGoodAt=0,backoffUntil=0;
-const POLL_MS=10000,ERROR_BACKOFF_MS=15000;
+const POLL_MS=5000,ERROR_BACKOFF_MS=5000;
 function applyQueue(d){
   if(!d||d.success===false||!Array.isArray(d.data))throw new Error(d&&d.message||'Data antrean tidak valid.');
   window.requests=d.data.map(typeof window.normalize==='function'?window.normalize:function(x){return x||{};});
@@ -34,7 +34,7 @@ function renderNowPlayingFromQueue(){
   if(!best){title.textContent='Belum ada lagu diputar';artist.textContent='Request lagu dan tunggu giliranmu';requester.textContent='-';stage.classList.remove('playing');return true;}
   title.textContent=String(best.title||'Belum ada lagu diputar');artist.textContent=String(best.artist||'Request lagu dan tunggu giliranmu');requester.textContent=best.requester?'Direquest oleh '+String(best.requester):'-';stage.classList.add('playing');return true;
 }
-function startNowPlaying(){if(nowTimer)clearInterval(nowTimer);renderNowPlayingFromQueue();nowTimer=setInterval(function(){if(document.visibilityState==='visible')renderNowPlayingFromQueue()},5000)}
+function startNowPlaying(){if(nowTimer)clearInterval(nowTimer);renderNowPlayingFromQueue();nowTimer=setInterval(function(){if(document.visibilityState==='visible')renderNowPlayingFromQueue()},2000)}
 function startQueuePolling(){
   if(queueTimer)clearInterval(queueTimer);
   queueTimer=setInterval(function(){if(document.visibilityState==='visible')refreshQueue(true).catch(function(e){console.warn('[Kudajitu] periodic queue refresh failed:',e&&e.message||e)})},POLL_MS);
@@ -44,7 +44,12 @@ function install(){
   const wrap=function(name){if(typeof window[name]!=='function')return false;const fn=window[name];if(fn.__kudaRealtimeWrapped)return true;const wrapped=function(){let result;try{result=fn.apply(this,arguments)}catch(e){throw e}return Promise.resolve(result).then(function(value){if(value!==false)return refreshQueue(true).catch(function(e){console.warn('[Kudajitu] post-submit refresh failed:',e&&e.message||e)}).then(function(){return value});return value})};wrapped.__kudaRealtimeWrapped=true;window[name]=wrapped;return true};
   installed=wrap('addSingle')||wrap('addBatch');installing=false;return installed;
 }
-function boot(){install();startNowPlaying();startQueuePolling();}
+function boot(){
+  install();
+  startNowPlaying();
+  refreshQueue(true).catch(function(e){console.warn('[Kudajitu] initial queue refresh failed:',e&&e.message||e)});
+  startQueuePolling();
+}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 window.KUDAJITURealtimeQueue={refresh:function(){return refreshQueue(true)},refreshNowPlaying:renderNowPlayingFromQueue};
 })();
