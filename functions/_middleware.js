@@ -13,7 +13,7 @@ export async function onRequest(context){
   }
   if(isHome){
     const supabaseTag='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>';
-    const bridgeTag='<script src="/supabase-user-bridge.js?v=20260903-3"></script>';
+    const bridgeTag='<script src="/supabase-user-bridge.js?v=20260903-4"></script>';
     body=body.replace(/<script[^>]+src=[\"']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^\"']*[\"'][^>]*><\/script>/gi,'');
     body=body.includes('</head>')?body.replace('</head>',supabaseTag+'</head>'):body;
     body=body.replace(/<script[^>]+src=[\"'](?:\.\/)?supabase-user-bridge\.js(?:\?[^\"']*)?[\"'][^>]*><\/script>/gi,'');
@@ -32,7 +32,7 @@ export async function onRequest(context){
   }
   if(url.pathname==='/'||url.pathname.endsWith('.html')){
     const hasYtMapping=/src=[\"'](?:\.\/)?youtube-request-mapping\.js(?:\?[^\"']*)?[\"']/.test(body);
-    const injection=hasYtMapping?'<script src="/youtube-request-mapping-batch-v2.js?v=20260903-5"></script>':'<script src="/youtube-request-mapping.js?v=20260903-5"></script><script src="/youtube-request-mapping-batch-v2.js?v=20260903-5"></script>';
+    const injection=hasYtMapping?'<script src="/youtube-request-mapping-batch-v2.js?v=20260903-6"></script>':'<script src="/youtube-request-mapping.js?v=20260903-5"></script><script src="/youtube-request-mapping-batch-v2.js?v=20260903-6"></script>';
     body=body.includes('/youtube-request-mapping-batch-v2.js')?body:(body.includes('</body>')?body.replace('</body>',injection+'</body>'):body+injection);
   }
   if(/\/player(?:-[^/]+)?\.html$/.test(url.pathname)){
