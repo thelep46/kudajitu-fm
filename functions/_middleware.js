@@ -26,10 +26,11 @@ export async function onRequest(context){
   }
   if(isAdminDataPage){
     const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>';
-    const bridge='<script src="/admin-supabase.js?v=20260903-4"></script>';
+    const bridge='<script src="/admin-supabase.js?v=20260903-5"></script>';
     body=body.replace(/<script[^>]+src=[\"']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^\"']*[\"'][^>]*><\/script>/gi,'');
     body=body.replace(/<script[^>]+src=[\"'][^\"']*\/admin-supabase\.js(?:\?[^\"']*)?[\"'][^>]*><\/script>/gi,'');
-    body=body.includes('</head>')?body.replace('</head>',sb+bridge+'</head>'):body+sb+bridge;
+    body=body.includes('</head>')?body.replace('</head>',sb+'</head>'):body+sb;
+    body=body.includes('</body>')?body.replace('</body>',bridge+'</body>'):body+bridge;
   }
   if(isAdminPage){
     body=body.replace(/<script[^>]+src=[\"'][^\"']*\/admin-cache-bridge\.js(?:\?[^\"']*)?[\"'][^>]*><\/script>/gi,'');
