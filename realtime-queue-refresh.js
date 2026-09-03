@@ -8,7 +8,7 @@ let nowTimer=0;
 let queueTimer=0;
 function refreshQueue(){
   if(document.visibilityState==='hidden'||typeof window.fetch!=='function')return Promise.resolve(false);
-  const url='/api/gas?action=data&range=today&_refresh='+Date.now();
+  const url='/api/gas?action=data&range=today&compact=1&_refresh='+Date.now();
   return fetch(url,{cache:'no-store',credentials:'same-origin'})
     .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
     .then(function(d){
