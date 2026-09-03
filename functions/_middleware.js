@@ -14,7 +14,7 @@ export async function onRequest(context){
     body=body.includes('</body>')?body.replace('</body>',injection+'</body>'):body+injection;
   }
   if(url.pathname==='/'||url.pathname.endsWith('.html')){
-    const injection='<script src="/performance.js?v=20260829-2"></script><script src="/youtube-request-mapping.js?v=20260830-1"></script><script src="/youtube-request-mapping-batch-v2.js?v=20260830-2"></script>';
+    const injection='<script src="/youtube-request-mapping.js?v=20260830-1"></script><script src="/youtube-request-mapping-batch-v2.js?v=20260830-2"></script>';
     body=body.includes('</body>')?body.replace('</body>',injection+'</body>'):body+injection;
   }
   const headers=new Headers(response.headers);
