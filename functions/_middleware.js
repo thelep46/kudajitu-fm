@@ -9,6 +9,9 @@ export async function onRequest(context){
   if(url.pathname==='/index.html'||url.pathname==='/'||url.pathname==='/admin.html'||url.pathname.endsWith('/admin.html')||url.pathname.endsWith('/announcement.html')||url.pathname.endsWith('/users.html')||url.pathname.endsWith('/youtube-mapping.html')||/\/player(?:-[^/]+)?\.html$/.test(url.pathname)){
     body=body.replace(/https:\/\/script\.google\.com\/macros\/s\/[^'\"`\s]+/g,'/api/gas');
   }
+  if(url.pathname==='/'||url.pathname==='/index.html'){
+    body=body.replace(/action=data&range=today/g,'action=data&range=today&compact=1');
+  }
   if(/\/player(?:-[^/]+)?\.html$/.test(url.pathname)){
     const injection='<script src="/api-router.js?v=20260829-2"></script>';
     body=body.includes('</body>')?body.replace('</body>',injection+'</body>'):body+injection;
