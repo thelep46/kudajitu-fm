@@ -26,7 +26,7 @@ export async function onRequest(context){
   }
   if(isAdminDataPage){
     const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>';
-    const bridge='<script src="/admin-supabase.js?v=20260903-5"></script>';
+    const bridge='<script src="/admin-supabase.js?v=20260903-6"></script>';
     body=body.replace(/<script[^>]+src=[\"']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^\"']*[\"'][^>]*><\/script>/gi,'');
     body=body.replace(/<script[^>]+src=[\"'][^\"']*\/admin-supabase\.js(?:\?[^\"']*)?[\"'][^>]*><\/script>/gi,'');
     body=body.includes('</head>')?body.replace('</head>',sb+'</head>'):body+sb;
