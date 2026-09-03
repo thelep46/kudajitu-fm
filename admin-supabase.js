@@ -2,7 +2,7 @@
 'use strict';
 const URL='https://jdqcvfqysmjreibcaduk.supabase.co';
 const KEY='sb_publishable_QDcyGfH-3dBNmUYE9pKIkg_uFmRsmOa';
-const FN='/functions/v1/kudajitu-admin-v2';
+const FN='/functions/v1/kudajitu-admin-v3';
 let client=null;
 function ready(){return window.supabase&&typeof window.supabase.createClient==='function'}
 function init(){if(client||!ready())return false;client=window.supabase.createClient(URL,KEY);window.KUDAJITUAdminDB={client};window.__kudaAdminSupabase=true;patchLoginUI();patchJsonp();restoreSession();return true}
