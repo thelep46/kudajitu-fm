@@ -37,7 +37,7 @@ function renderNowPlayingFromQueue(){
 function startNowPlaying(){if(nowTimer)clearInterval(nowTimer);renderNowPlayingFromQueue();nowTimer=setInterval(function(){if(document.visibilityState==='visible')renderNowPlayingFromQueue()},5000)}
 function startQueuePolling(){
   if(queueTimer)clearInterval(queueTimer);
-  queueTimer=setInterval(function(){if(document.visibilityState==='visible')refreshQueue(false).catch(function(e){console.warn('[Kudajitu] periodic queue refresh failed:',e&&e.message||e)})},POLL_MS);
+  queueTimer=setInterval(function(){if(document.visibilityState==='visible')refreshQueue(true).catch(function(e){console.warn('[Kudajitu] periodic queue refresh failed:',e&&e.message||e)})},POLL_MS);
 }
 function install(){
   if(installed||installing)return installed;installing=true;
