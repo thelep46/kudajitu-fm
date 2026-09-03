@@ -13,7 +13,7 @@ export async function onRequest(context){
   }
   if(isHome){
     const supabaseTag='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>';
-    const bridgeTag='<script src="/supabase-user-bridge.js?v=20260903-2"></script>';
+    const bridgeTag='<script src="/supabase-user-bridge.js?v=20260903-3"></script>';
     body=body.replace(/<script[^>]+src=[\"']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^\"']*[\"'][^>]*><\/script>/gi,'');
     body=body.includes('</head>')?body.replace('</head>',supabaseTag+'</head>'):body;
     body=body.replace(/<script[^>]+src=[\"'](?:\.\/)?supabase-user-bridge\.js(?:\?[^\"']*)?[\"'][^>]*><\/script>/gi,'');
