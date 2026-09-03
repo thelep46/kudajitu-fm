@@ -1,7 +1,0 @@
-name: Legacy Admin Syntax Repair
-
-on:
-  workflow_dispatch:
-
-# Retained only as a historical record. The admin page is now maintained directly.
-# No automatic patching is performed.
