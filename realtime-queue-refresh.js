@@ -1,24 +1,20 @@
 (function(){
 'use strict';
-/* Single queue sync owner: initial page load remains in index.html, this helper owns post-submit refresh + periodic authoritative refresh + NOW PLAYING polling. */
+/* Single queue sync owner: initial page load remains in index.html, this helper owns post-submit refresh + periodic authoritative refresh. NOW PLAYING is derived locally from the same queue payload to avoid a second upstream read path. */
 let installed=false;
 let installing=false;
 let lastNowId='';
-let nowTimer=0;
 let queueTimer=0;
-function refreshQueue(){
-  if(document.visibilityState==='hidden'||typeof window.fetch!=='function')return Promise.resolve(false);
-  const url='/api/gas?action=data&range=today&compact=1&_refresh='+Date.now();
-  return fetch(url,{cache:'no-store',credentials:'same-origin'})
-    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
-    .then(function(d){
-      if(!d||d.success===false||!Array.isArray(d.data))throw new Error(d&&d.message||'Data antrean tidak valid.');
-      window.requests=d.data.map(typeof window.normalize==='function'?window.normalize:function(x){return x||{};});
-      if(typeof window.saveCache==='function')window.saveCache();
-      if(typeof window.render==='function')window.render();
-      if(typeof window.setSync==='function')window.setSync('online');
-      return true;
-    });
+let localTimer=0;
+function latestPlayed(rows){
+  const list=Array.isArray(rows)?rows:[];
+  let best=null,bestTime=-1;
+  list.forEach(function(row){
+    if(String(row&&row.status||'').toLowerCase()!=='played')return;
+    const t=Date.parse(String(row&&row.playedAt||row&&row.timestamp||''))||0;
+    if(t>=bestTime){bestTime=t;best=row;}
+  });
+  return best;
 }
 function renderNowPlaying(p){
   const title=document.getElementById('npTitle'),artist=document.getElementById('npArtist'),requester=document.getElementById('npRequester'),stage=document.getElementById('npStage');
@@ -29,34 +25,42 @@ function renderNowPlaying(p){
   requester.textContent=p.requester?'Direquest oleh '+String(p.requester):'-';
   stage.classList.add('playing');
 }
-function refreshNowPlaying(){
+function syncNowPlayingFromQueue(){
+  const p=latestPlayed(window.requests);
+  const id=p?String(p.id||p.playedAt||p.timestamp||''):'';
+  if(id===lastNowId)return false;
+  lastNowId=id;
+  renderNowPlaying(p);
+  return true;
+}
+function refreshQueue(forceFresh){
   if(document.visibilityState==='hidden'||typeof window.fetch!=='function')return Promise.resolve(false);
-  const url='/api/gas?action=nowplaying';
+  const suffix=forceFresh?'&_refresh='+Date.now():'';
+  const url='/api/gas?action=data&range=today&compact=1'+suffix;
   return fetch(url,{cache:'no-store',credentials:'same-origin'})
     .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
     .then(function(d){
-      if(!d||d.success===false)throw new Error(d&&d.message||'NOW PLAYING tidak valid.');
-      const p=d.playing||null;
-      const id=p?String(p.id||p.playedAt||''):'';
-      if(id!==lastNowId){lastNowId=id;renderNowPlaying(p);}
+      if(!d||d.success===false||!Array.isArray(d.data))throw new Error(d&&d.message||'Data antrean tidak valid.');
+      window.requests=d.data.map(typeof window.normalize==='function'?window.normalize:function(x){return x||{};});
+      syncNowPlayingFromQueue();
+      if(typeof window.saveCache==='function')window.saveCache();
+      if(typeof window.render==='function')window.render();
+      if(typeof window.setSync==='function')window.setSync('online');
       return true;
-    })
-    .catch(function(e){console.warn('[Kudajitu] NOW PLAYING sync failed:',e&&e.message||e);return false;});
+    });
 }
-function startNowPlaying(){
-  if(nowTimer)clearInterval(nowTimer);
-  refreshNowPlaying();
-  nowTimer=setInterval(function(){
-    if(document.visibilityState==='visible')refreshNowPlaying();
-  },10000);
+function startLocalNowPlaying(){
+  if(localTimer)clearInterval(localTimer);
+  syncNowPlayingFromQueue();
+  localTimer=setInterval(function(){
+    if(document.visibilityState==='visible')syncNowPlayingFromQueue();
+  },5000);
 }
 function startQueuePolling(){
   if(queueTimer)clearInterval(queueTimer);
   queueTimer=setInterval(function(){
-    if(document.visibilityState==='visible'){
-      refreshQueue().catch(function(e){console.warn('[Kudajitu] periodic queue refresh failed:',e&&e.message||e);});
-    }
-  },60000);
+    if(document.visibilityState==='visible')refreshQueue(false).catch(function(e){console.warn('[Kudajitu] periodic queue refresh failed:',e&&e.message||e);});
+  },30000);
 }
 function wrap(name){
   if(typeof window[name]!=='function')return false;
@@ -66,9 +70,7 @@ function wrap(name){
     let result;
     try{result=fn.apply(this,arguments);}catch(e){throw e;}
     return Promise.resolve(result).then(function(value){
-      if(value!==false){
-        return refreshQueue().catch(function(e){console.warn('[Kudajitu] post-submit refresh failed:',e&&e.message||e);}).then(function(){return value;});
-      }
+      if(value!==false)return refreshQueue(true).catch(function(e){console.warn('[Kudajitu] post-submit refresh failed:',e&&e.message||e);}).then(function(){return value;});
       return value;
     });
   };
@@ -87,10 +89,10 @@ function install(){
 }
 function boot(){
   install();
-  startNowPlaying();
+  startLocalNowPlaying();
   startQueuePolling();
   if(!installed)[250,750,1500,3000,5000].forEach(function(ms){setTimeout(install,ms);});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
-window.KUDAJITURealtimeQueue={refresh:refreshQueue,refreshNowPlaying:refreshNowPlaying,install:install};
+window.KUDAJITURealtimeQueue={refresh:function(){return refreshQueue(true);},refreshNowPlaying:syncNowPlayingFromQueue,install:install};
 })();
