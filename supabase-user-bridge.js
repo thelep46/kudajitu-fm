@@ -10,7 +10,6 @@ function mapRow(r){r=r||{};return{id:String(r.id||''),requester:String(r.request
 function apply(rows){
   const list=(rows||[]).map(mapRow).sort(function(a,b){return new Date(a.timestamp)-new Date(b.timestamp)});
   window.requests=list;
-  if(typeof window.renderNowPlayingFromQueue==='function')window.renderNowPlayingFromQueue();
   const p=list.filter(function(x){return x.status==='pending'}).length;
   const d=list.filter(function(x){return x.status==='played'}).length;
   const set=function(id,v){const e=document.getElementById(id);if(e)e.textContent=String(v)};
@@ -25,6 +24,7 @@ async function load(){
   if(error)throw error;
   apply(data||[]);return true;
 }
+window.loadData=load;
 function upsertRow(row){
   if(!row||!row.id)return;
   const next=mapRow(row),list=Array.isArray(window.requests)?window.requests.slice():[];
@@ -53,7 +53,6 @@ function bindMutations(){
     const oldSingle=window.sendSingle;
     window.sendSingle=async function(payload){
       const p=payload||{};
-      if(!p.requester&&window.name){}
       const {data,error}=await client.from('requests').insert({requester:String(p.requester||''),title:String(p.title||''),artist:String(p.artist||''),note:String(p.note||''),status:'pending',created_by:null,played_at:null}).select('id,requester,title,artist,note,status,timestamp,played_at').single();
       if(error)throw error;return {success:true,data:data};
     };
@@ -64,6 +63,7 @@ function bindMutations(){
     window.sendBatch=async function(items){
       const source=Array.isArray(items)?items:[];
       const rows=source.map(function(p){return{requester:String((p&&p.requester)||''),title:String((p&&p.title)||''),artist:String((p&&p.artist)||''),note:String((p&&p.note)||''),status:'pending',created_by:null,played_at:null}});
+      if(!rows.length)return {success:true,data:[]};
       const {data,error}=await client.from('requests').insert(rows).select('id,requester,title,artist,note,status,timestamp,played_at');
       if(error)throw error;return {success:true,data:data||[]};
     };
@@ -79,7 +79,6 @@ async function boot(){
     await load();
     subscribe();
     bindMutations();
-    if(typeof window.KUDAJITURealtimeQueue!=='undefined')window.KUDAJITURealtimeQueue.stop=true;
   }catch(e){
     console.warn('[Kudajitu] Supabase bridge:',e&&e.message||e);
     booted=false;
