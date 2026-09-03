@@ -7,8 +7,9 @@ export async function onRequest(context){
   const text=await response.text();
   let body=text;
   const isAdminPage=url.pathname==='/admin.html'||url.pathname.endsWith('/admin.html');
+  const isAdminDataPage=isAdminPage||url.pathname.endsWith('/users.html')||url.pathname.endsWith('/announcement.html')||url.pathname.endsWith('/youtube-mapping.html');
   const isHome=url.pathname==='/'||url.pathname==='/index.html';
-  if(isHome||isAdminPage||url.pathname.endsWith('/announcement.html')||url.pathname.endsWith('/users.html')||url.pathname.endsWith('/youtube-mapping.html')||/\/player(?:-[^/]+)?\.html$/.test(url.pathname)){
+  if(isHome||isAdminDataPage||/\/player(?:-[^/]+)?\.html$/.test(url.pathname)){
     body=body.replace(/https:\/\/script\.google\.com\/macros\/s\/[^'\"`\s]+/g,'/api/gas');
   }
   if(isHome){
@@ -25,11 +26,15 @@ export async function onRequest(context){
     body=body.replace(/src=[\"'](?:\.\/)?youtube-request-mapping\.js(?:\?[^\"']*)?[\"']/g,'src="/youtube-request-mapping.js?v=20260903-6"');
     body=body.replace(/src=[\"'](?:\.\/)?announcement\.js(?:\?[^\"']*)?[\"']/g,'src="/announcement.js?v=20260903-2"');
   }
+  if(isAdminDataPage){
+    const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>';
+    const bridge='<script src="/admin-supabase.js?v=20260903-1"></script>';
+    body=body.replace(/<script[^>]+src=[\"']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^\"']*[\"'][^>]*><\/script>/gi,'');
+    body=body.includes('</head>')?body.replace('</head>',sb+bridge+'</head>'):body+sb+bridge;
+  }
   if(isAdminPage){
-    const loginFast='<script src="/admin-login-fast.js?v=20260903-3"></script>';
     body=body.replace(/<script[^>]+src=[\"'][^\"']*\/admin-cache-bridge\.js(?:\?[^\"']*)?[\"'][^>]*><\/script>/gi,'');
     body=body.replace(/<script[^>]+src=[\"'][^\"']*\/admin-login-fast\.js(?:\?[^\"']*)?[\"'][^>]*><\/script>/gi,'');
-    body=body.includes('</head>')?body.replace('</head>',loginFast+'</head>'):(body.includes('</body>')?body.replace('</body>',loginFast+'</body>'):body+loginFast);
   }
   if(url.pathname==='/'||url.pathname.endsWith('.html')){
     const hasYtMapping=/src=[\"'](?:\.\/)?youtube-request-mapping\.js(?:\?[^\"']*)?[\"']/.test(body);
