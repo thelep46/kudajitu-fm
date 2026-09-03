@@ -11,13 +11,12 @@ export async function onRequest(context){
     body=body.replace(/https:\/\/script\.google\.com\/macros\/s\/[^'\"`\s]+/g,'/api/gas');
   }
   if(url.pathname==='/'||url.pathname==='/index.html'){
-    body=body.replace(/action=data&range=today/g,'action=data&range=today&compact=1');
-    body=body.replace(/src=[\"'](?:\.\/)?user-login-mode\.js(?:\?[^\"']*)?[\"']/g,'src="/user-login-mode.js?v=20260903-3"');
-    body=body.replace(/src=[\"'](?:\.\/)?realtime-queue-refresh\.js(?:\?[^\"']*)?[\"']/g,'src="/realtime-queue-refresh.js?v=20260903-4"');
-    body=body.replace(/src=[\"'](?:\.\/)?youtube-request-mapping\.js(?:\?[^\"']*)?[\"']/g,'src="/youtube-request-mapping.js?v=20260903-3"');
+    body=body.replace(/src=[\"'](?:\.\/)?user-login-mode\.js(?:\?[^\"']*)?[\"']/g,'src="/user-login-mode.js?v=20260903-4"');
+    body=body.replace(/src=[\"'](?:\.\/)?realtime-queue-refresh\.js(?:\?[^\"']*)?[\"']/g,'src="/realtime-queue-refresh.js?v=20260903-5"');
+    body=body.replace(/src=[\"'](?:\.\/)?youtube-request-mapping\.js(?:\?[^\"']*)?[\"']/g,'src="/youtube-request-mapping.js?v=20260903-4"');
   }
   if(isAdminPage){
-    const injection='<script src="/admin-cache-bridge.js?v=20260903-1"></script>';
+    const injection='<script src="/admin-cache-bridge.js?v=20260903-2"></script>';
     body=body.includes('/admin-cache-bridge.js')?body:(body.includes('</body>')?body.replace('</body>',injection+'</body>'):body+injection);
   }
   if(/\/player(?:-[^/]+)?\.html$/.test(url.pathname)){
@@ -26,7 +25,7 @@ export async function onRequest(context){
   }
   if(url.pathname==='/'||url.pathname.endsWith('.html')){
     const hasYtMapping=/src=[\"'](?:\.\/)?youtube-request-mapping\.js(?:\?[^\"']*)?[\"']/.test(body);
-    const injection=hasYtMapping?'<script src="/youtube-request-mapping-batch-v2.js?v=20260903-3"></script>':'<script src="/youtube-request-mapping.js?v=20260903-3"></script><script src="/youtube-request-mapping-batch-v2.js?v=20260903-3"></script>';
+    const injection=hasYtMapping?'<script src="/youtube-request-mapping-batch-v2.js?v=20260903-4"></script>':'<script src="/youtube-request-mapping.js?v=20260903-4"></script><script src="/youtube-request-mapping-batch-v2.js?v=20260903-4"></script>';
     body=body.includes('/youtube-request-mapping-batch-v2.js')?body:(body.includes('</body>')?body.replace('</body>',injection+'</body>'):body+injection);
   }
   const headers=new Headers(response.headers);
