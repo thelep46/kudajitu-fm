@@ -16,9 +16,12 @@ export async function onRequest(context){
     body=body.replace(/src=[\"'](?:\.\/)?youtube-request-mapping\.js(?:\?[^\"']*)?[\"']/g,'src="/youtube-request-mapping.js?v=20260903-5"');
   }
   if(isAdminPage){
-    const tag='<script src="/admin-cache-bridge.js?v=20260903-4"></script>';
+    const tag='<script src="/admin-cache-bridge.js?v=20260903-5"></script>';
     body=body.replace(/<script[^>]+src=[\"'][^\"']*\/admin-cache-bridge\.js(?:\?[^\"']*)?[\"'][^>]*><\/script>/gi,'');
     body=body.includes('</head>')?body.replace('</head>',tag+'</head>'):(body.includes('</body>')?body.replace('</body>',tag+'</body>'):body+tag);
+    const loginFast='<script src="/admin-login-fast.js?v=20260903-1"></script>';
+    body=body.replace(/<script[^>]+src=[\"'][^\"']*\/admin-login-fast\.js(?:\?[^\"']*)?[\"'][^>]*><\/script>/gi,'');
+    body=body.includes('</body>')?body.replace('</body>',loginFast+'</body>'):body+loginFast;
   }
   if(url.pathname==='/'||url.pathname.endsWith('.html')){
     const hasYtMapping=/src=[\"'](?:\.\/)?youtube-request-mapping\.js(?:\?[^\"']*)?[\"']/.test(body);
