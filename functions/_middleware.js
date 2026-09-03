@@ -7,12 +7,23 @@ export async function onRequest(context){
   const text=await response.text();
   let body=text;
   const isAdminPage=url.pathname==='/admin.html'||url.pathname.endsWith('/admin.html');
-  if(url.pathname==='/index.html'||url.pathname==='/'||isAdminPage||url.pathname.endsWith('/announcement.html')||url.pathname.endsWith('/users.html')||url.pathname.endsWith('/youtube-mapping.html')||/\/player(?:-[^/]+)?\.html$/.test(url.pathname)){
+  const isHome=url.pathname==='/'||url.pathname==='/index.html';
+  if(isHome||isAdminPage||url.pathname.endsWith('/announcement.html')||url.pathname.endsWith('/users.html')||url.pathname.endsWith('/youtube-mapping.html')||/\/player(?:-[^/]+)?\.html$/.test(url.pathname)){
     body=body.replace(/https:\/\/script\.google\.com\/macros\/s\/[^'\"`\s]+/g,'/api/gas');
   }
-  if(url.pathname==='/'||url.pathname==='/index.html'){
+  if(isHome){
+    /* The Supabase client is the new user queue source. Keep legacy GAS bridge loaded only as a guarded fallback. */
+    const supabaseTag='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>';
+    const bridgeTag='<script src="/supabase-user-bridge.js?v=20260903-1"></script>';
+    body=body.replace(/<script[^>]+src=[\"']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^\"']*[\"'][^>]*><\/script>/gi,'');
+    body=body.includes('</head>')?body.replace('</head>',supabaseTag+'</head>'):body;
+    body=body.replace(/<script[^>]+src=[\"'](?:\.\/)?supabase-user-bridge\.js(?:\?[^\"']*)?[\"'][^>]*><\/script>/gi,'');
+    body=body.includes('</body>')?body.replace('</body>',bridgeTag+'</body>'):body+bridgeTag;
+    /* Prevent the old direct GAS bootstrap from racing the Supabase bridge. */
+    body=body.replace(/loadCache\(\);loadData\(true\);/g,'loadCache();');
+    body=body.replace(/loadCache\(\);\s*loadData\(true\);/g,'loadCache();');
+    body=body.replace(/src=[\"'](?:\.\/)?realtime-queue-refresh\.js(?:\?[^\"']*)?[\"']/g,'src="/realtime-queue-refresh.js?v=20260903-10"');
     body=body.replace(/src=[\"'](?:\.\/)?user-login-mode\.js(?:\?[^\"']*)?[\"']/g,'src="/user-login-mode.js?v=20260903-5"');
-    body=body.replace(/src=[\"'](?:\.\/)?realtime-queue-refresh\.js(?:\?[^\"']*)?[\"']/g,'src="/realtime-queue-refresh.js?v=20260903-9"');
     body=body.replace(/src=[\"'](?:\.\/)?youtube-request-mapping\.js(?:\?[^\"']*)?[\"']/g,'src="/youtube-request-mapping.js?v=20260903-5"');
   }
   if(isAdminPage){
