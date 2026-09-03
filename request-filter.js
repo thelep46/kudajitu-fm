@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-/* Stable request helpers: unlimited batch + REQUIRED YouTube links for single and batch requests. */
+/* Stable request helpers: unlimited batch + REQUIRED YouTube links for single and batch requests. Queue synchronization is owned by realtime-queue-refresh.js. */
 let mode='all';
 let sectionObserver=null;
 let hooked=false;
@@ -118,41 +118,12 @@ async function sendUnlimited(items){
   let added=0,existing=0;
   for(let i=0;i<items.length;i+=chunkSize){
     const chunk=items.slice(i,i+chunkSize);
-    let result;
-    // A timed-out write may already have reached Apps Script; IDs make a later user retry safe.
-    result=await sendChunk(chunk);
+    const result=await sendChunk(chunk);
     if(!result||result.success===false)throw new Error(result&&result.message||'Batch gagal disimpan.');
     added+=Number(result.added||0);
     existing+=Number(result.existing||0);
   }
   return {success:true,added:added,existing:existing,count:items.length};
-}
-function installAuthoritativeQueueSync(){
-  if(typeof window.jsonp!=='function'||typeof window.render!=='function')return false;
-  window.loadData=async function(showError){
-    if(window.__kudaAuthoritativeLoading)return;
-    window.__kudaAuthoritativeLoading=true;
-    try{
-      if(typeof window.setSync==='function')window.setSync('syncing');
-      const url='/api/gas?action=data&range=today';
-      const j=await window.jsonp(url,12000);
-      if(!j||j.success===false||!Array.isArray(j.data))throw new Error(j&&j.message||'Data server tidak valid.');
-      window.requests=j.data.map(typeof window.normalize==='function'?window.normalize:function(x){return x||{};});
-      if(typeof window.saveCache==='function')window.saveCache();
-      window.render();
-      if(typeof window.setSync==='function')window.setSync('online');
-    }catch(e){
-      console.error('[Kudajitu] authoritative queue sync failed',e);
-      if(typeof window.setSync==='function')window.setSync('offline');
-      if(showError&&typeof window.toast==='function')window.toast('Data antrean belum dapat disinkronkan.','error');
-    }finally{window.__kudaAuthoritativeLoading=false;}
-  };
-  window.loadData(false);
-  if(window.__kudaAuthoritativeTimer)clearInterval(window.__kudaAuthoritativeTimer);
-  window.__kudaAuthoritativeTimer=setInterval(function(){
-    if(document.visibilityState==='visible')window.loadData(false);
-  },60000);
-  return true;
 }
 function styleBatch(){
   return 'display:grid;gap:10px;padding:12px;border:1px solid rgba(17,94,89,.7);border-radius:12px;background:rgba(3,10,12,.55)';
@@ -237,9 +208,8 @@ function installUnlimitedBatch(){
       const items=makeItems(itemsRaw,name);const result=await sendUnlimited(items);
       batchRows=[{title:'',artist:'',youtube:''}];renderBatchRows(builder);
       if(typeof window.toast==='function')window.toast(result.added+' request berhasil disimpan.');
-      if(typeof window.loadData==='function')await window.loadData(false);
     }catch(error){
-      console.error('Unlimited batch:',error);if(typeof window.toast==='function')window.toast(error.message||'Request batch gagal disimpan.','error');if(typeof window.loadData==='function')await window.loadData(false);
+      console.error('Unlimited batch:',error);if(typeof window.toast==='function')window.toast(error.message||'Request batch gagal disimpan.','error');
     }finally{if(button&&typeof window.busy==='function')window.busy(button,false);}
     return false;
   };
@@ -261,8 +231,8 @@ function installYoutubeSingle(){
   youtubeHooked=true;
 }
 function init(){
-  hookMainFilter();observeSection();installUnlimitedBatch();installYoutubeSingle();installAuthoritativeQueueSync();
-  setTimeout(function(){hookMainFilter();observeSection();installUnlimitedBatch();installYoutubeSingle();installAuthoritativeQueueSync();apply();},1200);
+  hookMainFilter();observeSection();installUnlimitedBatch();installYoutubeSingle();
+  setTimeout(function(){hookMainFilter();observeSection();installUnlimitedBatch();installYoutubeSingle();apply();},1200);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
