@@ -1,0 +1,43 @@
+name: Apply Admin Login Runtime
+
+on:
+  push:
+    paths:
+      - '.github/workflows/admin-login-runtime-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Inject standalone Supabase login runtime
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('admin.html')
+          text = p.read_text(encoding='utf-8')
+          runtime = '<script src="/admin-login-runtime.js?v=20260904-2"></script>'
+          if runtime not in text:
+              marker = '<script src="/admin-supabase.js?v=20260904-1"></script>'
+              if marker in text:
+                  text = text.replace(marker, marker + runtime, 1)
+              elif '</body>' in text:
+                  text = text.replace('</body>', runtime + '</body>', 1)
+              else:
+                  raise SystemExit('admin.html tidak memiliki </body>')
+              p.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit fix and remove workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add admin.html
+          git diff --cached --quiet || git commit -m 'fix: make admin login standalone'
+          git push
+          git rm .github/workflows/admin-login-runtime-fix.yml
+          git commit -m 'chore: remove one-time admin login runtime fixer'
+          git push
