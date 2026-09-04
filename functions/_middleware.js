@@ -11,9 +11,13 @@ export async function onRequest(context){
 
   let response;
   const assetPath=cleanRoutes[path];
-  if(assetPath && context.env?.ASSETS){
+  if(assetPath){
+    // Rewrite the incoming request before continuing the Pages pipeline.
+    // Do not call ASSETS.fetch() here: doing so can re-enter routing and create
+    // an endless redirect loop with Pages/_redirects.
     const assetUrl=new URL(assetPath,url.origin);
-    response=await context.env.ASSETS.fetch(new Request(assetUrl,context.request));
+    const rewrittenRequest=new Request(assetUrl,context.request);
+    response=await context.next({request:rewrittenRequest});
   }else{
     response=await context.next();
   }
