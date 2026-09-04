@@ -12,12 +12,13 @@ export async function onRequest(context){
   let response;
   const assetPath=cleanRoutes[path];
   if(assetPath){
-    // Rewrite the incoming request before continuing the Pages pipeline.
-    // Do not call ASSETS.fetch() here: doing so can re-enter routing and create
-    // an endless redirect loop with Pages/_redirects.
+    // Fetch the concrete Pages asset directly. Do not call context.next({request})
+    // because Pages middleware does not support replacing the request that way.
+    // _redirects is intentionally absent, so this cannot recurse through a
+    // second clean-route redirect.
     const assetUrl=new URL(assetPath,url.origin);
-    const rewrittenRequest=new Request(assetUrl,context.request);
-    response=await context.next({request:rewrittenRequest});
+    const assetRequest=new Request(assetUrl,context.request);
+    response=await context.env.ASSETS.fetch(assetRequest);
   }else{
     response=await context.next();
   }
@@ -64,7 +65,6 @@ export async function onRequest(context){
     body=body.includes('</body>')?body.replace('</body>',ps+'</body>'):body+ps;
   }
 
-  // Use clean production routes from Admin and other injected navigation.
   body=body.replace(/href=["'](?:\.\/)?player\.html["']/gi,'href="/player"');
   body=body.replace(/href=["'](?:\.\/)?youtube-mapping\.html["']/gi,'href="/youtube-mapping"');
   body=body.replace(/href=["'](?:\.\/)?users\.html["']/gi,'href="/users"');
