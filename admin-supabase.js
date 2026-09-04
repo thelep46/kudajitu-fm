@@ -3,7 +3,7 @@
 
   var SUPABASE_URL='https://jdqcvfqysmjreibcaduk.supabase.co';
   var SUPABASE_KEY='sb_publishable_QDcyGfH-3dBNmUYE9pKIkg_uFmRsmOa';
-  var FN=SUPABASE_URL+'/functions/v1/kudajitu-admin-v3';
+  var FN=SUPABASE_URL+'/functions/v1/kudajitu-admin-v4';
   var client=null;
   var originalJsonp=null;
   var installed=false;
@@ -112,26 +112,7 @@
         var u=new URL(String(url||''),window.location.href);
         var raw=String(u.searchParams.get('action')||'').toLowerCase();
         var map={
-          data:'data',
-          nowplaying:'nowplaying',
-          getqueueorder:'getqueueorder',
-          reorder:'reorder',
-          checkids:'checkids',
-          youtubecheck:'youtubeCheck',
-          youtubemappings:'youtubemappings',
-          saveyoutubemapping:'saveyoutubemapping',
-          deleteyoutubemapping:'deleteyoutubemapping',
-          announcement:'announcement',
-          saveannouncement:'saveannouncement',
-          clearannouncement:'clearannouncement',
-          userloginmode:'userloginmode',
-          setuserloginmode:'setuserloginmode',
-          updatestatus:'updateStatus',
-          markplayed:'markPlayed',
-          updatestatuses:'updateStatuses',
-          delete:'delete',
-          deletebatch:'deleteBatch',
-          users:'users'
+          data:'data',nowplaying:'nowplaying',getqueueorder:'getqueueorder',reorder:'reorder',checkids:'checkids',youtubecheck:'youtubeCheck',youtubemappings:'youtubemappings',saveyoutubemapping:'saveyoutubemapping',deleteyoutubemapping:'deleteyoutubemapping',announcement:'announcement',saveannouncement:'saveannouncement',clearannouncement:'clearannouncement',userloginmode:'userloginmode',setuserloginmode:'setuserloginmode',updatestatus:'updateStatus',markplayed:'markPlayed',updatestatuses:'updateStatuses',delete:'delete',deletebatch:'deleteBatch',users:'users'
         };
         if(!map[raw]) return originalJsonp(url);
         var payload={};
@@ -139,9 +120,7 @@
           if(key!=='action' && key!=='callback' && key!=='prefix' && key!=='_' && key!=='adminToken' && key!=='token') payload[key]=value;
         });
         return edge(map[raw],payload);
-      }catch(e){
-        return Promise.reject(e);
-      }
+      }catch(e){ return Promise.reject(e); }
     }
     bridge.__kudaSupabaseBridge=true;
     window.jsonp=bridge;
@@ -152,20 +131,12 @@
     var button=document.querySelector('#login button[onclick="login()"]');
     if(button && !button.dataset.kudaSupabaseBound){
       button.dataset.kudaSupabaseBound='1';
-      button.onclick=function(ev){
-        if(ev) ev.preventDefault();
-        loginAdmin();
-      };
+      button.onclick=function(ev){ if(ev) ev.preventDefault(); loginAdmin(); };
     }
     var password=document.getElementById('password');
     if(password && !password.dataset.kudaSupabaseBound){
       password.dataset.kudaSupabaseBound='1';
-      password.addEventListener('keydown',function(ev){
-        if(ev.key==='Enter'){
-          ev.preventDefault();
-          loginAdmin();
-        }
-      });
+      password.addEventListener('keydown',function(ev){if(ev.key==='Enter'){ev.preventDefault();loginAdmin();}});
     }
   }
 
@@ -177,19 +148,11 @@
   }
 
   function start(){
-    getClient();
-    ensureEmailField();
-    bindLoginEvents();
-    installJsonpBridge();
-    window.login=loginAdmin;
-    window.verifySession=verifyAdminSession;
-    window.logout=logoutAdmin;
-    window.token=function(){ return ''; };
-    setTimeout(function(){ ensureEmailField(); bindLoginEvents(); installJsonpBridge(); },100);
-    setTimeout(function(){ ensureEmailField(); bindLoginEvents(); installJsonpBridge(); },500);
-    setTimeout(function(){ restore(); },300);
+    getClient(); ensureEmailField(); bindLoginEvents(); installJsonpBridge();
+    window.login=loginAdmin; window.verifySession=verifyAdminSession; window.logout=logoutAdmin; window.token=function(){return ''};
+    setTimeout(function(){ensureEmailField();bindLoginEvents();installJsonpBridge()},100);
+    setTimeout(function(){ensureEmailField();bindLoginEvents();installJsonpBridge()},500);
+    setTimeout(function(){restore()},300);
   }
-
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start,{once:true});
-  else start();
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start,{once:true}); else start();
 })();
