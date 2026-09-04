@@ -2,28 +2,20 @@
 'use strict';
 const SUPABASE_URL='https://jdqcvfqysmjreibcaduk.supabase.co';
 const SUPABASE_KEY='sb_publishable_QDcyGfH-3dBNmUYE9pKIkg_uFmRsmOa';
-const FN=SUPABASE_URL+'/functions/v1/kudajitu-admin-v3';
+const FN=SUPABASE_URL+'/functions/v1/kudajitu-admin-v4';
 let client=null;
 function $(id){return document.getElementById(id)}
 function getClient(){
+  if(client)return client;
   if(window.KUDAJITUAdminDB&&window.KUDAJITUAdminDB.client){client=window.KUDAJITUAdminDB.client;return client}
-  if(!client&&window.supabase&&typeof window.supabase.createClient==='function') client=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY)
-  if(client) window.KUDAJITUAdminDB={client};
+  if(!window.supabase?.createClient)throw new Error('Supabase JS belum dimuat.');
+  client=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  window.KUDAJITUAdminDB={client};
   return client;
-}
-function ensureEmail(){
-  const box=$('login');
-  if(!box||$('adminEmail'))return;
-  const input=document.createElement('input');
-  input.id='adminEmail';input.type='email';input.className='field mb-3';
-  input.placeholder='Email admin';input.autocomplete='username';
-  const p=box.querySelector('p');
-  if(p&&p.parentNode)p.parentNode.insertBefore(input,p.nextSibling);else box.appendChild(input);
 }
 function msg(v){const e=$('loginMsg');if(e)e.textContent=String(v||'')}
 function show(){if($('login'))$('login').classList.add('hidden');if($('dashboard'))$('dashboard').classList.remove('hidden')}
 async function signIn(){
-  ensureEmail();
   const c=getClient();
   const email=($('adminEmail')?.value||'').trim();
   const password=$('password')?.value||'';
@@ -81,7 +73,6 @@ function bridgeJsonp(){
   wrapped.__kudaSupabaseBridge=true;window.jsonp=wrapped;
 }
 function bind(){
-  ensureEmail();
   const b=document.querySelector('#login button[onclick="login()"]');
   if(b&&!b.dataset.kudaBound){b.dataset.kudaBound='1';b.onclick=e=>{e?.preventDefault();signIn()}}
   const p=$('password');
@@ -89,10 +80,7 @@ function bind(){
   window.login=signIn;window.verifySession=verifySession;window.logout=logout;window.token=()=>'';
   bridgeJsonp();
 }
-async function boot(){
-  ensureEmail();bind();
-  if(await verifySession()){show();await loadAfterLogin()}
-}
-function start(){boot();[100,300,700,1500,3000].forEach(ms=>setTimeout(()=>{ensureEmail();bind()},ms))}
+async function boot(){bind();if(await verifySession()){show();await loadAfterLogin()}}
+function start(){boot();[100,300,700,1500,3000].forEach(ms=>setTimeout(bind,ms))}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
