@@ -3,7 +3,7 @@
 const SUPABASE_URL='https://jdqcvfqysmjreibcaduk.supabase.co';
 const SUPABASE_KEY='sb_publishable_QDcyGfH-3dBNmUYE9pKIkg_uFmRsmOa';
 const ADMIN_FN=SUPABASE_URL+'/functions/v1/kudajitu-admin-v3';
-let client=null;
+let client=null,startedBoot=false;
 function getClient(){
   if(client)return client;
   if(window.supabase?.createClient)client=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
@@ -27,8 +27,10 @@ async function api(action,payload){
   return d;
 }
 window.KUDAJITUPlayerSupabaseBoot=async function(){
+  if(startedBoot)return;
+  startedBoot=true;
   const c=getClient();
-  if(!c)throw new Error('Supabase belum siap.');
+  if(!c){startedBoot=false;throw new Error('Supabase belum siap.');}
   window.auth=async function(){
     try{await session();$('auth').innerHTML='<span class="ok">✓ Admin terhubung via Supabase</span>';return true}
     catch(e){$('auth').innerHTML='<b class="error">'+esc(e.message)+'</b><p class="small">Login di /admin lalu buka menu 🎧 Player.</p>';return false}
@@ -52,7 +54,15 @@ window.KUDAJITUPlayerSupabaseBoot=async function(){
     try{await api('updateStatus',{id:String(x.id),status:'played'});currentMarked=true;$('status').textContent='✓ Status = played. Memulai '+x.title+'…';$('status').className='small ok';return true}
     catch(e){$('status').textContent='Gagal menandai: '+e.message;$('status').className='small error';return false}
   };
-  await load();
-  ytLoad();
+  try{await load();ytLoad();}
+  catch(e){startedBoot=false;throw e;}
 };
+function bootWhenReady(){
+  if(window.supabase?.createClient&&window.KUDAJITUPlayerSupabaseBoot){
+    window.KUDAJITUPlayerSupabaseBoot().catch(e=>console.error('[Kudajitu Player]',e));
+    return;
+  }
+  setTimeout(bootWhenReady,25);
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootWhenReady,{once:true});else bootWhenReady();
 })();
