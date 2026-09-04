@@ -4,23 +4,26 @@ const SUPABASE_URL='https://jdqcvfqysmjreibcaduk.supabase.co';
 const SUPABASE_KEY='sb_publishable_QDcyGfH-3dBNmUYE9pKIkg_uFmRsmOa';
 const FN=SUPABASE_URL+'/functions/v1/kudajitu-admin-v4';
 let client=null;
+let signingIn=false;
 function $(id){return document.getElementById(id)}
 function getClient(){
   if(client)return client;
   if(window.KUDAJITUAdminDB&&window.KUDAJITUAdminDB.client){client=window.KUDAJITUAdminDB.client;return client}
   if(!window.supabase?.createClient)throw new Error('Supabase JS belum dimuat.');
-  client=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  client=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
   window.KUDAJITUAdminDB={client};
   return client;
 }
 function msg(v){const e=$('loginMsg');if(e)e.textContent=String(v||'')}
 function show(){if($('login'))$('login').classList.add('hidden');if($('dashboard'))$('dashboard').classList.remove('hidden')}
 async function signIn(){
+  if(signingIn)return false;
   const c=getClient();
   const email=($('adminEmail')?.value||'').trim();
   const password=$('password')?.value||'';
   if(!c){msg('Supabase belum siap.');return false}
   if(!email||!password){msg('Email dan password wajib diisi.');return false}
+  signingIn=true;
   try{
     const {data,error}=await c.auth.signInWithPassword({email,password});
     if(error)throw error;
@@ -29,10 +32,12 @@ async function signIn(){
       throw new Error('Akun bukan Admin atau session tidak tersedia.');
     }
     sessionStorage.setItem('kudajitu_admin_supabase','1');
-    $('password').value='';msg('');show();
+    if($('password'))$('password').value='';
+    msg('');show();
     await loadAfterLogin();
     return true;
   }catch(e){msg(e?.message||'Login Admin gagal.');return false}
+  finally{signingIn=false}
 }
 async function loadAfterLogin(){
   if(typeof window.load==='function')await window.load(true);
@@ -76,7 +81,10 @@ function bind(){
   const b=document.querySelector('#login button[onclick="login()"]');
   if(b&&!b.dataset.kudaBound){b.dataset.kudaBound='1';b.onclick=e=>{e?.preventDefault();signIn()}}
   const p=$('password');
-  if(p&&!p.dataset.kudaBound){p.dataset.kudaBound='1';p.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();signIn()}})}
+  if(p&&!p.dataset.kudaBound){
+    p.dataset.kudaBound='1';
+    if(!p.getAttribute('onkeydown'))p.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();signIn()}})
+  }
   window.login=signIn;window.verifySession=verifySession;window.logout=logout;window.token=()=>'';
   bridgeJsonp();
 }
