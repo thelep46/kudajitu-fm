@@ -3,66 +3,19 @@
 const SUPABASE_URL='https://jdqcvfqysmjreibcaduk.supabase.co';
 const SUPABASE_KEY='sb_publishable_QDcyGfH-3dBNmUYE9pKIkg_uFmRsmOa';
 const ADMIN_FN=SUPABASE_URL+'/functions/v1/kudajitu-admin-v4';
-let client=null,startedBoot=false;
-function getClient(){
-  if(client)return client;
-  if(window.supabase?.createClient)client=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-  return client;
-}
-async function session(){
-  const c=getClient();
-  if(!c)throw new Error('Supabase belum siap.');
-  const r=await c.auth.getSession();
-  const s=r?.data?.session;
-  const u=s?.user;
-  if(!s||!u)throw new Error('Login Admin diperlukan.');
-  if(String(u.app_metadata?.role||'').toLowerCase()!=='admin')throw new Error('Akun bukan Admin.');
-  return s;
-}
-async function api(action,payload){
-  const s=await session();
-  const r=await fetch(ADMIN_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+s.access_token},body:JSON.stringify({action,...(payload||{})}),cache:'no-store'});
-  const d=await r.json().catch(()=>null);
-  if(!r.ok||!d||d.success===false)throw new Error(d?.message||'Server Admin gagal.');
-  return d;
-}
-window.KUDAJITUPlayerSupabaseBoot=async function(){
-  if(startedBoot)return;
-  startedBoot=true;
-  const c=getClient();
-  if(!c){startedBoot=false;throw new Error('Supabase belum siap.');}
-  window.auth=async function(){
-    try{await session();$('auth').innerHTML='<span class="ok">✓ Admin terhubung via Supabase</span>';return true}
-    catch(e){$('auth').innerHTML='<b class="error">'+esc(e.message)+'</b><p class="small">Login di /admin lalu buka menu 🎧 Player.</p>';return false}
-  };
-  window.keepAdminSession=window.auth;
-  window.loadMaps=async function(){
-    const {data,error}=await c.from('youtube_mappings').select('map_key,youtube_id');
-    if(error)throw error;
-    maps={};(data||[]).forEach(x=>{if(x?.map_key&&x?.youtube_id)maps[String(x.map_key)]=String(x.youtube_id)});
-    try{localStorage.setItem('kpyt_mappings_v1',JSON.stringify(maps))}catch(_){ }
-    return true;
-  };
-  window.loadQueue=async function(){
-    const {data,error}=await c.from('requests').select('id,requester,title,artist,note,status,timestamp,played_at').eq('status','pending').order('queue_position',{ascending:true,nullsFirst:false}).order('timestamp',{ascending:true}).limit(1000);
-    if(error)throw error;
-    return Array.isArray(data)?data:[];
-  };
-  window.mark=async function(){
-    const x=q[i];if(!x||currentMarked)return true;
-    $('status').textContent='Menandai '+x.title+'…';
-    try{await api('updateStatus',{id:String(x.id),status:'played'});currentMarked=true;$('status').textContent='✓ Status = played. Memulai '+x.title+'…';$('status').className='small ok';return true}
-    catch(e){$('status').textContent='Gagal menandai: '+e.message;$('status').className='small error';return false}
-  };
-  try{await load();ytLoad();}
-  catch(e){startedBoot=false;throw e;}
-};
-function bootWhenReady(){
-  if(window.supabase?.createClient&&window.KUDAJITUPlayerSupabaseBoot){
-    window.KUDAJITUPlayerSupabaseBoot().catch(e=>console.error('[Kudajitu Player]',e));
-    return;
-  }
-  setTimeout(bootWhenReady,25);
-}
+let client=null,startedBoot=false,wrappedLoad=false,lastPlayedId='';
+function getClient(){if(client)return client;if(window.supabase?.createClient)client=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{realtime:{params:{eventsPerSecond:10}}});return client}
+async function session(){const c=getClient();if(!c)throw new Error('Supabase belum siap.');const r=await c.auth.getSession();const s=r?.data?.session,u=s?.user;if(!s||!u)throw new Error('Login Admin diperlukan.');if(String(u.app_metadata?.role||'').toLowerCase()!=='admin')throw new Error('Akun bukan Admin.');return s}
+async function api(action,payload){const s=await session();const r=await fetch(ADMIN_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+s.access_token},body:JSON.stringify({action,...(payload||{})}),cache:'no-store'});const d=await r.json().catch(()=>null);if(!r.ok||!d||d.success===false)throw new Error(d?.message||'Server Admin gagal.');return d}
+function mapKey(t,a){return String((t||'')+'|'+(a||'')).trim().toLowerCase().replace(/\s+/g,' ')}
+function videoId(v){const raw=String(v||'').trim();if(!raw)return'';try{const u=new URL(raw),h=u.hostname.toLowerCase().replace(/^www\./,'');if(h==='youtu.be')return(u.pathname.split('/').filter(Boolean)[0]||'').slice(0,11);if(['youtube.com','m.youtube.com','music.youtube.com'].includes(h)){const z=u.searchParams.get('v');if(z)return z.slice(0,11);const p=u.pathname.split('/').filter(Boolean);if(['shorts','embed','live'].includes(p[0])&&p[1])return p[1].slice(0,11)}}catch(_){}return/^[A-Za-z0-9_-]{11}$/.test(raw)?raw:''}
+async function loadMaps(){const c=getClient();const {data,error}=await c.from('youtube_mappings').select('title,artist,youtube_id');if(error)throw error;window.__kudaPlayerMaps={};(data||[]).forEach(x=>{if(x.youtube_id)window.__kudaPlayerMaps[mapKey(x.title,x.artist)]=String(x.youtube_id)});return true}
+function mappedVideo(x){const maps=window.__kudaPlayerMaps||{};return videoId(x?.note)||maps[mapKey(x?.title,x?.artist&&x.artist!=='Unknown Artist'?x.artist:'')]||''}
+async function loadQueue(){const c=getClient();const {data,error}=await c.from('requests').select('id,requester,title,artist,note,status,timestamp,queue_position,played_at').eq('status','pending').order('queue_position',{ascending:true,nullsFirst:false}).order('timestamp',{ascending:true}).limit(1000);if(error)throw error;return Array.isArray(data)?data:[]}
+async function latestPlayed(){const c=getClient();const {data,error}=await c.from('requests').select('id,requester,title,artist,note,status,timestamp,played_at').eq('status','played').order('played_at',{ascending:false,nullsFirst:false}).order('timestamp',{ascending:false}).limit(1);if(error)throw error;return data?.[0]||null}
+async function showLatestPlayed(){const x=await latestPlayed();if(!x)return null;const id=String(x.id||x.played_at||'');if(id===lastPlayedId)return x;lastPlayedId=id;const title=document.getElementById('title'),meta=document.getElementById('meta'),status=document.getElementById('status');if(title)title.textContent=x.title||'Belum ada lagu diputar';if(meta)meta.textContent=(x.artist||'Tanpa penyanyi')+' • '+(x.requester||'User');if(status){status.textContent='▶ Sedang diputar • '+(x.title||'');status.className='status ok'}const v=mappedVideo(x);if(v&&window.yt&&window.ready){try{window.yt.mute();window.yt.loadVideoById({videoId:v,startSeconds:0});setTimeout(()=>{try{window.yt.playVideo()}catch(_){ }},150);window.started=true}catch(_){}}return x}
+function wrapLoad(){if(wrappedLoad||typeof window.load!=='function')return;const original=window.load;window.load=async function(){const r=await original.apply(this,arguments);try{await showLatestPlayed()}catch(e){console.warn('[Kudajitu Player] latest played:',e?.message||e)}return r};wrappedLoad=true}
+window.KUDAJITUPlayerSupabaseBoot=async function(){if(startedBoot)return;startedBoot=true;const c=getClient();if(!c){startedBoot=false;throw new Error('Supabase belum siap.')}window.auth=async function(){try{await session();document.getElementById('auth').innerHTML='<span class="ok">✓ Admin terhubung • Auto-play aktif</span>';return true}catch(e){document.getElementById('auth').innerHTML='<b class="error">'+String(e.message||e)+'</b><p class="small">Login di /admin lalu buka menu 🎧 Player.</p>';return false}};window.keepAdminSession=window.auth;window.loadMaps=loadMaps;window.loadQueue=loadQueue;window.mark=async function(){const x=window.q?.[window.i];if(!x||window.currentMarked)return true;document.getElementById('status').textContent='Menandai '+x.title+'…';try{await api('updateStatus',{id:String(x.id),status:'played'});window.currentMarked=true;document.getElementById('status').textContent='✓ Status = played. Memulai '+x.title+'…';document.getElementById('status').className='status ok';return true}catch(e){document.getElementById('status').textContent='Gagal menandai: '+e.message;document.getElementById('status').className='status err';return false}};wrapLoad();try{await window.load();await showLatestPlayed()}catch(e){startedBoot=false;throw e}};
+function bootWhenReady(){if(window.supabase?.createClient&&window.KUDAJITUPlayerSupabaseBoot){window.KUDAJITUPlayerSupabaseBoot().catch(e=>console.error('[Kudajitu Player]',e));return}setTimeout(bootWhenReady,25)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootWhenReady,{once:true});else bootWhenReady();
 })();
