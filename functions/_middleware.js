@@ -60,6 +60,13 @@ export async function onRequest(context){
     body=body.includes('</body>')?body.replace('</body>',ps+'</body>'):body+ps;
   }
 
+  // Use clean production routes from Admin and other injected navigation.
+  body=body.replace(/href=["'](?:\.\/)?player\.html["']/gi,'href="/player"');
+  body=body.replace(/href=["'](?:\.\/)?youtube-mapping\.html["']/gi,'href="/youtube-mapping"');
+  body=body.replace(/href=["'](?:\.\/)?users\.html["']/gi,'href="/users"');
+  body=body.replace(/href=["'](?:\.\/)?announcement\.html["']/gi,'href="/announcement"');
+  body=body.replace(/href=["'](?:\.\/)?admin\.html["']/gi,'href="/admin"');
+
   const headers=new Headers(response.headers);
   headers.delete('content-length');
   headers.set('Cache-Control','no-store');
