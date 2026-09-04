@@ -1,27 +1,8 @@
 export async function onRequest(context){
   const url=new URL(context.request.url);
   const path=url.pathname.replace(/\/+$/,'')||'/';
-  const internal=context.request.headers.get('x-kudajitu-internal')==='1';
 
-  let response;
-  if(!internal){
-    const cleanRoutes={
-      '/admin':'/admin.html',
-      '/users':'/users.html',
-      '/announcement':'/announcement.html',
-      '/youtube-mapping':'/youtube-mapping.html',
-      '/player':'/player.html'
-    };
-    const assetPath=cleanRoutes[path];
-    if(assetPath){
-      const assetUrl=new URL(assetPath,url.origin);
-      const headers=new Headers(context.request.headers);
-      headers.set('x-kudajitu-internal','1');
-      const request=new Request(assetUrl,{method:context.request.method,headers,body:['GET','HEAD'].includes(context.request.method)?undefined:context.request.body,redirect:'manual'});
-      response=await context.env.ASSETS.fetch(request);
-    }
-  }
-  if(!response) response=await context.next();
+  let response=await context.next();
 
   const type=response.headers.get('content-type')||'';
   if(!type.includes('text/html'))return response;
