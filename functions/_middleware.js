@@ -11,49 +11,45 @@ export async function onRequest(context){
   const isHome=url.pathname==='/'||url.pathname==='/index.html';
   const isPlayer=/\/player(?:-[^/]+)?\.html$/.test(url.pathname);
 
-  if(isHome||isAdminDataPage||isPlayer){
-    body=body.replace(/https:\/\/script\.google\.com\/macros\/s\/[^'\"`\s]+/g,'/api/gas');
-  }
-
   if(isHome){
     const supabaseTag='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>';
-    const bridgeTag='<script src="/supabase-user-bridge.js?v=20260903-7"></script>';
-    body=body.replace(/<script[^>]+src=[\"']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^\"']*[\"'][^>]*><\/script>/gi,'');
+    const bridgeTag='<script src="/supabase-user-bridge.js?v=20260904-1"></script>';
+    body=body.replace(/<script[^>]+src=["']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^"']*["'][^>]*><\/script>/gi,'');
     body=body.includes('</head>')?body.replace('</head>',supabaseTag+'</head>'):body+supabaseTag;
-    body=body.replace(/<script[^>]+src=[\"'](?:\.\/)?supabase-user-bridge\.js(?:\?[^\"']*)?[\"'][^>]*><\/script>/gi,'');
+    body=body.replace(/<script[^>]+src=["'](?:\.\/)?supabase-user-bridge\.js(?:\?[^"']*)?["'][^>]*><\/script>/gi,'');
     body=body.includes('</body>')?body.replace('</body>',bridgeTag+'</body>'):body+bridgeTag;
     body=body.replace(/loadCache\(\);loadData\(true\);/g,'loadCache();');
     body=body.replace(/loadCache\(\);\s*loadData\(true\);/g,'loadCache();');
-    body=body.replace(/src=[\"'](?:\.\/)?realtime-queue-refresh\.js(?:\?[^\"']*)?[\"']/g,'src="/realtime-queue-refresh.js?v=20260903-11"');
-    body=body.replace(/src=[\"'](?:\.\/)?user-login-mode\.js(?:\?[^\"']*)?[\"']/g,'src="/user-login-mode.js?v=20260903-5"');
-    body=body.replace(/src=[\"'](?:\.\/)?youtube-request-mapping\.js(?:\?[^\"']*)?[\"']/g,'src="/youtube-request-mapping.js?v=20260903-6"');
-    body=body.replace(/src=[\"'](?:\.\/)?announcement\.js(?:\?[^\"']*)?[\"']/g,'src="/announcement.js?v=20260903-3"');
+    body=body.replace(/src=["'](?:\.\/)?realtime-queue-refresh\.js(?:\?[^"']*)?["']/g,'src="/realtime-queue-refresh.js?v=20260904-1"');
+    body=body.replace(/src=["'](?:\.\/)?user-login-mode\.js(?:\?[^"']*)?["']/g,'src="/user-login-mode.js?v=20260904-1"');
+    body=body.replace(/src=["'](?:\.\/)?youtube-request-mapping\.js(?:\?[^"']*)?["']/g,'src="/youtube-request-mapping.js?v=20260904-1"');
+    body=body.replace(/src=["'](?:\.\/)?announcement\.js(?:\?[^"']*)?["']/g,'src="/announcement.js?v=20260904-1"');
   }
 
   if(isAdminDataPage){
     const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>';
-    const bridge='<script src="/admin-supabase.js?v=20260904-3"></script>';
-    body=body.replace(/<script[^>]+src=[\"']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^\"']*[\"'][^>]*><\/script>/gi,'');
-    body=body.replace(/<script[^>]+src=[\"'][^\"']*\/admin-supabase\.js(?:\?[^\"']*)?[\"'][^>]*><\/script>/gi,'');
+    const bridge='<script src="/admin-supabase.js?v=20260904-4"></script>';
+    body=body.replace(/<script[^>]+src=["']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^"']*["'][^>]*><\/script>/gi,'');
+    body=body.replace(/<script[^>]+src=["'][^"']*\/admin-supabase\.js(?:\?[^"']*)?["'][^>]*><\/script>/gi,'');
     body=body.includes('</head>')?body.replace('</head>',sb+'</head>'):body+sb;
     body=body.includes('</body>')?body.replace('</body>',bridge+'</body>'):body+bridge;
   }
 
   if(url.pathname==='/'||url.pathname.endsWith('.html')){
-    const hasYtMapping=/src=[\"'](?:\.\/)?youtube-request-mapping\.js(?:\?[^\"']*)?[\"']/.test(body);
+    const hasYtMapping=/src=["'](?:\.\/)?youtube-request-mapping\.js(?:\?[^"']*)?["']/.test(body);
     const injection=hasYtMapping
-      ?'<script src="/youtube-request-mapping-batch-v2.js?v=20260903-8"></script>'
-      :'<script src="/youtube-request-mapping.js?v=20260903-6"></script><script src="/youtube-request-mapping-batch-v2.js?v=20260903-8"></script>';
+      ?'<script src="/youtube-request-mapping-batch-v2.js?v=20260904-1"></script>'
+      :'<script src="/youtube-request-mapping.js?v=20260904-1"></script><script src="/youtube-request-mapping-batch-v2.js?v=20260904-1"></script>';
     body=body.includes('/youtube-request-mapping-batch-v2.js')?body:(body.includes('</body>')?body.replace('</body>',injection+'</body>'):body+injection);
   }
 
   if(isPlayer){
     const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>';
-    const ps='<script src="/player-supabase.js?v=20260904-2"></script>';
-    body=body.replace(/<script[^>]+src=[\"']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^\"']*[\"'][^>]*><\/script>/gi,'');
+    const ps='<script src="/player-supabase.js?v=20260904-3"></script>';
+    body=body.replace(/<script[^>]+src=["']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^"']*["'][^>]*><\/script>/gi,'');
     body=body.includes('</head>')?body.replace('</head>',sb+'</head>'):body+sb;
     body=body.replace(/maps=cachedMaps\(\);load\(\);ytLoad\(\);/g,'if(window.KUDAJITUPlayerSupabaseBoot){window.KUDAJITUPlayerSupabaseBoot().catch(function(e){console.error(\'[Kudajitu Player]\',e);});}');
-    body=body.replace(/<script[^>]+src=[\"'][^\"']*\/player-supabase\.js(?:\?[^\"']*)?[\"'][^>]*><\/script>/gi,'');
+    body=body.replace(/<script[^>]+src=["'][^"']*\/player-supabase\.js(?:\?[^"']*)?["'][^>]*><\/script>/gi,'');
     body=body.includes('</body>')?body.replace('</body>',ps+'</body>'):body+ps;
   }
 
