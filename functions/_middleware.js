@@ -1,27 +1,26 @@
 export async function onRequest(context){
   const url=new URL(context.request.url);
   const path=url.pathname.replace(/\/+$/,'')||'/';
-  const cleanRoutes={
-    '/admin':'/admin.html',
-    '/users':'/users.html',
-    '/announcement':'/announcement.html',
-    '/youtube-mapping':'/youtube-mapping.html',
-    '/player':'/player.html'
-  };
+  const internal=context.request.headers.get('x-kudajitu-internal')==='1';
 
   let response;
-  const assetPath=cleanRoutes[path];
-  if(assetPath){
-    // Fetch the concrete Pages asset directly. Do not call context.next({request})
-    // because Pages middleware does not support replacing the request that way.
-    // _redirects is intentionally absent, so this cannot recurse through a
-    // second clean-route redirect.
-    const assetUrl=new URL(assetPath,url.origin);
-    const assetRequest=new Request(assetUrl,context.request);
-    response=await context.env.ASSETS.fetch(assetRequest);
-  }else{
-    response=await context.next();
+  if(!internal){
+    const cleanRoutes={
+      '/admin':'/admin.html',
+      '/users':'/users.html',
+      '/announcement':'/announcement.html',
+      '/youtube-mapping':'/youtube-mapping.html',
+      '/player':'/player.html'
+    };
+    const assetPath=cleanRoutes[path];
+    if(assetPath){
+      const assetUrl=new URL(assetPath,url.origin);
+      const headers=new Headers(context.request.headers);
+      headers.set('x-kudajitu-internal','1');
+      response=await fetch(new Request(assetUrl,{method:context.request.method,headers,body:['GET','HEAD'].includes(context.request.method)?undefined:context.request.body,redirect:'manual'}));
+    }
   }
+  if(!response) response=await context.next();
 
   const type=response.headers.get('content-type')||'';
   if(!type.includes('text/html'))return response;
@@ -71,8 +70,8 @@ export async function onRequest(context){
   body=body.replace(/href=["'](?:\.\/)?announcement\.html["']/gi,'href="/announcement"');
   body=body.replace(/href=["'](?:\.\/)?admin\.html["']/gi,'href="/admin"');
 
-  const headers=new Headers(response.headers);
-  headers.delete('content-length');
-  headers.set('Cache-Control','no-store');
-  return new Response(body,{status:response.status,statusText:response.statusText,headers});
+  const outHeaders=new Headers(response.headers);
+  outHeaders.delete('content-length');
+  outHeaders.set('Cache-Control','no-store');
+  return new Response(body,{status:response.status,statusText:response.statusText,headers:outHeaders});
 }
