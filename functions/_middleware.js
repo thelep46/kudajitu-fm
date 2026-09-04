@@ -21,6 +21,7 @@ export async function onRequest(context){
     body=body.includes('</body>')?body.replace('</body>','<script src="/realtime-queue-refresh.js?v=20260904-7"></script></body>'):body+'<script src="/realtime-queue-refresh.js?v=20260904-7"></script>';
     body=body.replace(/loadCache\(\);\s*loadData\(true\);/g,'loadCache();');
     body=body.replace(/src=["'](?:\.\/)?user-login-mode\.js(?:\?[^"']*)?["']/g,'src="/user-login-mode.js?v=20260904-4"');
+    body=body.replace(/src=["'](?:\.\/)?user-access\.js(?:\?[^"']*)?["']/g,'src="/user-access.js?v=20260904-8"');
     body=body.replace(/src=["'](?:\.\/)?youtube-request-mapping\.js(?:\?[^"']*)?["']/g,'src="/youtube-request-mapping.js?v=20260904-6"');
     body=body.replace(/src=["'](?:\.\/)?announcement\.js(?:\?[^"']*)?["']/g,'src="/announcement.js?v=20260904-3"');
   }
