@@ -25,12 +25,12 @@ export async function onRequest(context){
     body=body.replace(/src=["'](?:\.\/)?announcement\.js(?:\?[^"']*)?["']/g,'src="/announcement.js?v=20260904-5"');
   }
   if(isAdminDataPage){
-    const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>',bridge='<script src="/admin-supabase.js?v=20260904-10"></script>',runtime='<script src="/admin-login-runtime.js?v=20260904-5"></script>';
+    const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>',bridge='<script src="/admin-supabase.js?v=20260904-11"></script>';
     body=body.replace(/<script[^>]+src=["']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^"']*["'][^>]*><\/script>/gi,'');
     body=body.replace(/<script[^>]+src=["'][^"']*\/admin-supabase\.js(?:\?[^"']*)?["'][^>]*><\/script>/gi,'');
     body=body.replace(/<script[^>]+src=["'][^"']*\/admin-login-runtime\.js(?:\?[^"']*)?["'][^>]*><\/script>/gi,'');
     body=body.includes('</head>')?body.replace('</head>',sb+'</head>'):body+sb;
-    body=body.includes('</body>')?body.replace('</body>',bridge+runtime+'</body>'):body+bridge+runtime;
+    body=body.includes('</body>')?body.replace('</body>',bridge+'</body>'):body+bridge;
   }
   if(isPlayer){
     const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>',ps='<script src="/player-supabase.js?v=20260904-9"></script>';
