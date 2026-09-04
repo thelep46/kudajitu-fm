@@ -26,10 +26,11 @@ export async function onRequest(context){
     body=body.replace(/src=["'](?:\.\/)?user-access\.js(?:\?[^"']*)?["']/g,'src="/user-access.js?v=20260904-10"');
     body=body.replace(/src=["'](?:\.\/)?youtube-request-mapping\.js(?:\?[^"']*)?["']/g,'src="/youtube-request-mapping.js?v=20260904-8"');
     body=body.replace(/src=["'](?:\.\/)?announcement\.js(?:\?[^"']*)?["']/g,'src="/announcement.js?v=20260904-5"');
+    body=body.replace(/Maksimal 3 lagu aktif per nama\.?/gi,'Tidak ada batas jumlah request lagu.');
   }
 
   if(isAdminDataPage){
-    const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>',bridge='<script src="/admin-supabase.js?v=20260904-12"></script>';
+    const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase\/supabase-js@2"></script>',bridge='<script src="/admin-supabase.js?v=20260904-12"></script>';
     body=body.replace(/<script[^>]+src=["']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^"']*["'][^>]*><\/script>/gi,'');
     body=body.replace(/<script[^>]+src=["'][^"']*\/admin-supabase\.js(?:\?[^"']*)?["'][^>]*><\/script>/gi,'');
     body=body.replace(/<script[^>]+src=["'][^"']*\/admin-login-runtime\.js(?:\?[^"']*)?["'][^>]*><\/script>/gi,'');
