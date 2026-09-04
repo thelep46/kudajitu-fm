@@ -2,7 +2,7 @@
 'use strict';
 const SUPABASE_URL='https://jdqcvfqysmjreibcaduk.supabase.co';
 const SUPABASE_KEY='sb_publishable_QDcyGfH-3dBNmUYE9pKIkg_uFmRsmOa';
-const ADMIN_FN=SUPABASE_URL+'/functions/v1/kudajitu-admin-v3';
+const ADMIN_FN=SUPABASE_URL+'/functions/v1/kudajitu-admin-v4';
 let client=null,startedBoot=false;
 function getClient(){
   if(client)return client;
@@ -44,7 +44,7 @@ window.KUDAJITUPlayerSupabaseBoot=async function(){
     return true;
   };
   window.loadQueue=async function(){
-    const {data,error}=await c.from('requests').select('id,requester,title,artist,note,status,timestamp,played_at').eq('status','pending').order('timestamp',{ascending:true}).limit(1000);
+    const {data,error}=await c.from('requests').select('id,requester,title,artist,note,status,timestamp,played_at').eq('status','pending').order('queue_position',{ascending:true,nullsFirst:false}).order('timestamp',{ascending:true}).limit(1000);
     if(error)throw error;
     return Array.isArray(data)?data:[];
   };
