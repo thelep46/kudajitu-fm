@@ -6,6 +6,7 @@ const FN=SUPABASE_URL+'/functions/v1/kudajitu-admin-v4';
 let client;
 function getClient(){
   if(client)return client;
+  if(window.KUDAJITUAdminDB?.client){client=window.KUDAJITUAdminDB.client;return client;}
   if(!window.supabase?.createClient)throw new Error('Supabase JS belum dimuat.');
   client=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
   window.KUDAJITUAdminDB={client};
@@ -49,7 +50,7 @@ function installBridge(){
   async function bridge(url){
     const u=new URL(String(url||''),location.href);const raw=(u.searchParams.get('action')||'').toLowerCase();
     const action=map[raw];
-    if(!action)return original(url); // only non-GAS URLs are allowed through
+    if(!action)return original(url);
     const payload={};u.searchParams.forEach((v,k)=>{if(!['action','callback','prefix','_','adminToken','token'].includes(k))payload[k]=v;});
     return edge(action,payload);
   }
