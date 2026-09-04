@@ -24,6 +24,22 @@ async function edge(action,payload={}){
   if(!r.ok||out.success===false)throw new Error(out.message||('Server gagal ('+r.status+').'));
   return out;
 }
+function jakartaDay(v){const d=new Date(v);if(Number.isNaN(d.getTime()))return '';return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta'}).format(d)}
+async function syncTodayPlayedKpi(){
+  const el=document.getElementById('played');
+  if(!el)return;
+  try{
+    const r=await edge('data',{range:'today',status:'played'});
+    const rows=Array.isArray(r?.data)?r.data:Array.isArray(r?.rows)?r.rows:Array.isArray(r?.requests)?r.requests:[];
+    const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta'}).format(new Date());
+    const count=rows.filter(x=>{
+      const status=String(x?.status??'').toLowerCase();
+      if(status!=='played')return false;
+      return jakartaDay(x?.playedAt??x?.played_at??x?.played_at_timestamp??x?.timestamp)===today;
+    }).length;
+    el.textContent=String(count);
+  }catch(e){console.warn('[Admin Today Played]',e?.message||e)}
+}
 async function syncQueue(){
   if(queueSyncBusy||typeof window.load!=='function')return;
   const dashboard=document.getElementById('dashboard');
@@ -56,6 +72,7 @@ async function loginAdmin(){
     if(typeof window.show==='function')window.show();
     if(typeof window.load==='function')await window.load(true);
     if(typeof window.loadUserLoginMode==='function')await window.loadUserLoginMode();
+    await syncTodayPlayedKpi();
     startRealtimeQueueSync();
     return true;
   }catch(e){msg(e?.message||'Login Admin gagal.');return false;}
@@ -77,15 +94,26 @@ function installBridge(){
   }
   bridge.__kudaSupabaseBridge=true;window.jsonp=bridge;
 }
+function installLoadKpiSync(){
+  if(typeof window.load!=='function'||window.load.__kudaTodayPlayedSync)return;
+  const originalLoad=window.load;
+  async function wrappedLoad(){
+    const result=await originalLoad.apply(this,arguments);
+    await syncTodayPlayedKpi();
+    return result;
+  }
+  wrappedLoad.__kudaTodayPlayedSync=true;
+  window.load=wrappedLoad;
+}
 function bind(){
   const b=document.querySelector('#login button[onclick="login()"]');if(b&&!b.dataset.supabaseBound){b.dataset.supabaseBound='1';b.onclick=e=>{e?.preventDefault();loginAdmin();};}
   const p=document.getElementById('password');if(p&&!p.dataset.supabaseBound){p.dataset.supabaseBound='1';p.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();loginAdmin();}});}
 }
-async function restore(){if(await verifyAdminSession()){window.show?.();try{await window.load?.(true);await window.loadUserLoginMode?.();startRealtimeQueueSync()}catch(e){console.error('[Admin Supabase]',e)}}}
+async function restore(){if(await verifyAdminSession()){window.show?.();try{await window.load?.(true);await window.loadUserLoginMode?.();await syncTodayPlayedKpi();startRealtimeQueueSync()}catch(e){console.error('[Admin Supabase]',e)}}}
 function start(){
   try{getClient()}catch(e){msg(e.message)}
   window.login=loginAdmin;window.verifySession=verifyAdminSession;window.logout=logoutAdmin;window.token=()=>'';
-  bind();installBridge();setTimeout(bind,100);setTimeout(installBridge,100);setTimeout(restore,250);
+  bind();installBridge();installLoadKpiSync();setTimeout(bind,100);setTimeout(installBridge,100);setTimeout(installLoadKpiSync,100);setTimeout(restore,250);
   setInterval(syncQueue,5000);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
