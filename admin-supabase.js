@@ -4,6 +4,8 @@ const SUPABASE_URL='https://jdqcvfqysmjreibcaduk.supabase.co';
 const SUPABASE_KEY='sb_publishable_QDcyGfH-3dBNmUYE9pKIkg_uFmRsmOa';
 const FN=SUPABASE_URL+'/functions/v1/kudajitu-admin-v4';
 let client;
+let queueSyncBusy=false;
+let realtimeChannel=null;
 function getClient(){
   if(client)return client;
   if(window.KUDAJITUAdminDB?.client){client=window.KUDAJITUAdminDB.client;return client;}
@@ -21,6 +23,24 @@ async function edge(action,payload={}){
   const text=await r.text();let out;try{out=JSON.parse(text)}catch(_){throw new Error('Respons Admin tidak valid.');}
   if(!r.ok||out.success===false)throw new Error(out.message||('Server gagal ('+r.status+').'));
   return out;
+}
+async function syncQueue(){
+  if(queueSyncBusy||typeof window.load!=='function')return;
+  const dashboard=document.getElementById('dashboard');
+  if(!dashboard||dashboard.classList.contains('hidden'))return;
+  queueSyncBusy=true;
+  try{await window.load(true)}catch(e){console.warn('[Admin Queue Sync]',e?.message||e)}finally{queueSyncBusy=false}
+}
+function startRealtimeQueueSync(){
+  try{
+    const c=getClient();
+    if(realtimeChannel)c.removeChannel(realtimeChannel);
+    realtimeChannel=c.channel('admin-request-queue-sync')
+      .on('postgres_changes',{event:'*',schema:'public',table:'requests'},()=>{syncQueue()})
+      .subscribe(status=>{
+        if(status!=='SUBSCRIBED')console.warn('[Admin Queue Realtime]',status);
+      });
+  }catch(e){console.warn('[Admin Queue Realtime]',e?.message||e)}
 }
 async function syncTodayPlayed(){
   try{
@@ -46,13 +66,14 @@ async function loginAdmin(){
     if(typeof window.load==='function')await window.load(true);
     if(typeof window.loadUserLoginMode==='function')await window.loadUserLoginMode();
     await syncTodayPlayed();
+    startRealtimeQueueSync();
     return true;
   }catch(e){msg(e?.message||'Login Admin gagal.');return false;}
 }
 async function verifyAdminSession(){
   try{const {data}=await getClient().auth.getSession();return !!(data?.session?.user?.app_metadata?.role==='admin');}catch(_){return false;}
 }
-async function logoutAdmin(){try{await getClient().auth.signOut()}catch(_){}sessionStorage.removeItem('kudajitu_admin_supabase');sessionStorage.removeItem('kudajitu_admin_token');location.reload();}
+async function logoutAdmin(){try{if(realtimeChannel){await getClient().removeChannel(realtimeChannel);realtimeChannel=null}await getClient().auth.signOut()}catch(_){}sessionStorage.removeItem('kudajitu_admin_supabase');sessionStorage.removeItem('kudajitu_admin_token');location.reload();}
 function installBridge(){
   if(typeof window.jsonp!=='function'||window.jsonp.__kudaSupabaseBridge)return;
   const original=window.jsonp;
@@ -70,12 +91,13 @@ function bind(){
   const b=document.querySelector('#login button[onclick="login()"]');if(b&&!b.dataset.supabaseBound){b.dataset.supabaseBound='1';b.onclick=e=>{e?.preventDefault();loginAdmin();};}
   const p=document.getElementById('password');if(p&&!p.dataset.supabaseBound){p.dataset.supabaseBound='1';p.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();loginAdmin();}});}
 }
-async function restore(){if(await verifyAdminSession()){window.show?.();try{await window.load?.(true);await window.loadUserLoginMode?.();await syncTodayPlayed()}catch(e){console.error('[Admin Supabase]',e)}}}
+async function restore(){if(await verifyAdminSession()){window.show?.();try{await window.load?.(true);await window.loadUserLoginMode?.();await syncTodayPlayed();startRealtimeQueueSync()}catch(e){console.error('[Admin Supabase]',e)}}}
 function start(){
   try{getClient()}catch(e){msg(e.message)}
   window.login=loginAdmin;window.verifySession=verifyAdminSession;window.logout=logoutAdmin;window.token=()=>'';
   bind();installBridge();setTimeout(bind,100);setTimeout(installBridge,100);setTimeout(restore,250);
   setInterval(syncTodayPlayed,15000);
+  setInterval(syncQueue,5000);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
