@@ -42,15 +42,6 @@ function startRealtimeQueueSync(){
       });
   }catch(e){console.warn('[Admin Queue Realtime]',e?.message||e)}
 }
-async function syncTodayPlayed(){
-  try{
-    const c=getClient();
-    const start=new Date();start.setHours(0,0,0,0);
-    const end=new Date(start);end.setDate(end.getDate()+1);
-    const {count,error}=await c.from('requests').select('id',{count:'exact',head:true}).eq('status','played').gte('played_at',start.toISOString()).lt('played_at',end.toISOString());
-    if(!error&&document.getElementById('played'))document.getElementById('played').textContent=String(count||0);
-  }catch(_){/* keep existing dashboard value if optional counter query fails */}
-}
 async function loginAdmin(){
   const c=getClient();
   const email=(document.getElementById('adminEmail')?.value||'').trim();
@@ -65,7 +56,6 @@ async function loginAdmin(){
     if(typeof window.show==='function')window.show();
     if(typeof window.load==='function')await window.load(true);
     if(typeof window.loadUserLoginMode==='function')await window.loadUserLoginMode();
-    await syncTodayPlayed();
     startRealtimeQueueSync();
     return true;
   }catch(e){msg(e?.message||'Login Admin gagal.');return false;}
@@ -91,12 +81,11 @@ function bind(){
   const b=document.querySelector('#login button[onclick="login()"]');if(b&&!b.dataset.supabaseBound){b.dataset.supabaseBound='1';b.onclick=e=>{e?.preventDefault();loginAdmin();};}
   const p=document.getElementById('password');if(p&&!p.dataset.supabaseBound){p.dataset.supabaseBound='1';p.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();loginAdmin();}});}
 }
-async function restore(){if(await verifyAdminSession()){window.show?.();try{await window.load?.(true);await window.loadUserLoginMode?.();await syncTodayPlayed();startRealtimeQueueSync()}catch(e){console.error('[Admin Supabase]',e)}}}
+async function restore(){if(await verifyAdminSession()){window.show?.();try{await window.load?.(true);await window.loadUserLoginMode?.();startRealtimeQueueSync()}catch(e){console.error('[Admin Supabase]',e)}}}
 function start(){
   try{getClient()}catch(e){msg(e.message)}
   window.login=loginAdmin;window.verifySession=verifyAdminSession;window.logout=logoutAdmin;window.token=()=>'';
   bind();installBridge();setTimeout(bind,100);setTimeout(installBridge,100);setTimeout(restore,250);
-  setInterval(syncTodayPlayed,15000);
   setInterval(syncQueue,5000);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
