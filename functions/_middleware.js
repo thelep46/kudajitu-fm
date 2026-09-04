@@ -3,7 +3,6 @@ export async function onRequest(context){
   const path=url.pathname.replace(/\/+$/,'')||'/';
 
   let response=await context.next();
-
   const type=response.headers.get('content-type')||'';
   if(!type.includes('text/html'))return response;
   if(path==='/maintenance.html')return response;
@@ -11,7 +10,7 @@ export async function onRequest(context){
   const text=await response.text();
   let body=text;
   const isAdminPage=path==='/admin'||path==='/admin.html';
-  const isAdminDataPage=isAdminPage||path==='/users'||path==='/users.html'||path==='/announcement'||path==='/announcement.html'||path==='/youtube-mapping'||path==='/youtube-mapping.html';
+  const isAdminDataPage=isAdminPage||path==='/users'||path==='/users.html'||path==='/announcement'||path==='/announcement.html';
   const isHome=path==='/'||path==='/index.html';
   const isPlayer=path==='/player'||path==='/player.html'||/^\/player-[^/]+\.html$/.test(path);
 
@@ -30,7 +29,7 @@ export async function onRequest(context){
   }
 
   if(isAdminDataPage){
-    const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>',bridge='<script src="/admin-supabase.js?v=20260904-11"></script>';
+    const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>',bridge='<script src="/admin-supabase.js?v=20260904-12"></script>';
     body=body.replace(/<script[^>]+src=["']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^"']*["'][^>]*><\/script>/gi,'');
     body=body.replace(/<script[^>]+src=["'][^"']*\/admin-supabase\.js(?:\?[^"']*)?["'][^>]*><\/script>/gi,'');
     body=body.replace(/<script[^>]+src=["'][^"']*\/admin-login-runtime\.js(?:\?[^"']*)?["'][^>]*><\/script>/gi,'');
