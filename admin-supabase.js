@@ -22,6 +22,22 @@ async function edge(action,payload={}){
   if(!r.ok||out.success===false)throw new Error(out.message||('Server gagal ('+r.status+').'));
   return out;
 }
+async function setUserLoginModeDirect(mode){
+  const c=getClient();
+  const value={mode:String(mode||'open').toLowerCase()==='required'?'required':'open'};
+  const {error}=await c.from('settings').upsert({key:'user_login_mode',value,updated_at:new Date().toISOString()},{onConflict:'key'});
+  if(error)throw error;
+  return {success:true,mode:value.mode};
+}
+async function syncTodayPlayed(){
+  try{
+    const c=getClient();
+    const start=new Date();start.setHours(0,0,0,0);
+    const end=new Date(start);end.setDate(end.getDate()+1);
+    const {count,error}=await c.from('requests').select('id',{count:'exact',head:true}).eq('status','played').gte('played_at',start.toISOString()).lt('played_at',end.toISOString());
+    if(!error&&document.getElementById('played'))document.getElementById('played').textContent=String(count||0);
+  }catch(_){/* keep existing dashboard value if the optional counter query fails */}
+}
 async function loginAdmin(){
   const c=getClient();
   const email=(document.getElementById('adminEmail')?.value||'').trim();
@@ -36,6 +52,7 @@ async function loginAdmin(){
     if(typeof window.show==='function')window.show();
     if(typeof window.load==='function')await window.load(true);
     if(typeof window.loadUserLoginMode==='function')await window.loadUserLoginMode();
+    await syncTodayPlayed();
     return true;
   }catch(e){msg(e?.message||'Login Admin gagal.');return false;}
 }
@@ -49,6 +66,7 @@ function installBridge(){
   const map={data:'data',nowplaying:'nowplaying',getqueueorder:'getqueueorder',reorder:'reorder',checkids:'checkids',youtubecheck:'youtubeCheck',youtubemappings:'youtubemappings',saveyoutubemapping:'saveyoutubemapping',deleteyoutubemapping:'deleteyoutubemapping',announcement:'announcement',saveannouncement:'saveannouncement',clearannouncement:'clearannouncement',userloginmode:'userloginmode',setuserloginmode:'setuserloginmode',updatestatus:'updateStatus',markplayed:'markPlayed',updatestatuses:'updateStatuses',delete:'delete',deletebatch:'deleteBatch',users:'users'};
   async function bridge(url){
     const u=new URL(String(url||''),location.href);const raw=(u.searchParams.get('action')||'').toLowerCase();
+    if(raw==='setuserloginmode')return setUserLoginModeDirect(u.searchParams.get('mode')||'open');
     const action=map[raw];
     if(!action)return original(url);
     const payload={};u.searchParams.forEach((v,k)=>{if(!['action','callback','prefix','_','adminToken','token'].includes(k))payload[k]=v;});
@@ -60,11 +78,12 @@ function bind(){
   const b=document.querySelector('#login button[onclick="login()"]');if(b&&!b.dataset.supabaseBound){b.dataset.supabaseBound='1';b.onclick=e=>{e?.preventDefault();loginAdmin();};}
   const p=document.getElementById('password');if(p&&!p.dataset.supabaseBound){p.dataset.supabaseBound='1';p.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();loginAdmin();}});}
 }
-async function restore(){if(await verifyAdminSession()){window.show?.();try{await window.load?.(true);await window.loadUserLoginMode?.()}catch(e){console.error('[Admin Supabase]',e)}}}
+async function restore(){if(await verifyAdminSession()){window.show?.();try{await window.load?.(true);await window.loadUserLoginMode?.();await syncTodayPlayed()}catch(e){console.error('[Admin Supabase]',e)}}}
 function start(){
   try{getClient()}catch(e){msg(e.message)}
   window.login=loginAdmin;window.verifySession=verifyAdminSession;window.logout=logoutAdmin;window.token=()=>'';
   bind();installBridge();setTimeout(bind,100);setTimeout(installBridge,100);setTimeout(restore,250);
+  setInterval(syncTodayPlayed,15000);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
