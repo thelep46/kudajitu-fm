@@ -17,7 +17,8 @@ export async function onRequest(context){
       const assetUrl=new URL(assetPath,url.origin);
       const headers=new Headers(context.request.headers);
       headers.set('x-kudajitu-internal','1');
-      response=await fetch(new Request(assetUrl,{method:context.request.method,headers,body:['GET','HEAD'].includes(context.request.method)?undefined:context.request.body,redirect:'manual'}));
+      const request=new Request(assetUrl,{method:context.request.method,headers,body:['GET','HEAD'].includes(context.request.method)?undefined:context.request.body,redirect:'manual'});
+      response=await context.env.ASSETS.fetch(request);
     }
   }
   if(!response) response=await context.next();
