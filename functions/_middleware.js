@@ -15,7 +15,7 @@ export async function onRequest(context){
   const isPlayer=path==='/player'||path==='/player.html'||/^\/player-[^/]+\.html$/.test(path);
 
   if(isHome){
-    const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>',bridge='<script src="/supabase-user-bridge.js?v=20260904-9"></script>';
+    const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>',bridge='<script src="/supabase-user-bridge.js?v=20260904-10"></script>';
     body=body.replace(/<script[^>]+src=["']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^"']*["'][^>]*><\/script>/gi,'');
     body=body.replace(/<script[^>]+src=["'](?:\.\/)?supabase-user-bridge\.js(?:\?[^"']*)?["'][^>]*><\/script>/gi,'');
     body=body.replace(/<script[^>]+src=["'](?:\.\/)?realtime-queue-refresh\.js(?:\?[^"']*)?["'][^>]*><\/script>/gi,'');
