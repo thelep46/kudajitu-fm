@@ -1,16 +1,34 @@
 export async function onRequest(context){
-  const response=await context.next();
+  const url=new URL(context.request.url);
+  const path=url.pathname.replace(/\/+$/,'')||'/';
+  const cleanRoutes={
+    '/admin':'/admin.html',
+    '/users':'/users.html',
+    '/announcement':'/announcement.html',
+    '/youtube-mapping':'/youtube-mapping.html',
+    '/player':'/player.html'
+  };
+
+  let response;
+  const assetPath=cleanRoutes[path];
+  if(assetPath && context.env?.ASSETS){
+    const assetUrl=new URL(assetPath,url.origin);
+    response=await context.env.ASSETS.fetch(new Request(assetUrl,context.request));
+  }else{
+    response=await context.next();
+  }
+
   const type=response.headers.get('content-type')||'';
   if(!type.includes('text/html'))return response;
-  const url=new URL(context.request.url);
-  if(url.pathname==='/maintenance.html')return response;
+  if(path==='/maintenance.html')return response;
+
   const text=await response.text();
   let body=text;
-  const path=url.pathname.replace(/\/+$/,'')||'/';
   const isAdminPage=path==='/admin'||path==='/admin.html';
   const isAdminDataPage=isAdminPage||path==='/users'||path==='/users.html'||path==='/announcement'||path==='/announcement.html'||path==='/youtube-mapping'||path==='/youtube-mapping.html';
   const isHome=path==='/'||path==='/index.html';
   const isPlayer=path==='/player'||path==='/player.html'||/^\/player-[^/]+\.html$/.test(path);
+
   if(isHome){
     const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>',bridge='<script src="/supabase-user-bridge.js?v=20260904-9"></script>';
     body=body.replace(/<script[^>]+src=["']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^"']*["'][^>]*><\/script>/gi,'');
@@ -24,6 +42,7 @@ export async function onRequest(context){
     body=body.replace(/src=["'](?:\.\/)?youtube-request-mapping\.js(?:\?[^"']*)?["']/g,'src="/youtube-request-mapping.js?v=20260904-8"');
     body=body.replace(/src=["'](?:\.\/)?announcement\.js(?:\?[^"']*)?["']/g,'src="/announcement.js?v=20260904-5"');
   }
+
   if(isAdminDataPage){
     const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>',bridge='<script src="/admin-supabase.js?v=20260904-11"></script>';
     body=body.replace(/<script[^>]+src=["']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^"']*["'][^>]*><\/script>/gi,'');
@@ -32,13 +51,17 @@ export async function onRequest(context){
     body=body.includes('</head>')?body.replace('</head>',sb+'</head>'):body+sb;
     body=body.includes('</body>')?body.replace('</body>',bridge+'</body>'):body+bridge;
   }
+
   if(isPlayer){
-    const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>',ps='<script src="/player-supabase.js?v=20260904-9"></script>';
+    const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>',ps='<script src="/player-supabase.js?v=20260904-10"></script>';
     body=body.replace(/<script[^>]+src=["']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^"']*["'][^>]*><\/script>/gi,'');
     body=body.includes('</head>')?body.replace('</head>',sb+'</head>'):body+sb;
     body=body.replace(/<script[^>]+src=["'][^"']*\/player-supabase\.js(?:\?[^"']*)?["'][^>]*><\/script>/gi,'');
     body=body.includes('</body>')?body.replace('</body>',ps+'</body>'):body+ps;
   }
-  const headers=new Headers(response.headers);headers.delete('content-length');headers.set('Cache-Control','no-store');
+
+  const headers=new Headers(response.headers);
+  headers.delete('content-length');
+  headers.set('Cache-Control','no-store');
   return new Response(body,{status:response.status,statusText:response.statusText,headers});
 }
