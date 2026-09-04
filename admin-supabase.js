@@ -22,13 +22,6 @@ async function edge(action,payload={}){
   if(!r.ok||out.success===false)throw new Error(out.message||('Server gagal ('+r.status+').'));
   return out;
 }
-async function setUserLoginModeDirect(mode){
-  const c=getClient();
-  const value={mode:String(mode||'open').toLowerCase()==='required'?'required':'open'};
-  const {error}=await c.from('settings').upsert({key:'user_login_mode',value,updated_at:new Date().toISOString()},{onConflict:'key'});
-  if(error)throw error;
-  return {success:true,mode:value.mode};
-}
 async function syncTodayPlayed(){
   try{
     const c=getClient();
@@ -36,7 +29,7 @@ async function syncTodayPlayed(){
     const end=new Date(start);end.setDate(end.getDate()+1);
     const {count,error}=await c.from('requests').select('id',{count:'exact',head:true}).eq('status','played').gte('played_at',start.toISOString()).lt('played_at',end.toISOString());
     if(!error&&document.getElementById('played'))document.getElementById('played').textContent=String(count||0);
-  }catch(_){/* keep existing dashboard value if the optional counter query fails */}
+  }catch(_){/* keep existing dashboard value if optional counter query fails */}
 }
 async function loginAdmin(){
   const c=getClient();
@@ -66,7 +59,6 @@ function installBridge(){
   const map={data:'data',nowplaying:'nowplaying',getqueueorder:'getqueueorder',reorder:'reorder',checkids:'checkids',youtubecheck:'youtubeCheck',youtubemappings:'youtubemappings',saveyoutubemapping:'saveyoutubemapping',deleteyoutubemapping:'deleteyoutubemapping',announcement:'announcement',saveannouncement:'saveannouncement',clearannouncement:'clearannouncement',userloginmode:'userloginmode',setuserloginmode:'setuserloginmode',updatestatus:'updateStatus',markplayed:'markPlayed',updatestatuses:'updateStatuses',delete:'delete',deletebatch:'deleteBatch',users:'users'};
   async function bridge(url){
     const u=new URL(String(url||''),location.href);const raw=(u.searchParams.get('action')||'').toLowerCase();
-    if(raw==='setuserloginmode')return setUserLoginModeDirect(u.searchParams.get('mode')||'open');
     const action=map[raw];
     if(!action)return original(url);
     const payload={};u.searchParams.forEach((v,k)=>{if(!['action','callback','prefix','_','adminToken','token'].includes(k))payload[k]=v;});
