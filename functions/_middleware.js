@@ -9,12 +9,13 @@ export async function onRequest(context){
   const isAdminPage=url.pathname==='/admin.html'||url.pathname.endsWith('/admin.html');
   const isAdminDataPage=isAdminPage||url.pathname.endsWith('/users.html')||url.pathname.endsWith('/announcement.html')||url.pathname.endsWith('/youtube-mapping.html');
   const isHome=url.pathname==='/'||url.pathname==='/index.html';
-  if(isHome||isAdminDataPage||/\/player(?:-[^/]+)?\.html$/.test(url.pathname))body=body.replace(/https:\/\/script\.google\.com\/macros\/s\/[^'\"`\s]+/g,'/api/gas');
+  const isPlayer=/\/player(?:-[^/]+)?\.html$/.test(url.pathname);
+  if(isHome||isAdminDataPage||isPlayer)body=body.replace(/https:\/\/script\.google\.com\/macros\/s\/[^'\"`\s]+/g,'/api/gas');
   if(isHome){
     const supabaseTag='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>';
     const bridgeTag='<script src="/supabase-user-bridge.js?v=20260903-7"></script>';
     body=body.replace(/<script[^>]+src=[\"']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^\"']*[\"'][^>]*><\/script>/gi,'');
-    body=body.includes('</head>')?body.replace('</head>',supabaseTag+'</head>'):body;
+    body=body.includes('</head>')?body.replace('</head>',supabaseTag+'</head>'):body+supabaseTag;
     body=body.replace(/<script[^>]+src=[\"'](?:\.\/)?supabase-user-bridge\.js(?:\?[^\"']*)?[\"'][^>]*><\/script>/gi,'');
     body=body.includes('</body>')?body.replace('</body>',bridgeTag+'</body>'):body+bridgeTag;
     body=body.replace(/loadCache\(\);loadData\(true\);/g,'loadCache();');
@@ -41,9 +42,16 @@ export async function onRequest(context){
     const injection=hasYtMapping?'<script src="/youtube-request-mapping-batch-v2.js?v=20260903-8"></script>':'<script src="/youtube-request-mapping.js?v=20260903-6"></script><script src="/youtube-request-mapping-batch-v2.js?v=20260903-8"></script>';
     body=body.includes('/youtube-request-mapping-batch-v2.js')?body:(body.includes('</body>')?body.replace('</body>',injection+'</body>'):body+injection);
   }
-  if(/\/player(?:-[^/]+)?\.html$/.test(url.pathname)){
-    const injection='<script src="/api-router.js?v=20260829-2"></script>';
-    body=body.includes('</body>')?body.replace('</body>',injection+'</body>'):body+injection;
+  if(isPlayer){
+    const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>';
+    const ps='<script src="/player-supabase.js?v=20260904-1"></script>';
+    body=body.replace(/<script[^>]+src=[\"']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^\"']*[\"'][^>]*><\/script>/gi,'');
+    body=body.includes('</head>')?body.replace('</head>',sb+'</head>'):body+sb;
+    body=body.replace(/maps=cachedMaps\(\);load\(\);ytLoad\(\);/g,'if(window.KUDAJITUPlayerSupabaseBoot){window.KUDAJITUPlayerSupabaseBoot().catch(function(e){console.error(\'[Kudajitu Player]\',e);});}');
+    body=body.replace(/<script[^>]+src=[\"'][^\"']*\/player-supabase\.js(?:\?[^\"']*)?[\"'][^>]*><\/script>/gi,'');
+    body=body.includes('</body>')?body.replace('</body>',ps+'</body>'):body+ps;
+  }else if(url.pathname==='/'||url.pathname.endsWith('.html')){
+    // Keep legacy API router only for pages that still need it; Player has its own Supabase path above.
   }
   const headers=new Headers(response.headers);headers.delete('content-length');
   return new Response(body,{status:response.status,statusText:response.statusText,headers});
