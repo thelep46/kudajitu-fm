@@ -21,3 +21,13 @@ function start(){if(started)return;started=true;installDataFilter();try{getClien
 async function restore(){if(await verifyAdminSession()){window.show?.();installQueueScope();try{await window.load?.(true);await syncRenderedPendingOrder();await window.loadUserLoginMode?.();startRealtimeQueueSync()}catch(e){console.error('[Admin Supabase]',e)}}}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
+
+/* Instant queue movement: update the visible order first, then persist to Supabase. */
+(function(){'use strict';
+function normalizeIds(ids){return ids.map(String)}
+function snapshotPositions(){try{return data.map(r=>({id:String(r.id),queue_position:Number(r.queue_position||0)}))}catch(_){return[]}}
+function restorePositions(snapshot){const map=new Map(snapshot.map(x=>[x.id,x.queue_position]));data=data.map(r=>map.has(String(r.id))?{...r,queue_position:map.get(String(r.id))}:r);render()}
+async function optimisticMove(ids){const list=normalizeIds(ids),before=snapshotPositions();window.__kudajituQueueReordering=true;try{applyLocalQueueOrder(list);const ok=await saveQueueOrder(list);if(!ok)restorePositions(before);return ok}catch(e){restorePositions(before);toast(e?.message||'Gagal menyimpan urutan.',true);return false}finally{setTimeout(()=>{window.__kudajituQueueReordering=false},0)}}
+window.moveQueue=async function(id,d){const rows=pendingRows().slice(),i=rows.findIndex(x=>String(x.id)===String(id)),j=i+d;if(i<0||j<0||j>=rows.length)return;[rows[i],rows[j]]=[rows[j],rows[i]];await optimisticMove(rows.map(x=>x.id))};
+window.moveBlock=async function(ids,targetId){const ordered=pendingRows().slice(),moving=ordered.filter(x=>ids.map(String).includes(String(x.id)));if(!moving.length||ids.map(String).includes(String(targetId)))return;const rest=ordered.filter(x=>!ids.map(String).includes(String(x.id)));let at=rest.findIndex(x=>String(x.id)===String(targetId));if(at<0)at=rest.length;rest.splice(at,0,...moving);const ok=await optimisticMove(rest.map(x=>x.id));if(ok&&typeof clearSelection==='function')clearSelection()};
+})();
