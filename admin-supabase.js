@@ -15,6 +15,39 @@ function getClient(){
   return client;
 }
 function msg(t){const e=document.getElementById('loginMsg');if(e)e.textContent=t||'';}
+function jakartaDay(v){
+  const s=String(v??'').trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
+  const d=new Date(s);
+  if(Number.isNaN(d.getTime()))return '';
+  return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta'}).format(d);
+}
+function wantedDay(range){
+  const d=new Date();
+  if(range==='yesterday')d.setDate(d.getDate()-1);
+  return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta'}).format(d);
+}
+function filterAdminData(out,range){
+  if(range==='all')return out;
+  const rows=Array.isArray(out?.data)?out.data:Array.isArray(out?.rows)?out.rows:Array.isArray(out?.requests)?out.requests:[];
+  const wanted=wantedDay(range);
+  const filtered=rows.filter(x=>{
+    const status=String(x?.status??'pending').toLowerCase();
+    const day=status==='played'
+      ?jakartaDay(x?.playedAt??x?.played_at??x?.played_at_timestamp??x?.timestamp)
+      :jakartaDay(x?.timestamp??x?.createdAt??x?.created_at);
+    return day===wanted;
+  }).map(x=>{
+    const status=String(x?.status??'pending').toLowerCase();
+    if(status==='played'){
+      const requestDay=jakartaDay(x?.timestamp??x?.createdAt??x?.created_at);
+      const playedAt=x?.playedAt??x?.played_at??x?.played_at_timestamp;
+      if(playedAt&&requestDay!==wanted)return {...x,timestamp:playedAt};
+    }
+    return x;
+  });
+  return {...out,data:filtered};
+}
 async function edge(action,payload={}){
   const c=getClient();
   const {data,error}=await c.auth.getSession();
@@ -23,22 +56,6 @@ async function edge(action,payload={}){
   const text=await r.text();let out;try{out=JSON.parse(text)}catch(_){throw new Error('Respons Admin tidak valid.');}
   if(!r.ok||out.success===false)throw new Error(out.message||('Server gagal ('+r.status+').'));
   return out;
-}
-function jakartaDay(v){const d=new Date(v);if(Number.isNaN(d.getTime()))return '';return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta'}).format(d)}
-async function syncTodayPlayedKpi(){
-  const el=document.getElementById('played');
-  if(!el)return;
-  try{
-    const r=await edge('data',{range:'today',status:'played'});
-    const rows=Array.isArray(r?.data)?r.data:Array.isArray(r?.rows)?r.rows:Array.isArray(r?.requests)?r.requests:[];
-    const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta'}).format(new Date());
-    const count=rows.filter(x=>{
-      const status=String(x?.status??'').toLowerCase();
-      if(status!=='played')return false;
-      return jakartaDay(x?.playedAt??x?.played_at??x?.played_at_timestamp??x?.timestamp)===today;
-    }).length;
-    el.textContent=String(count);
-  }catch(e){console.warn('[Admin Today Played]',e?.message||e)}
 }
 async function syncQueue(){
   if(queueSyncBusy||typeof window.load!=='function')return;
@@ -72,7 +89,6 @@ async function loginAdmin(){
     if(typeof window.show==='function')window.show();
     if(typeof window.load==='function')await window.load(true);
     if(typeof window.loadUserLoginMode==='function')await window.loadUserLoginMode();
-    await syncTodayPlayedKpi();
     startRealtimeQueueSync();
     return true;
   }catch(e){msg(e?.message||'Login Admin gagal.');return false;}
@@ -90,30 +106,20 @@ function installBridge(){
     const action=map[raw];
     if(!action)return original(url);
     const payload={};u.searchParams.forEach((v,k)=>{if(!['action','callback','prefix','_','adminToken','token'].includes(k))payload[k]=v;});
-    return edge(action,payload);
+    const out=await edge(action,payload);
+    return action==='data'?filterAdminData(out,payload.range||'today'):out;
   }
   bridge.__kudaSupabaseBridge=true;window.jsonp=bridge;
-}
-function installLoadKpiSync(){
-  if(typeof window.load!=='function'||window.load.__kudaTodayPlayedSync)return;
-  const originalLoad=window.load;
-  async function wrappedLoad(){
-    const result=await originalLoad.apply(this,arguments);
-    await syncTodayPlayedKpi();
-    return result;
-  }
-  wrappedLoad.__kudaTodayPlayedSync=true;
-  window.load=wrappedLoad;
 }
 function bind(){
   const b=document.querySelector('#login button[onclick="login()"]');if(b&&!b.dataset.supabaseBound){b.dataset.supabaseBound='1';b.onclick=e=>{e?.preventDefault();loginAdmin();};}
   const p=document.getElementById('password');if(p&&!p.dataset.supabaseBound){p.dataset.supabaseBound='1';p.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();loginAdmin();}});}
 }
-async function restore(){if(await verifyAdminSession()){window.show?.();try{await window.load?.(true);await window.loadUserLoginMode?.();await syncTodayPlayedKpi();startRealtimeQueueSync()}catch(e){console.error('[Admin Supabase]',e)}}}
+async function restore(){if(await verifyAdminSession()){window.show?.();try{await window.load?.(true);await window.loadUserLoginMode?.();startRealtimeQueueSync()}catch(e){console.error('[Admin Supabase]',e)}}}
 function start(){
   try{getClient()}catch(e){msg(e.message)}
   window.login=loginAdmin;window.verifySession=verifyAdminSession;window.logout=logoutAdmin;window.token=()=>'';
-  bind();installBridge();installLoadKpiSync();setTimeout(bind,100);setTimeout(installBridge,100);setTimeout(installLoadKpiSync,100);setTimeout(restore,250);
+  bind();installBridge();setTimeout(bind,100);setTimeout(installBridge,100);setTimeout(restore,250);
   setInterval(syncQueue,5000);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
