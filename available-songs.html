@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="id" class="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KUDAJITU FM • Lagu Tersedia</title>
+<meta name="description" content="Pilih lagu yang sudah tersedia di KUDAJITU FM dan kirim hingga 20 request sekaligus.">
+<script src="https://cdn.tailwindcss.com"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{font-family:'Plus Jakarta Sans',sans-serif;background:#061114;color:#f3f4f6}.glass{background:rgba(10,24,27,.86);backdrop-filter:blur(14px);border:1px solid rgba(45,212,191,.13)}.field{width:100%;background:#030a0c;border:1px solid #115e59;border-radius:.75rem;padding:.7rem 1rem;color:#fff;outline:0}.field:focus{border-color:#2dd4bf}.btn{padding:.7rem 1rem;border-radius:.75rem;font-size:.75rem;font-weight:800;transition:.15s}.btn:hover{filter:brightness(1.08)}.song{border:1px solid rgba(20,184,166,.12);transition:.15s}.song:hover{border-color:rgba(45,212,191,.4)}.song.selected{border-color:rgba(45,212,191,.7);background:rgba(13,148,136,.12)}.song-check{width:18px;height:18px;accent-color:#14b8a6;flex:0 0 auto}.stickybar{position:sticky;bottom:12px;z-index:20}
+</style>
+<script src="./user-access.js"></script><script src="./user-login-mode.js"></script>
+</head>
+<body class="min-h-screen">
+<header class="sticky top-0 z-30 glass border-b border-teal-900/50 px-4 lg:px-8 py-3"><div class="max-w-5xl mx-auto flex items-center justify-between gap-3"><div><h1 class="font-extrabold text-lg sm:text-xl">KUDAJITU FM</h1><p class="text-[11px] text-gray-400">🎵 Lagu Tersedia</p></div><a href="./" class="btn bg-gray-950 border border-teal-800">← Kembali</a></div></header>
+<main class="max-w-5xl mx-auto px-4 py-6 space-y-5">
+<section class="glass rounded-2xl p-5 sm:p-6"><div><p class="text-[10px] uppercase tracking-widest text-teal-400 font-extrabold">Katalog</p><h2 class="text-xl sm:text-2xl font-extrabold">Pilih Lagu yang Tersedia</h2><p class="text-xs text-gray-500 mt-1">Centang beberapa lagu lalu kirim sekaligus. Maksimal 20 lagu dalam satu pengiriman.</p></div><div class="mt-4"><label class="block text-xs font-semibold uppercase mb-1">Nama Kamu *</label><input id="name" maxlength="50" placeholder="Contoh: Budi" class="field"></div><div class="mt-3 relative"><input id="search" class="field pr-10" placeholder="🔎 Cari judul atau penyanyi..."><span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 text-sm">⌕</span></div><p id="statusText" class="text-[10px] text-gray-500 mt-3">Memuat katalog...</p></section>
+<section class="space-y-2"><div id="list" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div><div id="empty" class="hidden glass rounded-2xl p-10 text-center text-gray-500"><div class="text-3xl mb-2">🎵</div><p class="font-bold">Lagu tidak ditemukan.</p><p class="text-xs mt-1">Coba kata kunci lain.</p></div></section>
+<div class="stickybar"><div class="glass rounded-2xl p-3 flex flex-col sm:flex-row items-center gap-3 shadow-2xl"><div class="text-xs flex-1 text-center sm:text-left"><b><span id="selectedCount">0</span> lagu dipilih</b><span class="text-gray-500"> • Maksimal 20 lagu</span></div><button id="sendBtn" type="button" disabled class="btn w-full sm:w-auto bg-teal-600 text-white">🎵 Kirim 0 Request</button></div></div>
+</main><div id="toast" class="hidden"></div>
+<script src="./available-songs.js?v=20260905-2"></script>
+</body></html>
