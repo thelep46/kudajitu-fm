@@ -4,6 +4,28 @@ let stopped=false;
 function stop(){stopped=true}
 async function refresh(){if(stopped)return false;try{if(window.KUDAJITU_SUPABASE?.load)return await window.KUDAJITU_SUPABASE.load();return false}catch(e){console.warn('[Kudajitu] Supabase queue refresh:',e?.message||e);return false}}
 function now(){const rows=Array.isArray(window.requests)?window.requests:[];let best=null,t=-1;rows.forEach(r=>{if(String(r?.status||'').toLowerCase()!=='played')return;const n=Date.parse(r?.playedAt||r?.timestamp)||0;if(n>=t){t=n;best=r}});const title=document.getElementById('npTitle'),artist=document.getElementById('npArtist'),requester=document.getElementById('npRequester'),stage=document.getElementById('npStage');if(!title||!artist||!requester||!stage)return false;title.textContent=best?.title||'Belum ada lagu diputar';artist.textContent=best?.artist||'Request lagu dan tunggu giliranmu';requester.textContent=best?.requester?'Direquest oleh '+best.requester:'-';stage.classList.toggle('playing',!!best);return !!best}
+function improveBatchField(){
+  const batch=document.getElementById('batch');
+  const form=document.getElementById('batchForm');
+  if(!batch||!form||batch.dataset.uiFixed==='1')return;
+  batch.dataset.uiFixed='1';
+  batch.setAttribute('aria-label','Daftar lagu yang ingin direquest');
+  batch.setAttribute('spellcheck','false');
+  batch.style.minHeight='190px';
+  batch.style.resize='vertical';
+  batch.style.lineHeight='1.65';
+  batch.style.padding='14px 16px';
+  batch.style.fontSize='14px';
+  batch.style.letterSpacing='.01em';
+  batch.placeholder='Masukkan banyak lagu, satu lagu per baris\nContoh:\nHati-Hati di Jalan - Tulus\nSial - Mahalini\nSeparuh Aku - Noah';
+  const old=form.querySelector('p');
+  if(old){old.textContent='Satu lagu per baris • Tidak ada batas jumlah request';old.className='text-[11px] text-gray-400';}
+  let hint=form.querySelector('.batch-hint');
+  if(!hint){hint=document.createElement('div');hint.className='batch-hint text-[10px] text-gray-500 flex items-center justify-between gap-2';hint.innerHTML='<span><i class="fa-solid fa-circle-info text-teal-400 mr-1"></i>Judul - Penyanyi</span><span id="batchCount">0 lagu</span>';form.insertBefore(hint,form.querySelector('button'));}
+  const updateCount=()=>{const n=batch.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).length;const c=document.getElementById('batchCount');if(c)c.textContent=n+' lagu';};
+  batch.addEventListener('input',updateCount);updateCount();
+}
+function init(){improveBatchField()}
 window.KUDAJITURealtimeQueue={refresh,refreshFresh:refresh,refreshNowPlaying:now,stop};
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{if(window.KUDAJITU_SUPABASE?.load)refresh()},{once:true});else if(window.KUDAJITU_SUPABASE?.load)refresh();
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{if(window.KUDAJITU_SUPABASE?.load)refresh();init()},{once:true});else {if(window.KUDAJITU_SUPABASE?.load)refresh();init()}
 })();
