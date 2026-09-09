@@ -1,134 +1,33 @@
-/* Admin runtime: authoritative direct Supabase read + realtime sync. */
-(function(){
-'use strict';
+(function(){'use strict';
+const SUPABASE_URL='https://jdqcvfqysmjreibcaduk.supabase.co',SUPABASE_KEY='sb_publishable_QDcyGfH-3dBNmUYE9pKIkg_uFmRsmOa',FN=SUPABASE_URL+'/functions/v1/kudajitu-admin-v4';
+let client,realtimeChannel=null,syncTimer=0,syncBusy=false,started=false;
+function getClient(){if(client)return client;if(!window.supabase?.createClient)throw Error('Supabase JS belum dimuat.');client=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});window.KUDAJITUAdminDB={client};return client}
+function msg(t){const e=document.getElementById('loginMsg');if(e)e.textContent=t||''}
+function jakartaDay(v){const d=new Date(String(v??''));return Number.isNaN(d.getTime())?'':new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta'}).format(d)}
+function wantedDay(range){const now=new Date();const jakarta=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta'}).format(now);const base=new Date(jakarta+'T00:00:00+07:00');if(range==='yesterday')base.setUTCDate(base.getUTCDate()-1);return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta'}).format(base)}
+function filterAdminData(out){if(!out)return out;const rows=Array.isArray(out.data)?out.data:Array.isArray(out.rows)?out.rows:Array.isArray(out.requests)?out.requests:[];const active=wantedDay('today');const filtered=rows.filter(x=>{const status=String(x?.status??'pending').toLowerCase();if(status!=='pending')return true;return jakartaDay(x?.timestamp??x?.createdAt??x?.created_at)===active});if(Array.isArray(out.data))return {...out,data:filtered};if(Array.isArray(out.rows))return {...out,rows:filtered};if(Array.isArray(out.requests))return {...out,requests:filtered};return out}
+function installDataFilter(){if(window.__kudajituAdminFetchPatched)return;const nativeFetch=window.fetch.bind(window);window.fetch=async function(input,init){const response=await nativeFetch(input,init);try{const url=typeof input==='string'?input:input?.url||'';if(!url.startsWith(FN))return response;const method=String(init?.method||input?.method||'GET').toUpperCase();if(method!=='POST')return response;let body=init?.body;if(!body)return response;const req=typeof body==='string'?JSON.parse(body):null;if(req?.action!=='data')return response;const clone=response.clone();const out=await clone.json();const filtered=filterAdminData(out);const headers=new Headers(response.headers);headers.set('Content-Type','application/json');return new Response(JSON.stringify(filtered),{status:response.status,statusText:response.statusText,headers});}catch(_){return response}};window.__kudajituAdminFetchPatched=true}
+function installQueueScope(){if(window.__kudajituAdminQueueScoped)return;const originalPending=window.pendingRows,originalRender=window.render;if(typeof originalPending!=='function'||typeof originalRender!=='function')return;window.pendingRows=function(){const active=wantedDay('today');return originalPending().filter(x=>jakartaDay(x?.timestamp)===active)};window.render=function(){originalRender();const e=document.getElementById('pending');if(e)e.textContent=window.pendingRows().length;syncRenderedPendingOrder()};window.__kudajituAdminQueueScoped=true}
+async function syncRenderedPendingOrder(){try{if(window.__kudajituQueueReordering)return;const list=document.getElementById('list');if(!list)return;const cards=Array.from(list.querySelectorAll('.queue-row[data-status="pending"]'));if(cards.length<2)return;const result=await edge('getqueueorder');const ids=Array.isArray(result?.order)?result.order.map(String):[];if(!ids.length)return;const rank=new Map(ids.map((id,i)=>[id,i]));cards.sort((a,b)=>{const ar=rank.has(a.dataset.id)?rank.get(a.dataset.id):Number.MAX_SAFE_INTEGER;const br=rank.has(b.dataset.id)?rank.get(b.dataset.id):Number.MAX_SAFE_INTEGER;if(ar!==br)return ar-br;return String(a.dataset.id||'').localeCompare(String(b.dataset.id||''))});const firstNonPending=list.querySelector('.queue-row:not([data-status="pending"])');cards.forEach((card,i)=>{if(firstNonPending)list.insertBefore(card,firstNonPending);else list.appendChild(card);const badge=card.querySelector('[class*="w-8"][class*="h-8"],[class*="w-9"][class*="h-9"]');if(badge)badge.textContent='#'+(i+1)});}catch(e){console.warn('[Admin Canonical Queue]',e?.message||e)}}
+async function edge(action,payload={}){const c=getClient(),s=await c.auth.getSession();if(s.error||!s.data?.session?.access_token)throw Error('LOGIN_REQUIRED');const r=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+s.data.session.access_token},body:JSON.stringify({action,...payload}),cache:'no-store'});const text=await r.text();let out;try{out=JSON.parse(text)}catch(_){throw Error('Respons Admin tidak valid.')}if(!r.ok||out.success===false)throw Error(out.message||('Server gagal ('+r.status+').'));return out}
+function scheduleSync(){clearTimeout(syncTimer);syncTimer=setTimeout(syncQueue,250)}
+async function syncQueue(){if(window.__kudajituQueueReordering)return;if(syncBusy||typeof window.load!=='function')return;const d=document.getElementById('dashboard');if(!d||d.classList.contains('hidden'))return;syncBusy=true;try{await window.load(false);await syncRenderedPendingOrder()}catch(e){console.warn('[Admin Queue Sync]',e?.message||e)}finally{syncBusy=false}}
+function startRealtimeQueueSync(){const c=getClient();if(realtimeChannel)try{c.removeChannel(realtimeChannel)}catch(_){}realtimeChannel=c.channel('admin-request-queue-sync-v6').on('postgres_changes',{event:'*',schema:'public',table:'requests'},scheduleSync).subscribe(s=>{if(s!=='SUBSCRIBED')console.warn('[Admin Queue Realtime]',s)})}
+async function loginAdmin(){const c=getClient(),email=(document.getElementById('adminEmail')?.value||'').trim(),password=document.getElementById('password')?.value||'';if(!email||!password){msg('Email dan password wajib diisi.');return false}try{const {data,error}=await c.auth.signInWithPassword({email,password});if(error)throw error;if(data?.user?.app_metadata?.role!=='admin'){await c.auth.signOut();throw Error('Akun bukan Admin.')}sessionStorage.setItem('kudajitu_admin_supabase','1');msg('');window.show?.();installQueueScope();await window.load?.(true);await syncRenderedPendingOrder();await window.loadUserLoginMode?.();startRealtimeQueueSync();return true}catch(e){msg(e?.message||'Login Admin gagal.');return false}}
+async function verifyAdminSession(){try{const {data}=await getClient().auth.getSession();return !!(data?.session?.user?.app_metadata?.role==='admin')}catch(_){return false}}
+async function logoutAdmin(){try{clearTimeout(syncTimer);if(realtimeChannel){await getClient().removeChannel(realtimeChannel);realtimeChannel=null}await getClient().auth.signOut()}catch(_){}sessionStorage.removeItem('kudajitu_admin_supabase');sessionStorage.removeItem('kudajitu_admin_token');location.reload()}
+function bind(){const b=document.querySelector('#login button[onclick="login()"]');if(b&&!b.dataset.supabaseBound){b.dataset.supabaseBound='1';b.onclick=e=>{e?.preventDefault();loginAdmin()}}const p=document.getElementById('password');if(p&&!p.dataset.supabaseBound){p.dataset.supabaseBound='1';p.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();loginAdmin()}})}}
+function start(){if(started)return;started=true;installDataFilter();try{getClient()}catch(e){msg(e.message)}window.login=loginAdmin;window.verifySession=verifyAdminSession;window.logout=logoutAdmin;window.token=()=>'';bind();setTimeout(bind,100);setTimeout(()=>{installQueueScope();restore()},250)}
+async function restore(){if(await verifyAdminSession()){window.show?.();installQueueScope();try{await window.load?.(true);await syncRenderedPendingOrder();await window.loadUserLoginMode?.();startRealtimeQueueSync()}catch(e){console.error('[Admin Supabase]',e)}}}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+})();
 
-const SUPABASE_URL='https://jdqcvfqysmjreibcaduk.supabase.co';
-const SUPABASE_KEY='sb_publishable_QDcyGfH-3dBNmUYE9pKIkg_uFmRsmOa';
-const ADMIN_FN=SUPABASE_URL+'/functions/v1/kudajitu-admin-v4';
-
-let client=null;
-let realtimeChannel=null;
-let syncTimer=0;
-let syncBusy=false;
-let started=false;
-
-function getClient(){
-  if(client)return client;
-  if(!window.supabase?.createClient)throw new Error('Supabase JS belum dimuat.');
-  if(window.KUDAJITUAdminDB?.client){client=window.KUDAJITUAdminDB.client;return client;}
-  client=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-  window.KUDAJITUAdminDB={client};
-  return client;
-}
-
-async function isAdminSession(){
-  try{
-    const {data,error}=await getClient().auth.getSession();
-    if(error)return false;
-    return data?.session?.user?.app_metadata?.role==='admin';
-  }catch(_){return false;}
-}
-
-async function syncData(){
-  if(typeof window.render!=='function')return;
-  const {data,error}=await getClient()
-    .from('requests')
-    .select('id,requester,title,artist,note,status,timestamp,queue_position,played_at')
-    .order('timestamp',{ascending:true})
-    .order('id',{ascending:true})
-    .limit(5000);
-  if(error)throw new Error(error.message||'Gagal membaca request.');
-  const rows=(data||[]).map(x=>({
-    id:String(x.id),requester:String(x.requester||''),title:String(x.title||''),artist:String(x.artist||''),
-    note:String(x.note||''),status:String(x.status||'pending').toLowerCase()==='played'?'played':'pending',
-    timestamp:x.timestamp||'',queue_position:x.queue_position==null?0:Number(x.queue_position||0),playedAt:x.played_at||''
-  }));
-  window.data=rows;
-  const valid=new Set(rows.map(x=>x.id));
-  if(typeof selected!=='undefined') [...selected].forEach(id=>{if(!valid.has(id))selected.delete(id)});
-  const source=document.getElementById('sourceInfo');
-  if(source)source.textContent='Supabase • '+rows.length+' data';
-  window.render();
-}
-
-function clearRealtime(){
-  try{if(realtimeChannel){getClient().removeChannel(realtimeChannel);realtimeChannel=null;}}catch(_){realtimeChannel=null;}
-}
-
-function scheduleRefresh(){
-  clearTimeout(syncTimer);
-  syncTimer=setTimeout(async()=>{
-    if(syncBusy)return;
-    const dashboard=document.getElementById('dashboard');
-    if(!dashboard||dashboard.classList.contains('hidden'))return;
-    if(!(await isAdminSession()))return;
-    syncBusy=true;
-    try{await syncData();}catch(error){console.warn('[Admin Realtime] refresh:',error?.message||error);}
-    finally{syncBusy=false;}
-  },250);
-}
-
-function startRealtime(){
-  const c=getClient();
-  clearRealtime();
-  realtimeChannel=c.channel('admin-request-queue-sync-authoritative')
-    .on('postgres_changes',{event:'*',schema:'public',table:'requests'},scheduleRefresh)
-    .subscribe(status=>{
-      if(status==='SUBSCRIBED'){scheduleRefresh();return;}
-      if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
-        clearTimeout(syncTimer);
-        clearRealtime();
-        setTimeout(()=>{if(started&&isAdminSession())startRealtime()},1500);
-      }
-    });
-}
-
-function bindAuth(){
-  getClient().auth.onAuthStateChange((_event,session)=>{
-    if(session?.user?.app_metadata?.role==='admin'){
-      startRealtime();
-      scheduleRefresh();
-    }else clearRealtime();
-  });
-}
-
-async function restore(){
-  if(!(await isAdminSession()))return;
-  try{
-    window.show?.();
-    await syncData();
-    startRealtime();
-  }catch(error){console.error('[Admin Supabase]',error?.message||error);}
-}
-
-function installAuthoritativeLoad(){
-  if(window.__kudaAdminAuthoritativeLoad)return;
-  window.load=async function(){
-    const dashboard=document.getElementById('dashboard');
-    if(!dashboard||dashboard.classList.contains('hidden'))return;
-    await syncData();
-  };
-  window.__kudaAdminAuthoritativeLoad=true;
-}
-
-function start(){
-  if(started)return;
-  started=true;
-  window.__kudaAdminSupabase=true;
-  window.KUDAJITUAdminDB=window.KUDAJITUAdminDB||{};
-  try{
-    window.KUDAJITUAdminDB.client=getClient();
-    window.KUDAJITUAdminDB.url=SUPABASE_URL;
-    window.KUDAJITUAdminDB.adminFunction=ADMIN_FN;
-    installAuthoritativeLoad();
-    bindAuth();
-  }catch(error){
-    console.warn('[Admin Supabase] init:',error?.message||error);
-    return;
-  }
-  setTimeout(restore,250);
-}
-
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});
-else start();
+/* Instant queue movement: update the visible order first, then persist to Supabase. */
+(function(){'use strict';
+function normalizeIds(ids){return ids.map(String)}
+function snapshotPositions(){try{return data.map(r=>({id:String(r.id),queue_position:Number(r.queue_position||0)}))}catch(_){return[]}}
+function restorePositions(snapshot){const map=new Map(snapshot.map(x=>[x.id,x.queue_position]));data=data.map(r=>map.has(String(r.id))?{...r,queue_position:map.get(String(r.id))}:r);render()}
+async function optimisticMove(ids){const list=normalizeIds(ids),before=snapshotPositions();window.__kudajituQueueReordering=true;try{applyLocalQueueOrder(list);const ok=await saveQueueOrder(list);if(!ok)restorePositions(before);return ok}catch(e){restorePositions(before);toast(e?.message||'Gagal menyimpan urutan.',true);return false}finally{setTimeout(()=>{window.__kudajituQueueReordering=false},0)}}
+window.moveQueue=async function(id,d){const rows=pendingRows().slice(),i=rows.findIndex(x=>String(x.id)===String(id)),j=i+d;if(i<0||j<0||j>=rows.length)return;[rows[i],rows[j]]=[rows[j],rows[i]];await optimisticMove(rows.map(x=>x.id))};
+window.moveBlock=async function(ids,targetId){const ordered=pendingRows().slice(),moving=ordered.filter(x=>ids.map(String).includes(String(x.id)));if(!moving.length||ids.map(String).includes(String(targetId)))return;const rest=ordered.filter(x=>!ids.map(String).includes(String(x.id)));let at=rest.findIndex(x=>String(x.id)===String(targetId));if(at<0)at=rest.length;rest.splice(at,0,...moving);const ok=await optimisticMove(rest.map(x=>x.id));if(ok&&typeof clearSelection==='function')clearSelection()};
 })();
