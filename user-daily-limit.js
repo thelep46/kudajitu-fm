@@ -8,7 +8,7 @@
     const m=row.querySelector('.text-xs.text-gray-400');
     const hit=m?.textContent?.match(/@(.+)/);
     const username=(hit?.[1]||'').trim().toLowerCase();
-    return (window.users||[]).find(u=>String(u.username||'').toLowerCase()===username);
+    return (typeof users!=='undefined'?users:[]).find(u=>String(u.username||'').toLowerCase()===username);
   }
   function injectStyle(){
     if(document.getElementById('dailyLimitStyle'))return;
@@ -38,17 +38,14 @@
         <button id="dlx" type="button" style="border:1px solid #334155;background:#071719;color:#94a3b8;border-radius:9px;width:32px;height:32px;cursor:pointer">✕</button>
       </div>
       <div style="font-size:10px;color:#64748b;margin-top:16px">Preset cepat</div>
-      <div class="daily-limit-presets">
-        ${[10,15,20,30,50,100,200,0].map(v=>`<button type="button" class="daily-limit-preset ${v===current?'active':''}" data-value="${v}">${v===0?'∞ Unlimited':v}</button>`).join('')}
-      </div>
+      <div class="daily-limit-presets">${[10,15,20,30,50,100,200,0].map(v=>`<button type="button" class="daily-limit-preset ${v===current?'active':''}" data-value="${v}">${v===0?'∞ Unlimited':v}</button>`).join('')}</div>
       <div style="font-size:10px;color:#64748b;margin-bottom:6px">Atau masukkan jumlah sendiri (0 = unlimited)</div>
       <input id="dailyLimitInput" class="daily-limit-input" type="number" min="0" max="100000" step="1" value="${current}" inputmode="numeric" placeholder="Contoh: 25">
       <div id="dailyLimitMsg" style="min-height:18px;font-size:10px;color:#f87171;margin-top:7px"></div>
       <div class="daily-limit-actions"><button id="dailyLimitCancel" type="button" class="daily-limit-cancel">Batal</button><button id="dailyLimitSave" type="button" class="daily-limit-save">Simpan Batas</button></div>
     </div>`;
     document.body.appendChild(m);
-    const input=m.querySelector('#dailyLimitInput');
-    const msg=m.querySelector('#dailyLimitMsg');
+    const input=m.querySelector('#dailyLimitInput'),msg=m.querySelector('#dailyLimitMsg');
     m.querySelector('#dlx').onclick=()=>m.remove();m.querySelector('#dailyLimitCancel').onclick=()=>m.remove();
     m.addEventListener('click',e=>{if(e.target===m)m.remove()});
     m.querySelectorAll('.daily-limit-preset').forEach(b=>b.addEventListener('click',()=>{m.querySelectorAll('.daily-limit-preset').forEach(x=>x.classList.remove('active'));b.classList.add('active');input.value=b.dataset.value}));
@@ -56,13 +53,7 @@
       const limit=Number(input.value);
       if(!Number.isInteger(limit)||limit<0||limit>100000){msg.textContent='Masukkan angka 0 sampai 100000.';return}
       const save=m.querySelector('#dailyLimitSave');save.disabled=true;save.textContent='Menyimpan...';msg.textContent='';
-      try{
-        const r=await window.adminCall('setrequestlimit',{id:u.id,limit});
-        u.dailyRequestLimit=limit;
-        m.remove();
-        window.toast?.(r.message||'Batas harian diperbarui.');
-        window.render();
-      }catch(e){msg.textContent=e?.message||'Gagal menyimpan batas.';save.disabled=false;save.textContent='Simpan Batas'}
+      try{const r=await adminCall('setrequestlimit',{id:u.id,limit});u.dailyRequestLimit=limit;m.remove();toast(r.message||'Batas harian diperbarui.');render()}catch(e){msg.textContent=e?.message||'Gagal menyimpan batas.';save.disabled=false;save.textContent='Simpan Batas'}
     };
     input.focus();input.select();
   }
@@ -72,22 +63,15 @@
     list.querySelectorAll('.row').forEach(row=>{
       if(row.dataset.dailyLimitReady)return;
       const u=userByRow(row);if(!u)return;
+      const actions=row.querySelector('.flex.flex-wrap.gap-2');if(!actions)return;
       row.dataset.dailyLimitReady='1';
-      const actions=row.querySelector('.flex.flex-wrap.gap-2');
-      if(!actions)return;
       const btn=document.createElement('button');btn.type='button';btn.className='daily-limit-btn';btn.textContent='⚙ Atur Batas';btn.title='Atur batas request lagu harian';btn.onclick=()=>openModal(u);actions.appendChild(btn);
-      const wrap=document.createElement('div');wrap.className='daily-limit-wrap';
-      const limit=Number(u.dailyRequestLimit||0);
-      wrap.innerHTML=`<div class="daily-limit-info">Batas request harian: <b>${limit<=0?'Unlimited':limit+' lagu / hari'}</b></div><span style="font-size:9px;color:#475569">Admin</span>`;
-      row.appendChild(wrap);
+      const wrap=document.createElement('div');wrap.className='daily-limit-wrap';const limit=Number(u.dailyRequestLimit||0);wrap.innerHTML=`<div class="daily-limit-info">Batas request harian: <b>${limit<=0?'Unlimited':limit+' lagu / hari'}</b></div><span style="font-size:9px;color:#475569">Admin</span>`;row.appendChild(wrap);
     });
   }
   function patch(){
     if(typeof window.render!=='function'||window.__KUDAJITU_DAILY_LIMIT_RENDER_PATCHED)return;
-    const original=window.render;
-    window.render=function(){const r=original.apply(this,arguments);requestAnimationFrame(decorate);return r};
-    window.__KUDAJITU_DAILY_LIMIT_RENDER_PATCHED=true;
-    requestAnimationFrame(decorate);
+    const original=window.render;window.render=function(){const r=original.apply(this,arguments);requestAnimationFrame(decorate);return r};window.__KUDAJITU_DAILY_LIMIT_RENDER_PATCHED=true;requestAnimationFrame(decorate)
   }
   let tries=0;const timer=setInterval(()=>{patch();if(window.__KUDAJITU_DAILY_LIMIT_RENDER_PATCHED||++tries>80)clearInterval(timer)},100);
 })();
