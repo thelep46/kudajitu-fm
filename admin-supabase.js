@@ -1,4 +1,4 @@
-/* Admin data runtime: read requests from the same Supabase table used by User UI. */
+/* Cloudflare deployment trigger: keep Admin runtime aligned with current main branch. */
 (function(){
 'use strict';
 
@@ -15,15 +15,43 @@ let started=false;
 function getClient(){
   if(client)return client;
   if(!window.supabase?.createClient)throw new Error('Supabase JS belum dimuat.');
-  if(window.KUDAJITUAdminDB?.client){
-    client=window.KUDAJITUAdminDB.client;
-    return client;
-  }
-  client=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
-    auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
-  });
+  if(window.KUDAJITUAdminDB?.client){client=window.KUDAJITUAdminDB.client;return client;}
+  client=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
   window.KUDAJITUAdminDB={client};
   return client;
+}
+
+/* Admin list/counts must use the same canonical requests table as the User page. */
+function installDirectDataLoader(){
+  if(window.__kudaAdminDirectData)return;
+  const originalEdge=window.edge;
+  if(typeof originalEdge!=='function')return;
+  window.edge=async function(action,payload={}){
+    if(action!=='data')return originalEdge(action,payload);
+    const {data,error}=await getClient()
+      .from('requests')
+      .select('id,requester,title,artist,note,status,timestamp,queue_position,played_at')
+      .order('timestamp',{ascending:true})
+      .order('id',{ascending:true})
+      .limit(5000);
+    if(error)throw new Error(error.message||'Gagal membaca request.');
+    return {
+      success:true,
+      data:(data||[]).map(x=>({
+        id:String(x.id),
+        requester:String(x.requester||''),
+        title:String(x.title||''),
+        artist:String(x.artist||''),
+        note:String(x.note||''),
+        status:String(x.status||'pending').toLowerCase()==='played'?'played':'pending',
+        timestamp:x.timestamp||'',
+        queue_position:x.queue_position==null?null:Number(x.queue_position),
+        playedAt:x.played_at||'',
+        votes:1
+      }))
+    };
+  };
+  window.__kudaAdminDirectData=true;
 }
 
 async function isAdminSession(){
@@ -31,80 +59,35 @@ async function isAdminSession(){
     const {data,error}=await getClient().auth.getSession();
     if(error)return false;
     return data?.session?.user?.app_metadata?.role==='admin';
-  }catch(_){
-    return false;
-  }
+  }catch(_){return false;}
 }
 
-async function readRequests(){
-  const {data,error}=await getClient()
-    .from('requests')
-    .select('id,requester,title,artist,note,status,timestamp,queue_position,played_at')
-    .order('timestamp',{ascending:true})
-    .order('id',{ascending:true});
-  if(error)throw error;
-  return (data||[]).map(x=>({
-    id:String(x.id),
-    requester:String(x.requester||''),
-    title:String(x.title||''),
-    artist:String(x.artist||''),
-    note:String(x.note||''),
-    status:String(x.status||'pending').toLowerCase()==='played'?'played':'pending',
-    timestamp:x.timestamp||'',
-    queue_position:x.queue_position==null?0:Number(x.queue_position||0),
-    playedAt:x.played_at||''
-  }));
-}
-
-async function syncData(){
-  if(typeof window.render!=='function')return;
+function clearRealtime(){
   try{
-    const rows=await readRequests();
-    data=rows;
-    const valid=new Set(rows.map(x=>x.id));
-    if(typeof selected!=='undefined'){
-      [...selected].forEach(id=>{if(!valid.has(id))selected.delete(id)});
-    }
-    const source=document.getElementById('sourceInfo');
-    if(source)source.textContent='Supabase • '+rows.length+' data';
-    window.render();
-  }catch(error){
-    console.warn('[Admin Data Sync]',error?.message||error);
-    throw error;
-  }
+    if(realtimeChannel){getClient().removeChannel(realtimeChannel);realtimeChannel=null;}
+  }catch(_){realtimeChannel=null;}
 }
 
 function scheduleRefresh(){
   clearTimeout(syncTimer);
   syncTimer=setTimeout(async()=>{
-    if(syncBusy||typeof window.render!=='function')return;
+    if(syncBusy||typeof window.load!=='function')return;
     const dashboard=document.getElementById('dashboard');
     if(!dashboard||dashboard.classList.contains('hidden'))return;
     if(!(await isAdminSession()))return;
     syncBusy=true;
-    try{await syncData()}catch(_){}
+    try{await window.load(false)}
+    catch(error){console.warn('[Admin Realtime] refresh:',error?.message||error)}
     finally{syncBusy=false;}
   },250);
-}
-
-function clearRealtime(){
-  try{
-    if(realtimeChannel){
-      getClient().removeChannel(realtimeChannel);
-      realtimeChannel=null;
-    }
-  }catch(_){realtimeChannel=null;}
 }
 
 function startRealtime(){
   const c=getClient();
   clearRealtime();
-  realtimeChannel=c
-    .channel('admin-request-queue-sync-v8')
+  realtimeChannel=c.channel('admin-request-queue-sync-v8')
     .on('postgres_changes',{event:'*',schema:'public',table:'requests'},scheduleRefresh)
-    .subscribe(status=>{
-      if(status!=='SUBSCRIBED')console.warn('[Admin Realtime]',status);
-    });
+    .subscribe(status=>{if(status!=='SUBSCRIBED')console.warn('[Admin Realtime]',status)});
 }
 
 function bindAuth(){
@@ -120,11 +103,9 @@ async function restore(){
   if(!(await isAdminSession()))return;
   try{
     window.show?.();
-    await syncData();
+    if(typeof window.load==='function')await window.load(true);
     startRealtime();
-  }catch(error){
-    console.error('[Admin Supabase]',error?.message||error);
-  }
+  }catch(error){console.error('[Admin Supabase]',error?.message||error)}
 }
 
 function start(){
@@ -136,12 +117,7 @@ function start(){
     window.KUDAJITUAdminDB.client=getClient();
     window.KUDAJITUAdminDB.url=SUPABASE_URL;
     window.KUDAJITUAdminDB.adminFunction=ADMIN_FN;
-    /* Replace only the read path. Mutations remain on the existing Edge Function. */
-    window.load=async function(){
-      const dashboard=document.getElementById('dashboard');
-      if(!dashboard||dashboard.classList.contains('hidden'))return;
-      await syncData();
-    };
+    installDirectDataLoader();
     bindAuth();
   }catch(error){
     console.warn('[Admin Supabase] init:',error?.message||error);
