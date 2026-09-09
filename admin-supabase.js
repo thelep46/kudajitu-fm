@@ -1,4 +1,4 @@
-/* Cloudflare deployment trigger: keep Admin runtime aligned with current main branch. */
+/* Admin runtime: authoritative direct Supabase read + realtime sync. */
 (function(){
 'use strict';
 
@@ -21,39 +21,6 @@ function getClient(){
   return client;
 }
 
-/* Admin list/counts must use the same canonical requests table as the User page. */
-function installDirectDataLoader(){
-  if(window.__kudaAdminDirectData)return;
-  const originalEdge=window.edge;
-  if(typeof originalEdge!=='function')return;
-  window.edge=async function(action,payload={}){
-    if(action!=='data')return originalEdge(action,payload);
-    const {data,error}=await getClient()
-      .from('requests')
-      .select('id,requester,title,artist,note,status,timestamp,queue_position,played_at')
-      .order('timestamp',{ascending:true})
-      .order('id',{ascending:true})
-      .limit(5000);
-    if(error)throw new Error(error.message||'Gagal membaca request.');
-    return {
-      success:true,
-      data:(data||[]).map(x=>({
-        id:String(x.id),
-        requester:String(x.requester||''),
-        title:String(x.title||''),
-        artist:String(x.artist||''),
-        note:String(x.note||''),
-        status:String(x.status||'pending').toLowerCase()==='played'?'played':'pending',
-        timestamp:x.timestamp||'',
-        queue_position:x.queue_position==null?null:Number(x.queue_position),
-        playedAt:x.played_at||'',
-        votes:1
-      }))
-    };
-  };
-  window.__kudaAdminDirectData=true;
-}
-
 async function isAdminSession(){
   try{
     const {data,error}=await getClient().auth.getSession();
@@ -62,22 +29,41 @@ async function isAdminSession(){
   }catch(_){return false;}
 }
 
+async function syncData(){
+  if(typeof window.render!=='function')return;
+  const {data,error}=await getClient()
+    .from('requests')
+    .select('id,requester,title,artist,note,status,timestamp,queue_position,played_at')
+    .order('timestamp',{ascending:true})
+    .order('id',{ascending:true})
+    .limit(5000);
+  if(error)throw new Error(error.message||'Gagal membaca request.');
+  const rows=(data||[]).map(x=>({
+    id:String(x.id),requester:String(x.requester||''),title:String(x.title||''),artist:String(x.artist||''),
+    note:String(x.note||''),status:String(x.status||'pending').toLowerCase()==='played'?'played':'pending',
+    timestamp:x.timestamp||'',queue_position:x.queue_position==null?0:Number(x.queue_position||0),playedAt:x.played_at||''
+  }));
+  window.data=rows;
+  const valid=new Set(rows.map(x=>x.id));
+  if(typeof selected!=='undefined') [...selected].forEach(id=>{if(!valid.has(id))selected.delete(id)});
+  const source=document.getElementById('sourceInfo');
+  if(source)source.textContent='Supabase • '+rows.length+' data';
+  window.render();
+}
+
 function clearRealtime(){
-  try{
-    if(realtimeChannel){getClient().removeChannel(realtimeChannel);realtimeChannel=null;}
-  }catch(_){realtimeChannel=null;}
+  try{if(realtimeChannel){getClient().removeChannel(realtimeChannel);realtimeChannel=null;}}catch(_){realtimeChannel=null;}
 }
 
 function scheduleRefresh(){
   clearTimeout(syncTimer);
   syncTimer=setTimeout(async()=>{
-    if(syncBusy||typeof window.load!=='function')return;
+    if(syncBusy)return;
     const dashboard=document.getElementById('dashboard');
     if(!dashboard||dashboard.classList.contains('hidden'))return;
     if(!(await isAdminSession()))return;
     syncBusy=true;
-    try{await window.load(false)}
-    catch(error){console.warn('[Admin Realtime] refresh:',error?.message||error)}
+    try{await syncData();}catch(error){console.warn('[Admin Realtime] refresh:',error?.message||error);}
     finally{syncBusy=false;}
   },250);
 }
@@ -85,9 +71,16 @@ function scheduleRefresh(){
 function startRealtime(){
   const c=getClient();
   clearRealtime();
-  realtimeChannel=c.channel('admin-request-queue-sync-v8')
+  realtimeChannel=c.channel('admin-request-queue-sync-authoritative')
     .on('postgres_changes',{event:'*',schema:'public',table:'requests'},scheduleRefresh)
-    .subscribe(status=>{if(status!=='SUBSCRIBED')console.warn('[Admin Realtime]',status)});
+    .subscribe(status=>{
+      if(status==='SUBSCRIBED'){scheduleRefresh();return;}
+      if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
+        clearTimeout(syncTimer);
+        clearRealtime();
+        setTimeout(()=>{if(started&&isAdminSession())startRealtime()},1500);
+      }
+    });
 }
 
 function bindAuth(){
@@ -103,9 +96,19 @@ async function restore(){
   if(!(await isAdminSession()))return;
   try{
     window.show?.();
-    if(typeof window.load==='function')await window.load(true);
+    await syncData();
     startRealtime();
-  }catch(error){console.error('[Admin Supabase]',error?.message||error)}
+  }catch(error){console.error('[Admin Supabase]',error?.message||error);}
+}
+
+function installAuthoritativeLoad(){
+  if(window.__kudaAdminAuthoritativeLoad)return;
+  window.load=async function(){
+    const dashboard=document.getElementById('dashboard');
+    if(!dashboard||dashboard.classList.contains('hidden'))return;
+    await syncData();
+  };
+  window.__kudaAdminAuthoritativeLoad=true;
 }
 
 function start(){
@@ -117,7 +120,7 @@ function start(){
     window.KUDAJITUAdminDB.client=getClient();
     window.KUDAJITUAdminDB.url=SUPABASE_URL;
     window.KUDAJITUAdminDB.adminFunction=ADMIN_FN;
-    installDirectDataLoader();
+    installAuthoritativeLoad();
     bindAuth();
   }catch(error){
     console.warn('[Admin Supabase] init:',error?.message||error);
