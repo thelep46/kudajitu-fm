@@ -15,12 +15,12 @@ export async function onRequest(context){
   const isPlayer=path==='/player'||path==='/player.html'||/^\/player-[^/]+\.html$/.test(path);
 
   if(isHome){
-    const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>',bridge='<script src="/supabase-user-bridge.js?v=20260904-10"></script>';
+    const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>',bridge='<script src="/supabase-user-bridge.js?v=20260904-10"></script>',limit='<script src="/daily-limit-popup.js?v=20260909-1"></script>';
     body=body.replace(/<script[^>]+src=["']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^"']*["'][^>]*><\/script>/gi,'');
     body=body.replace(/<script[^>]+src=["'](?:\.\/)?supabase-user-bridge\.js(?:\?[^"']*)?["'][^>]*><\/script>/gi,'');
     body=body.replace(/<script[^>]+src=["'](?:\.\/)?realtime-queue-refresh\.js(?:\?[^"']*)?["'][^>]*><\/script>/gi,'');
     body=body.includes('</head>')?body.replace('</head>',sb+bridge+'</head>'):sb+bridge+body;
-    body=body.includes('</body>')?body.replace('</body>','<script src="/realtime-queue-refresh.js?v=20260904-9"></script></body>'):body+'<script src="/realtime-queue-refresh.js?v=20260904-9"></script>';
+    body=body.includes('</body>')?body.replace('</body>','<script src="/realtime-queue-refresh.js?v=20260904-9"></script>'+limit+'</body>'):body+'<script src="/realtime-queue-refresh.js?v=20260904-9"></script>'+limit;
     body=body.replace(/loadCache\(\);\s*loadData\(true\);/g,'loadCache();');
     body=body.replace(/src=["'](?:\.\/)?user-login-mode\.js(?:\?[^"']*)?["']/g,'src="/user-login-mode.js?v=20260904-6"');
     body=body.replace(/src=["'](?:\.\/)?user-access\.js(?:\?[^"']*)?["']/g,'src="/user-access.js?v=20260904-10"');
