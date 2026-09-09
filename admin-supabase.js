@@ -1,3 +1,4 @@
+/* Cloudflare deployment trigger: keep Admin runtime aligned with current main branch. */
 (function(){
 'use strict';
 
@@ -71,9 +72,7 @@ function startRealtime(){
     .channel('admin-request-queue-sync-v7')
     .on('postgres_changes',{event:'*',schema:'public',table:'requests'},scheduleRefresh)
     .subscribe(status=>{
-      if(status!=='SUBSCRIBED'){
-        console.warn('[Admin Realtime]',status);
-      }
+      if(status!=='SUBSCRIBED')console.warn('[Admin Realtime]',status);
     });
 }
 
