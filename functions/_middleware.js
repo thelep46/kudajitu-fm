@@ -1,20 +1,41 @@
 export async function onRequest(context){
   const url=new URL(context.request.url);
   const path=url.pathname.replace(/\/+$/,'')||'/';
+  const SUPABASE_URL='https://jdqcvfqysmjreibcaduk.supabase.co';
+  const SUPABASE_KEY='sb_publishable_QDcyGfH-3dBNmUYE9pKIkg_uFmRsmOa';
+  const MAINTENANCE_ENDPOINT=SUPABASE_URL+'/rest/v1/site_settings?select=value&key=eq.maintenance&limit=1';
+
+  const isAdminPage=path==='/admin'||path==='/admin.html';
+  const isAdminArea=isAdminPage||path==='/users'||path==='/users.html'||path==='/announcement'||path==='/announcement.html'||path==='/youtube-mapping'||path==='/youtube-mapping.html';
+  const isPlayer=path==='/player'||path==='/player.html'||/^\/player-[^/]+\.html$/.test(path);
+  const isMaintenancePage=path==='/maintenance'||path==='/maintenance.html';
+  const isPageRequest=path==='/'||path.endsWith('.html')||!path.includes('.');
+
+  if(isPageRequest&&!isAdminArea&&!isPlayer&&!isMaintenancePage){
+    try{
+      const response=await fetch(MAINTENANCE_ENDPOINT,{headers:{apikey:SUPABASE_KEY,Accept:'application/json'},cache:'no-store'});
+      if(response.ok){
+        const rows=await response.json();
+        const value=rows?.[0]?.value||{};
+        if(value.enabled===true){
+          const target=new URL('/maintenance.html',url.origin);
+          return Response.redirect(target.toString(),302);
+        }
+      }
+    }catch(_){
+      // Fail open: a settings/API outage must not take the public site offline.
+    }
+  }
 
   let response=await context.next();
   const type=response.headers.get('content-type')||'';
   if(!type.includes('text/html'))return response;
-  if(path==='/maintenance.html')return response;
+  if(isMaintenancePage)return response;
 
   const text=await response.text();
   let body=text;
-  const isAdminPage=path==='/admin'||path==='/admin.html';
-  const isAdminDataPage=isAdminPage||path==='/users'||path==='/users.html'||path==='/announcement'||path==='/announcement.html';
-  const isHome=path==='/'||path==='/index.html';
-  const isPlayer=path==='/player'||path==='/player.html'||/^\/player-[^/]+\.html$/.test(path);
 
-  if(isHome){
+  if(isHome(path)){
     const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>',bridge='<script src="/supabase-user-bridge.js?v=20260904-10"></script>',limit='<script src="/daily-limit-popup.js?v=20260909-1"></script>';
     body=body.replace(/<script[^>]+src=["']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^"']*["'][^>]*><\/script>/gi,'');
     body=body.replace(/<script[^>]+src=["'](?:\.\/)?supabase-user-bridge\.js(?:\?[^"']*)?["'][^>]*><\/script>/gi,'');
@@ -29,17 +50,18 @@ export async function onRequest(context){
     body=body.replace(/Maksimal 3 lagu aktif per nama\.?/gi,'Tidak ada batas jumlah request lagu.');
   }
 
-  if(isAdminDataPage){
-    const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase\/supabase-js@2"></script>',bridge='<script src="/admin-supabase.js?v=20260904-12"></script>';
+  if(isAdminArea){
+    const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase\/supabase-js@2"></script>',bridge='<script src="/admin-supabase.js?v=20260904-12"></script>',maint='<script src="/maintenance-admin.js?v=20260910-1"></script>';
     body=body.replace(/<script[^>]+src=["']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^"']*["'][^>]*><\/script>/gi,'');
     body=body.replace(/<script[^>]+src=["'][^"']*\/admin-supabase\.js(?:\?[^"']*)?["'][^>]*><\/script>/gi,'');
     body=body.replace(/<script[^>]+src=["'][^"']*\/admin-login-runtime\.js(?:\?[^"']*)?["'][^>]*><\/script>/gi,'');
+    body=body.replace(/<script[^>]+src=["'][^"']*\/maintenance-admin\.js(?:\?[^"']*)?["'][^>]*><\/script>/gi,'');
     body=body.includes('</head>')?body.replace('</head>',sb+'</head>'):body+sb;
-    body=body.includes('</body>')?body.replace('</body>',bridge+'</body>'):body+bridge;
+    body=body.includes('</body>')?body.replace('</body>',bridge+maint+'</body>'):body+bridge+maint;
   }
 
   if(isPlayer){
-    const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>',ps='<script src="/player-supabase.js?v=20260904-10"></script>';
+    const sb='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>',ps='<script src="/player-supabase.js?v=20260910-1"></script>';
     body=body.replace(/<script[^>]+src=["']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^"']*["'][^>]*><\/script>/gi,'');
     body=body.includes('</head>')?body.replace('</head>',sb+'</head>'):body+sb;
     body=body.replace(/<script[^>]+src=["'][^"']*\/player-supabase\.js(?:\?[^"']*)?["'][^>]*><\/script>/gi,'');
@@ -57,3 +79,5 @@ export async function onRequest(context){
   outHeaders.set('Cache-Control','no-store');
   return new Response(body,{status:response.status,statusText:response.statusText,headers:outHeaders});
 }
+
+function isHome(path){return path==='/'||path==='/index.html';}
