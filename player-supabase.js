@@ -48,6 +48,14 @@
     return {start:start.toISOString(),end:new Date(start.getTime()+86400000).toISOString()};
   }
 
+  function isTodayRow(row){
+    const ts=Date.parse(row?.timestamp||'');
+    if(!Number.isFinite(ts))return false;
+    const {start,end}=todayBounds();
+    const a=Date.parse(start),b=Date.parse(end);
+    return ts>=a&&ts<b;
+  }
+
   async function loadQueue(){
     const {start,end}=todayBounds();
     const {data,error}=await db.from('requests').select('id,requester,title,artist,note,status,timestamp,queue_position,played_at')
@@ -68,7 +76,7 @@
   function saveSession(){try{
     sessionStorage.setItem('kudajitu_player_current',current?JSON.stringify({id:current.id,requester:current.requester,title:current.title,artist:current.artist,note:current.note,status:'played'}):'');
     sessionStorage.setItem('kudajitu_player_history',JSON.stringify(history.slice(-20)));
-  }catch(_){}}
+  }catch(_){} }
 
   function restoreSession(){try{
     const c=JSON.parse(sessionStorage.getItem('kudajitu_player_current')||'null');
@@ -142,11 +150,25 @@
 
   function handleRealtime(payload){
     const type=payload.eventType,row=payload.new,old=payload.old,id=String(row?.id||old?.id||'');
-    if(type==='INSERT'&&row?.status==='pending'){queueRows=sortQueue([...queueRows,row]);renderQueue();updateButtons();return;}
+    const rowIsToday=isTodayRow(row);
+    if(type==='INSERT'){
+      if(row?.status==='pending'&&rowIsToday){
+        queueRows=sortQueue([...queueRows,row]);renderQueue();updateButtons();
+      }
+      return;
+    }
     if(type==='DELETE'){queueRows=queueRows.filter(x=>String(x.id)!==id);renderQueue();updateButtons();return;}
     if(type==='UPDATE'){
-      if(row?.status==='pending'){const exists=queueRows.some(x=>String(x.id)===id);queueRows=sortQueue(exists?queueRows.map(x=>String(x.id)===id?row:x):[...queueRows,row]);renderQueue();updateButtons();return;}
-      if(row?.status==='played'){queueRows=queueRows.filter(x=>String(x.id)!==id);renderQueue();updateButtons();if(!current||String(current.id)!==id){const v=videoId(row.note)||mapsCache?.get(key(row.title,row.artist))||'';if(v&&!started)playVideo(row,v,true);}}
+      if(row?.status==='pending'){
+        if(!rowIsToday){
+          queueRows=queueRows.filter(x=>String(x.id)!==id);
+          renderQueue();updateButtons();return;
+        }
+        const exists=queueRows.some(x=>String(x.id)===id);queueRows=sortQueue(exists?queueRows.map(x=>String(x.id)===id?row:x):[...queueRows,row]);renderQueue();updateButtons();return;
+      }
+      if(row?.status==='played'){
+        queueRows=queueRows.filter(x=>String(x.id)!==id);renderQueue();updateButtons();if(rowIsToday&&(!current||String(current.id)!==id)){const v=videoId(row.note)||mapsCache?.get(key(row.title,row.artist))||'';if(v&&!started)playVideo(row,v,true);}
+      }
     }
   }
 
