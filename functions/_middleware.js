@@ -65,7 +65,7 @@ export async function onRequest(context){
     body=body.includes('</head>')?body.replace('</head>',sb+'</head>'):body+sb;
     body=body.includes('</body>')?body.replace('</body>',bridge+maint+'</body>'):body+bridge+maint;
     if(path==='/youtube-mapping'||path==='/youtube-mapping.html'){
-      const ymfix='<script src="/youtube-mapping-fix.js?v=20260912-1"></script>';
+      const ymfix='<script src="/youtube-mapping-fix.js?v=20260912-2"></script>';
       body=body.includes('</body>')?body.replace('</body>',ymfix+'</body>'):body+ymfix;
     }
   }
